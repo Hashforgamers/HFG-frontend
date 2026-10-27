@@ -38,8 +38,8 @@ class HashStoreAppBar extends StatelessWidget {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  const Color(0xFFFFFFFF).withOpacity(0.1),
-                  const Color(0xFF7A44C0).withOpacity(0.2),
+                  const Color(0xFF050506),
+                  const Color(0xFF7A44C0).withValues(alpha: 0.09),
                 ],
               ),
               borderRadius: BorderRadius.circular(25),
@@ -72,7 +72,7 @@ class HashStoreAppBar extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Hey, ${userController.user.value.gameUserName}!',
+                'HASH SHOP',
                 style: GoogleFonts.orbitron(
                   color: Colors.white,
                   fontSize: 13,
@@ -83,7 +83,9 @@ class HashStoreAppBar extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                '${userController.user.value.contact?.physicalAddress?.addressLine1}',
+                (userController.user.value.gameUserName ?? '').isNotEmpty
+                    ? 'Hey, ${userController.user.value.gameUserName}'
+                    : 'Gear up. Game on.',
                 style: GoogleFonts.inter(
                   color: const Color(0xFFB6B6B6),
                   fontSize: 11.5,

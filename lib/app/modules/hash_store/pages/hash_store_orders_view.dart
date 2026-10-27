@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hash/app/modules/hash_store/widgets/store_page_intro.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hash/app/modules/hash_store/cubit/hash_store_orders_cubit.dart';
 import 'package:hash/app/modules/hash_store/pages/hash_store_order_page.dart';
@@ -28,7 +29,14 @@ class HashStoreOrdersView extends StatelessWidget {
                 ),
                 slivers: [
                   const HashStoreAppBar(),
-                  const StoreTabTitle('Your Orders'),
+                  const SliverToBoxAdapter(
+                    child: StorePageIntro(
+                      eyebrow: 'Your orders',
+                      title: 'Every order. One place.',
+                      subtitle:
+                          'Follow your purchases, delivery and completion details.',
+                    ),
+                  ),
                   if (state is HashStoreOrdersLoaded && state.orders.isNotEmpty)
                     SliverPadding(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
@@ -128,7 +136,10 @@ class _OrderCard extends StatelessWidget {
         padding: const EdgeInsets.all(14),
         child: Column(
           children: [
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 Text(
                   'Order #${order['display_id'] ?? ''}',
@@ -139,7 +150,6 @@ class _OrderCard extends StatelessWidget {
                   storeDate(order['created_at'], 'd MMM, h:mm a'),
                   style: storeBody(size: 12, color: StoreColors.muted),
                 ),
-                const Spacer(),
                 StoreStatusChip(status, color: color),
               ],
             ),

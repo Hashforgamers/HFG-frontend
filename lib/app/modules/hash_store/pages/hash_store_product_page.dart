@@ -151,7 +151,7 @@ class _HashStoreProductPageState extends State<HashStoreProductPage> {
                           ],
                         ),
                         const SizedBox(height: 16),
-                        Text('${p['title'] ?? ''}', style: storeDisplay(26)),
+                        Text('${p['title'] ?? ''}', style: storeTitle(28)),
                         const SizedBox(height: 10),
                         Row(
                           children: [
@@ -161,9 +161,11 @@ class _HashStoreProductPageState extends State<HashStoreProductPage> {
                               color: StoreColors.muted,
                             ),
                             const SizedBox(width: 6),
-                            Text(
-                              '${p['vendor_name'] ?? 'Hash partner'}',
-                              style: storeBody(color: StoreColors.muted),
+                            Expanded(
+                              child: Text(
+                                '${p['vendor_name'] ?? 'Hash partner'}',
+                                style: storeBody(color: StoreColors.muted),
+                              ),
                             ),
                           ],
                         ),
@@ -194,7 +196,8 @@ class _HashStoreProductPageState extends State<HashStoreProductPage> {
                                 const _Step(
                                   icon: Icons.shopping_bag_outlined,
                                   title: 'Order in the app',
-                                  body: 'Checkout takes under a minute.',
+                                  body:
+                                      'Review your cart, delivery and payment options.',
                                 ),
                                 _Step(
                                   icon: isService
@@ -274,7 +277,61 @@ class _HashStoreProductPageState extends State<HashStoreProductPage> {
                           p,
                           quantity: _qty,
                         );
-                        if (added && context.mounted) Navigator.pop(context);
+                        if (!added || !context.mounted) return;
+                        final viewCart = await showModalBottomSheet<bool>(
+                          context: context,
+                          backgroundColor: StoreColors.surface,
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.vertical(
+                              top: Radius.circular(28),
+                            ),
+                          ),
+                          builder: (sheetContext) => SafeArea(
+                            child: Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  const Icon(
+                                    Icons.check_circle_outline_rounded,
+                                    color: StoreColors.greenSoft,
+                                    size: 40,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'Added to your bag',
+                                    textAlign: TextAlign.center,
+                                    style: storeTitle(22),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    '${p['title']} · Qty $_qty',
+                                    textAlign: TextAlign.center,
+                                    style: storeBody(color: StoreColors.muted),
+                                  ),
+                                  const SizedBox(height: 24),
+                                  StoreButton(
+                                    label: 'View cart',
+                                    icon: Icons.shopping_bag_outlined,
+                                    onTap: () =>
+                                        Navigator.pop(sheetContext, true),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  StoreButton(
+                                    label: 'Keep exploring',
+                                    filled: false,
+                                    onTap: () =>
+                                        Navigator.pop(sheetContext, false),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                        if (viewCart == true && context.mounted) {
+                          openShopTab(context, 2);
+                        }
                       },
               ),
             ),

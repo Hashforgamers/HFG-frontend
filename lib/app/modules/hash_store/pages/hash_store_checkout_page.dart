@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hash/app/modules/hash_store/cubit/hash_store_cart_cubit.dart';
@@ -57,6 +58,7 @@ class _HashStoreCheckoutPageState extends State<HashStoreCheckoutPage> {
   String? _providerId;
   bool _saving = false;
   bool _placing = false;
+  String? _checkoutError;
 
   bool get _ready => _options != null;
 
@@ -101,7 +103,10 @@ class _HashStoreCheckoutPageState extends State<HashStoreCheckoutPage> {
   Future<void> _saveAddress() async {
     if (!_form.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
-    setState(() => _saving = true);
+    setState(() {
+      _saving = true;
+      _checkoutError = null;
+    });
     try {
       final id = _cart['id'] as String;
       final cart = await _store.updateCart(
@@ -126,6 +131,7 @@ class _HashStoreCheckoutPageState extends State<HashStoreCheckoutPage> {
             ids.where(_supported).firstOrNull;
       });
     } catch (e) {
+      if (mounted) setState(() => _checkoutError = e.toString());
       storeToast(e.toString(), error: true);
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -146,14 +152,24 @@ class _HashStoreCheckoutPageState extends State<HashStoreCheckoutPage> {
   }
 
   Future<void> _placeOrder() async {
-    setState(() => _placing = true);
+    if (_placing) return;
+    if (kDebugMode) debugPrint('[HashStoreCheckout] Place order tapped');
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _placing = true;
+      _checkoutError = null;
+    });
+    var paymentSetup = true;
     final cubit = context.read<HashStoreCartCubit>();
     try {
       final id = _cart['id'] as String;
       final cart = await _store.selectShipping(id, _optionId!);
+      if (kDebugMode) debugPrint('[HashStoreCheckout] Shipping selected');
       cubit.replace(cart);
       setState(() => _cart = cart);
       final collection = await _store.startPayment(cart, _providerId!);
+      if (kDebugMode) debugPrint('[HashStoreCheckout] Payment session ready');
+      paymentSetup = false;
       if (isRazorpayProvider(_providerId)) {
         final options = razorpayOptions(
           collection,
@@ -167,8 +183,16 @@ class _HashStoreCheckoutPageState extends State<HashStoreCheckoutPage> {
           );
         }
         await payWithRazorpay(options);
+        if (kDebugMode) {
+          debugPrint('[HashStoreCheckout] Razorpay success callback');
+        }
       }
       final order = await _store.completeCart(id);
+      if (kDebugMode) {
+        debugPrint(
+          '[HashStoreCheckout] Backend confirmed order ${order['id']}',
+        );
+      }
       cubit.replace(null);
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
@@ -181,6 +205,19 @@ class _HashStoreCheckoutPageState extends State<HashStoreCheckoutPage> {
       );
     } catch (e) {
       // The cart is kept so the shopper can retry.
+      if (mounted) {
+        setState(() {
+          _checkoutError =
+              paymentSetup && e is StoreException && (e.statusCode ?? 0) >= 500
+              ? 'Could not start payment. Please try again later. Your cart is saved.'
+              : e.toString();
+        });
+      }
+      if (kDebugMode) {
+        debugPrint(
+          '[HashStoreCheckout] Failed: ${e.runtimeType}${e is StoreException ? ' status=${e.statusCode}' : ''}',
+        );
+      }
       storeToast(e.toString(), error: true);
     } finally {
       if (mounted) setState(() => _placing = false);
@@ -189,41 +226,84 @@ class _HashStoreCheckoutPageState extends State<HashStoreCheckoutPage> {
 
   @override
   Widget build(BuildContext context) {
+    final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
     final items = (_cart['items'] as List? ?? [])
         .map((i) => Map<String, dynamic>.from(i as Map))
         .toList();
     return Scaffold(
       backgroundColor: StoreColors.bg,
-      bottomNavigationBar: StoreBottomBar(
-        child: _ready
-            ? Row(
-                children: [
-                  StoreTotalLabel(amount: _cart['total']),
-                  const SizedBox(width: 20),
-                  Expanded(
-                    child: StoreButton(
-                      label: 'Place order',
-                      icon: Icons.lock_rounded,
-                      loading: _placing,
-                      onTap: _optionId == null || _providerId == null || _saving
-                          ? null
-                          : _placeOrder,
+      bottomSheet: keyboardVisible
+          ? Material(
+              color: StoreColors.bg,
+              child: SizedBox(
+                height: 48,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton.icon(
+                      onPressed: () => FocusScope.of(context).unfocus(),
+                      icon: const Icon(Icons.keyboard_hide_rounded),
+                      label: const Text('Done'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: StoreColors.green,
+                      ),
                     ),
-                  ),
-                ],
-              )
-            : StoreButton(
-                label: 'Continue to delivery',
-                icon: Icons.arrow_forward_rounded,
-                loading: _saving,
-                onTap: _saveAddress,
+                    const SizedBox(width: 8),
+                  ],
+                ),
               ),
+            )
+          : null,
+      bottomNavigationBar: StoreBottomBar(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (_checkoutError != null) ...[
+              Semantics(
+                liveRegion: true,
+                child: Text(
+                  _checkoutError!,
+                  style: storeBody(color: StoreColors.danger),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+            _ready
+                ? Row(
+                    children: [
+                      StoreTotalLabel(amount: _cart['total']),
+                      const SizedBox(width: 20),
+                      Expanded(
+                        child: StoreButton(
+                          label: 'Place order',
+                          icon: Icons.lock_rounded,
+                          loading: _placing,
+                          onTap:
+                              _optionId == null ||
+                                  _providerId == null ||
+                                  _saving
+                              ? null
+                              : _placeOrder,
+                        ),
+                      ),
+                    ],
+                  )
+                : StoreButton(
+                    label: 'Continue to delivery',
+                    icon: Icons.arrow_forward_rounded,
+                    loading: _saving,
+                    onTap: _saveAddress,
+                  ),
+          ],
+        ),
       ),
       body: Form(
         key: _form,
         // Inline validation: a field reports its problem once touched.
         autovalidateMode: AutovalidateMode.onUserInteraction,
         child: CustomScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           slivers: [
             const StoreHeader(
               title: 'Checkout',
@@ -232,107 +312,165 @@ class _HashStoreCheckoutPageState extends State<HashStoreCheckoutPage> {
               showCart: false,
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+              padding: EdgeInsets.fromLTRB(
+                16,
+                4,
+                16,
+                keyboardVisible ? 80 : 32,
+              ),
               sliver: SliverList.list(
                 children: [
                   _Progress(step: _ready ? 2 : 1),
                   const SizedBox(height: 20),
                   _ItemStrip(items: items),
                   const SizedBox(height: 28),
-                  StoreSection(
-                    title: 'Contact',
-                    child: _field(
-                      'email',
-                      'Email for order updates',
-                      icon: Icons.alternate_email_rounded,
-                      keyboard: TextInputType.emailAddress,
-                      validator: (v) => v.contains('@') && v.contains('.')
-                          ? null
-                          : 'Enter a valid email',
+                  if (!_ready) ...[
+                    StoreSection(
+                      title: 'Contact',
+                      child: _field(
+                        'email',
+                        'Email for order updates',
+                        icon: Icons.alternate_email_rounded,
+                        keyboard: TextInputType.emailAddress,
+                        validator: (v) => v.contains('@') && v.contains('.')
+                            ? null
+                            : 'Enter a valid email',
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  StoreSection(
-                    title: 'Delivery address',
-                    child: Column(
-                      children: [
-                        if (_saved.isNotEmpty) ...[
-                          SizedBox(
-                            height: 64,
-                            child: ListView.separated(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: _saved.length,
-                              separatorBuilder: (_, _) =>
-                                  const SizedBox(width: 8),
-                              itemBuilder: (_, i) => _SavedAddress(
-                                address: _saved[i],
-                                onTap: () => setState(() {
-                                  _fill(_saved[i]);
-                                  _options = null;
-                                }),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                        ],
-                        Row(
-                          children: [
-                            Expanded(child: _field('first_name', 'First name')),
-                            const SizedBox(width: 10),
-                            Expanded(child: _field('last_name', 'Last name')),
-                          ],
-                        ),
-                        _field(
-                          'address_1',
-                          'House, street',
-                          icon: Icons.home_outlined,
-                        ),
-                        _field(
-                          'address_2',
-                          'Landmark (optional)',
-                          required: false,
-                        ),
-                        Row(
-                          children: [
-                            Expanded(child: _field('city', 'City')),
-                            const SizedBox(width: 10),
-                            Expanded(child: _field('province', 'State')),
-                          ],
-                        ),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _field(
-                                'postal_code',
-                                'PIN code',
-                                keyboard: TextInputType.number,
-                                formatters: [
-                                  FilteringTextInputFormatter.digitsOnly,
-                                  LengthLimitingTextInputFormatter(6),
-                                ],
-                                validator: (v) =>
-                                    v.length == 6 ? null : '6-digit PIN',
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: _field(
-                                'phone',
-                                'Phone',
-                                keyboard: TextInputType.phone,
-                                validator: (v) =>
-                                    v.replaceAll(RegExp(r'\D'), '').length >= 10
-                                    ? null
-                                    : 'Valid phone',
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (_ready) ...[
                     const SizedBox(height: 16),
+                    StoreSection(
+                      title: 'Delivery address',
+                      child: Column(
+                        children: [
+                          if (_saved.isNotEmpty) ...[
+                            SizedBox(
+                              height: 64,
+                              child: ListView.separated(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: _saved.length,
+                                separatorBuilder: (_, _) =>
+                                    const SizedBox(width: 8),
+                                itemBuilder: (_, i) => _SavedAddress(
+                                  address: _saved[i],
+                                  onTap: () => setState(() {
+                                    _fill(_saved[i]);
+                                    _options = null;
+                                  }),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                          ],
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _field('first_name', 'First name'),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(child: _field('last_name', 'Last name')),
+                            ],
+                          ),
+                          _field(
+                            'address_1',
+                            'House, street',
+                            icon: Icons.home_outlined,
+                          ),
+                          _field(
+                            'address_2',
+                            'Landmark (optional)',
+                            required: false,
+                          ),
+                          Row(
+                            children: [
+                              Expanded(child: _field('city', 'City')),
+                              const SizedBox(width: 10),
+                              Expanded(child: _field('province', 'State')),
+                            ],
+                          ),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _field(
+                                  'postal_code',
+                                  'PIN code',
+                                  keyboard: TextInputType.number,
+                                  formatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                    LengthLimitingTextInputFormatter(6),
+                                  ],
+                                  validator: (v) =>
+                                      v.length == 6 ? null : '6-digit PIN',
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _field(
+                                  'phone',
+                                  'Phone',
+                                  keyboard: TextInputType.phone,
+                                  validator: (v) =>
+                                      v.replaceAll(RegExp(r'\D'), '').length >=
+                                          10
+                                      ? null
+                                      : 'Valid phone',
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ] else ...[
+                    StoreSection(
+                      title: 'Delivering to',
+                      trailing: TextButton.icon(
+                        onPressed: _placing
+                            ? null
+                            : () => setState(() {
+                                _options = null;
+                                _checkoutError = null;
+                              }),
+                        icon: const Icon(Icons.edit_outlined, size: 15),
+                        label: const Text('Edit'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: StoreColors.purpleSoft,
+                        ),
+                      ),
+                      child: StorePanel(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${_f['first_name']!.text} ${_f['last_name']!.text}',
+                              style: storeTitle(15),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              [
+                                _f['address_1']!.text,
+                                _f['address_2']!.text,
+                                '${_f['city']!.text}, ${_f['province']!.text} ${_f['postal_code']!.text}',
+                              ].where((line) => line.trim().isNotEmpty).join('\n'),
+                              style: storeBody(
+                                color: StoreColors.muted,
+                                height: 1.5,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              '${_f['phone']!.text} · ${_f['email']!.text}',
+                              style: storeBody(
+                                size: 12,
+                                color: StoreColors.muted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                  if (_ready) ...[
+                    const SizedBox(height: 24),
                     StoreSection(
                       title: 'Delivery method',
                       child: _options!.isEmpty
@@ -428,7 +566,13 @@ class _HashStoreCheckoutPageState extends State<HashStoreCheckoutPage> {
         controller: _f[key],
         keyboardType: keyboard,
         inputFormatters: formatters,
-        textInputAction: TextInputAction.next,
+        textInputAction: key == 'phone'
+            ? TextInputAction.done
+            : TextInputAction.next,
+        onTapOutside: (_) => FocusScope.of(context).unfocus(),
+        onFieldSubmitted: (_) {
+          if (key == 'phone') FocusScope.of(context).unfocus();
+        },
         style: storeBody(size: 15),
         cursorColor: StoreColors.green,
         // Editing after the address step invalidates the shown options.

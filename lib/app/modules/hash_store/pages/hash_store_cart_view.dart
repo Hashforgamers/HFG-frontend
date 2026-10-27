@@ -6,6 +6,7 @@ import 'package:hash/app/modules/hash_store/data/medusa_store_service.dart';
 import 'package:hash/app/modules/hash_store/widgets/hash_store_app_bar.dart';
 import 'package:hash/app/modules/hash_store/widgets/store_ui.dart';
 import 'package:hash/core/utils/haptics.dart';
+import 'package:hash/app/modules/hash_store/widgets/store_page_intro.dart';
 
 class HashStoreCartView extends StatefulWidget {
   const HashStoreCartView({super.key});
@@ -108,11 +109,14 @@ class _HashStoreCartViewState extends State<HashStoreCartView> {
               ),
               slivers: [
                 const HashStoreAppBar(),
-                StoreTabTitle(
-                  'Your Cart',
-                  subtitle: hasItems
-                      ? '${state.itemCount} item${state.itemCount == 1 ? '' : 's'}'
-                      : null,
+                SliverToBoxAdapter(
+                  child: StorePageIntro(
+                    eyebrow: 'Your bag',
+                    title: 'Ready when you are.',
+                    subtitle: hasItems
+                        ? '${state.itemCount} item${state.itemCount == 1 ? '' : 's'} · Review your picks before checkout.'
+                        : 'Your next upgrade starts here.',
+                  ),
                 ),
                 if (state.loading && cart == null)
                   SliverPadding(
@@ -173,7 +177,22 @@ class _HashStoreCartViewState extends State<HashStoreCartView> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          StoreTotals(cart: cart!),
+                          StoreSection(
+                            title: 'Order summary',
+                            child: StoreTotals(cart: cart!),
+                          ),
+                          const SizedBox(height: 10),
+                          TextButton.icon(
+                            onPressed: () => openShopTab(context, 0),
+                            icon: const Icon(
+                              Icons.arrow_back_rounded,
+                              size: 16,
+                            ),
+                            label: const Text('Continue shopping'),
+                            style: TextButton.styleFrom(
+                              foregroundColor: StoreColors.purpleSoft,
+                            ),
+                          ),
                           const SizedBox(height: 14),
                           Row(
                             children: [
@@ -261,8 +280,8 @@ class _CartRow extends StatelessWidget {
             const SizedBox(width: 14),
             Expanded(
               child: SizedBox(
-                height: 88,
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
@@ -301,7 +320,7 @@ class _CartRow extends StatelessWidget {
                         variant,
                         style: storeBody(size: 12, color: StoreColors.muted),
                       ),
-                    const Spacer(),
+                    const SizedBox(height: 14),
                     Row(
                       children: [
                         Expanded(

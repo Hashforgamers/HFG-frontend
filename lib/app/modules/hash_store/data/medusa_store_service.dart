@@ -1,7 +1,8 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:flutter/foundation.dart'
+    show visibleForTesting, kDebugMode, debugPrint;
 import 'package:get/get.dart' hide Response, FormData, MultipartFile;
 import 'package:hash/app/data/services/user_controller.dart';
 import 'package:hash/core/repositories/local/auth_data_repo.dart';
@@ -56,6 +57,11 @@ class MedusaStoreService {
               }
             },
             onError: (e, handler) async {
+              if (kDebugMode) {
+                debugPrint(
+                  '[HashStore] ${e.requestOptions.method} ${e.requestOptions.path} status=${e.response?.statusCode} error=${e.type.name}',
+                );
+              }
               // A rotated key: refetch the config once and retry, reads only.
               // Checkout, payment and other writes are never replayed.
               final o = e.requestOptions;
@@ -251,8 +257,18 @@ class MedusaStoreService {
           queryParameters: query,
           options: _bearer(token).copyWith(method: method),
         );
+        if (kDebugMode) {
+          debugPrint('[HashStore] $method $path status=${res.statusCode}');
+        }
         return Map<String, dynamic>.from(res.data as Map);
       } on DioException catch (e) {
+        if (kDebugMode) {
+          final body = e.response?.data;
+          final errorType = body is Map ? body['type'] : null;
+          debugPrint(
+            '[HashStore] $method $path status=${e.response?.statusCode} error=${e.type.name} backendType=$errorType',
+          );
+        }
         if (e.response?.statusCode == 401 && attempt == 0) {
           _medusaToken = null;
           continue;
