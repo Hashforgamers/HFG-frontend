@@ -20,9 +20,34 @@ class HashStoreHomePage extends StatelessWidget {
   );
 }
 
-class _CatalogBody extends StatelessWidget {
+class _CatalogBody extends StatefulWidget {
   final String? vendorName;
   const _CatalogBody({this.vendorName});
+
+  @override
+  State<_CatalogBody> createState() => _CatalogBodyState();
+}
+
+class _CatalogBodyState extends State<_CatalogBody> {
+  String _query = '';
+
+  String? get vendorName => widget.vendorName;
+
+  // shortcut: filters only the loaded page(s); the catalog API ignores `q`.
+  // Move to server search once /store/hash/products supports it.
+  List<Map<String, dynamic>> _filter(List<Map<String, dynamic>> products) {
+    final q = _query.trim().toLowerCase();
+    if (q.isEmpty) return products;
+    return products
+        .where(
+          (p) => [
+            p['title'],
+            p['vendor_name'],
+            p['description'],
+          ].any((v) => '${v ?? ''}'.toLowerCase().contains(q)),
+        )
+        .toList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,6 +56,7 @@ class _CatalogBody extends StatelessWidget {
       backgroundColor: StoreColors.bg,
       body: BlocBuilder<HashStoreHomeCubit, HashStoreHomeState>(
         builder: (context, state) {
+          final products = _filter(state.products);
           return RefreshIndicator(
             color: StoreColors.green,
             backgroundColor: StoreColors.surface,
@@ -81,14 +107,58 @@ class _CatalogBody extends StatelessWidget {
                       ),
                     ),
                   ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                    child: TextField(
+                      onChanged: (v) => setState(() => _query = v),
+                      textInputAction: TextInputAction.search,
+                      style: storeBody(size: 14),
+                      decoration: InputDecoration(
+                        hintText: 'Search gear and sessions',
+                        hintStyle: storeBody(
+                          size: 14,
+                          color: StoreColors.muted,
+                        ),
+                        prefixIcon: const Icon(
+                          Icons.search_rounded,
+                          color: StoreColors.muted,
+                        ),
+                        filled: true,
+                        fillColor: StoreColors.surface,
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 12,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(
+                            color: StoreColors.border,
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(
+                            color: StoreColors.border,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
                 if (state.loading)
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
-                    sliver: SliverList.list(
-                      children: const [
-                        StoreSkeleton(height: 320),
-                        SizedBox(height: 16),
-                        StoreSkeleton(height: 320),
+                    sliver: SliverGrid.count(
+                      crossAxisCount: 2,
+                      mainAxisSpacing: 12,
+                      crossAxisSpacing: 12,
+                      childAspectRatio: 0.62,
+                      children: [
+                        for (var i = 0; i < 4; i++)
+                          const StoreSkeleton(
+                            height: double.infinity,
+                            radius: 18,
+                          ),
                       ],
                     ),
                   )
@@ -111,6 +181,14 @@ class _CatalogBody extends StatelessWidget {
                       body: 'Check back for products and gaming sessions.',
                     ),
                   )
+                else if (products.isEmpty)
+                  SliverToBoxAdapter(
+                    child: StoreMessage(
+                      icon: Icons.search_off_rounded,
+                      title: 'No matches for “${_query.trim()}”',
+                      body: 'Try another name or partner.',
+                    ),
+                  )
                 else ...[
                   SliverToBoxAdapter(
                     child: Padding(
@@ -123,12 +201,19 @@ class _CatalogBody extends StatelessWidget {
                               style: storeTitle(15),
                             ),
                           ),
-                          Text(
-                            '${state.count} items',
-                            style: storeBody(
-                              size: 12,
-                              color: StoreColors.muted,
-                            ),
+                          Builder(
+                            builder: (_) {
+                              final n = _query.trim().isEmpty
+                                  ? state.count
+                                  : products.length;
+                              return Text(
+                                '$n item${n == 1 ? '' : 's'}',
+                                style: storeBody(
+                                  size: 12,
+                                  color: StoreColors.muted,
+                                ),
+                              );
+                            },
                           ),
                         ],
                       ),
@@ -136,13 +221,19 @@ class _CatalogBody extends StatelessWidget {
                   ),
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
-                    sliver: SliverList.separated(
-                      itemCount: state.products.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 18),
+                    sliver: SliverGrid.builder(
+                      itemCount: products.length,
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            mainAxisSpacing: 12,
+                            crossAxisSpacing: 12,
+                            childAspectRatio: 0.62,
+                          ),
                       itemBuilder: (context, i) =>
                           BlocBuilder<HashStoreCartCubit, HashStoreCartState>(
                             builder: (context, cart) {
-                              final product = state.products[i];
+                              final product = products[i];
                               final inCart = cart.items.any(
                                 (item) =>
                                     item['variant_id'] == product['variant_id'],

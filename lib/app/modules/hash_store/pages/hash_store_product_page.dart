@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hash/app/modules/hash_store/cubit/hash_store_cart_cubit.dart';
+import 'package:hash/app/modules/hash_store/pages/hash_store_checkout_page.dart';
 import 'package:hash/app/modules/hash_store/widgets/store_ui.dart';
 
 /// Pushes the product page, carrying the shop's shared cart along.
@@ -46,6 +47,10 @@ class _HashStoreProductPageState extends State<HashStoreProductPage> {
     final soldOut = available != null && available <= 0;
     final maxQty = available ?? 10;
     final busy = context.select((HashStoreCartCubit c) => c.state.busy);
+    final inCart = context.select(
+      (HashStoreCartCubit c) =>
+          c.state.items.any((item) => item['variant_id'] == p['variant_id']),
+    );
     final isService = p['kind'] == 'service';
     final top = MediaQuery.paddingOf(context).top;
     final description = '${p['description'] ?? ''}';
@@ -92,24 +97,32 @@ class _HashStoreProductPageState extends State<HashStoreProductPage> {
                             child: child,
                           );
                         },
-                        child: StoreImage(
-                          url: p['thumbnail'] as String?,
-                          radius: 0,
-                        ),
-                      ),
-                      const DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            stops: [0, 0.25, 0.7, 1],
-                            colors: [
-                              Color(0x99050506),
-                              Colors.transparent,
-                              Colors.transparent,
-                              StoreColors.bg,
-                            ],
-                          ),
+                        // The fade moves with the image: parallax slides the
+                        // image below this box, and a fixed fade left a hard
+                        // edge across the title.
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            StoreImage(
+                              url: p['thumbnail'] as String?,
+                              radius: 0,
+                            ),
+                            const DecoratedBox(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  stops: [0, 0.25, 0.7, 1],
+                                  colors: [
+                                    Color(0x99050506),
+                                    Colors.transparent,
+                                    Colors.transparent,
+                                    StoreColors.bg,
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -170,11 +183,27 @@ class _HashStoreProductPageState extends State<HashStoreProductPage> {
                           ],
                         ),
                         const SizedBox(height: 20),
-                        Text(
-                          storeMoney(p['price_inr']),
-                          style: storeTitle(
-                            30,
-                          ).copyWith(color: StoreColors.greenSoft),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                storeMoney(p['price_inr']),
+                                style: storeTitle(
+                                  30,
+                                ).copyWith(color: StoreColors.greenSoft),
+                              ),
+                            ),
+                            if (!soldOut && !inCart)
+                              StoreQtyStepper(
+                                value: _qty,
+                                onMinus: _qty > 1
+                                    ? () => setState(() => _qty--)
+                                    : null,
+                                onPlus: _qty < maxQty
+                                    ? () => setState(() => _qty++)
+                                    : null,
+                              ),
+                          ],
                         ),
                         if (description.isNotEmpty) ...[
                           const SizedBox(height: 24),
@@ -251,92 +280,58 @@ class _HashStoreProductPageState extends State<HashStoreProductPage> {
           ),
         ],
       ),
+      // Amazon/Myntra pattern: add in place (the button becomes "Go to bag"),
+      // or Buy now straight into checkout.
       bottomNavigationBar: StoreBottomBar(
-        child: Row(
-          children: [
-            if (!soldOut) ...[
-              StoreQtyStepper(
-                value: _qty,
-                onMinus: _qty > 1 ? () => setState(() => _qty--) : null,
-                onPlus: _qty < maxQty ? () => setState(() => _qty++) : null,
+        child: soldOut
+            ? const StoreButton(label: 'Sold out')
+            : Row(
+                children: [
+                  Expanded(
+                    child: StoreButton(
+                      label: inCart ? 'Go to bag' : 'Add to bag',
+                      icon: inCart
+                          ? Icons.arrow_forward_rounded
+                          : Icons.shopping_bag_outlined,
+                      filled: false,
+                      loading: busy && !inCart,
+                      onTap: busy
+                          ? null
+                          : inCart
+                          ? () => openShopTab(context, 2)
+                          : () async {
+                              if (await addProductToCart(
+                                context,
+                                p,
+                                quantity: _qty,
+                              )) {
+                                storeToast('Added to your bag');
+                              }
+                            },
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: StoreButton(
+                      label: 'Buy now',
+                      icon: Icons.bolt_rounded,
+                      onTap: busy
+                          ? null
+                          : () async {
+                              if (!inCart &&
+                                  !await addProductToCart(
+                                    context,
+                                    p,
+                                    quantity: _qty,
+                                  )) {
+                                return;
+                              }
+                              if (context.mounted) openStoreCheckout(context);
+                            },
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 12),
-            ],
-            Expanded(
-              child: StoreButton(
-                label: soldOut
-                    ? 'Sold out'
-                    : 'Add · ${storeMoney(storeNum(p['price_inr']) * _qty)}',
-                icon: soldOut ? null : Icons.shopping_bag_rounded,
-                loading: busy,
-                onTap: soldOut
-                    ? null
-                    : () async {
-                        final added = await addProductToCart(
-                          context,
-                          p,
-                          quantity: _qty,
-                        );
-                        if (!added || !context.mounted) return;
-                        final viewCart = await showModalBottomSheet<bool>(
-                          context: context,
-                          backgroundColor: StoreColors.surface,
-                          shape: const RoundedRectangleBorder(
-                            borderRadius: BorderRadius.vertical(
-                              top: Radius.circular(28),
-                            ),
-                          ),
-                          builder: (sheetContext) => SafeArea(
-                            child: Padding(
-                              padding: const EdgeInsets.all(24),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  const Icon(
-                                    Icons.check_circle_outline_rounded,
-                                    color: StoreColors.greenSoft,
-                                    size: 40,
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    'Added to your bag',
-                                    textAlign: TextAlign.center,
-                                    style: storeTitle(22),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    '${p['title']} · Qty $_qty',
-                                    textAlign: TextAlign.center,
-                                    style: storeBody(color: StoreColors.muted),
-                                  ),
-                                  const SizedBox(height: 24),
-                                  StoreButton(
-                                    label: 'View cart',
-                                    icon: Icons.shopping_bag_outlined,
-                                    onTap: () =>
-                                        Navigator.pop(sheetContext, true),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  StoreButton(
-                                    label: 'Keep exploring',
-                                    filled: false,
-                                    onTap: () =>
-                                        Navigator.pop(sheetContext, false),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                        if (viewCart == true && context.mounted) {
-                          openShopTab(context, 2);
-                        }
-                      },
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

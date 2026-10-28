@@ -5,6 +5,7 @@ import 'package:hash/app/modules/hash_store/cubit/hash_store_cart_cubit.dart';
 import 'package:hash/app/modules/hash_store/pages/hash_store_checkout_page.dart';
 import 'package:hash/app/modules/hash_store/data/medusa_store_service.dart';
 import 'package:hash/app/modules/hash_store/pages/hash_store_order_page.dart';
+import 'package:hash/app/modules/hash_store/pages/hash_store_orders_view.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -345,6 +346,26 @@ void main() {
       expect(find.text('Delivery confirmed'), findsNothing);
     },
   );
+
+  test('order rows show the Hash stage, with hold and cancellation first', () {
+    expect(storeTrackingStatus({'status': 'shipped'}).$1, 'Shipped');
+    expect(
+      storeTrackingStatus({'status': 'shipped', 'on_hold': true}).$1,
+      'On hold',
+    );
+    expect(
+      storeTrackingStatus({
+        'status': 'shipped',
+        'on_hold': true,
+        'cancellation': {'status': 'requested'},
+      }).$1,
+      'Cancellation requested',
+    );
+    expect(
+      storeTrackingStatus({'status': 'preparing', 'kind': 'service'}).$1,
+      'Preparing',
+    );
+  });
 
   test('product and service stages use their own labels', () {
     expect(storeTrackingLabel('placed'), 'New Order');

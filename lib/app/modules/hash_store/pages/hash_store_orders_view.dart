@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
 import 'package:hash/app/modules/shop_new/controllers/shop_controller.dart';
 import 'package:hash/app/modules/hash_store/cubit/hash_store_orders_cubit.dart';
+import 'package:hash/app/modules/hash_store/data/medusa_store_service.dart';
 import 'package:hash/app/modules/hash_store/pages/hash_store_order_page.dart';
 import 'package:hash/app/modules/hash_store/widgets/hash_store_app_bar.dart';
 import 'package:hash/app/modules/hash_store/widgets/store_ui.dart';
@@ -139,10 +140,74 @@ class _HashStoreOrdersViewState extends State<HashStoreOrdersView> {
   }
 }
 
-class _OrderCard extends StatelessWidget {
+/// Hash tracking stage for an order row; the tracker, not Medusa's
+/// fulfilment status, is authoritative.
+(String, Color) storeTrackingStatus(Map<String, dynamic> tracking) {
+  if (tracking['cancellation'] is Map) {
+    return ('Cancellation requested', Colors.orangeAccent);
+  }
+  if (tracking['on_hold'] == true) return ('On hold', Colors.orangeAccent);
+  final status = tracking['status'];
+  return (
+    storeTrackingLabel(status, tracking['kind']),
+    switch (status) {
+      'delivered' || 'completed' => StoreColors.greenSoft,
+      'canceled' => StoreColors.danger,
+      _ => StoreColors.purpleSoft,
+    },
+  );
+}
+
+class _OrderCard extends StatefulWidget {
   final Map<String, dynamic> order;
   final VoidCallback onClosed;
   const _OrderCard({required this.order, required this.onClosed});
+
+  @override
+  State<_OrderCard> createState() => _OrderCardState();
+}
+
+class _OrderCardState extends State<_OrderCard> {
+  Map<String, dynamic>? _tracking;
+
+  Map<String, dynamic> get order => widget.order;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTracking();
+  }
+
+  @override
+  void didUpdateWidget(_OrderCard old) {
+    super.didUpdateWidget(old);
+    // A list refresh hands in new order maps; pick up the latest stage too.
+    if (!identical(old.order, widget.order)) _loadTracking();
+  }
+
+  Future<void> _loadTracking() async {
+    try {
+      final result = await MedusaStoreService.instance.tracking(
+        '${order['id']}',
+      );
+      if (mounted && result['tracking'] is Map) {
+        setState(
+          () => _tracking = Map<String, dynamic>.from(result['tracking']),
+        );
+      }
+    } catch (_) {
+      // Keep the last known stage; a failed read is never a cancellation.
+    }
+  }
+
+  Future<void> _open() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => HashStoreOrderPage(orderId: order['id'] as String),
+      ),
+    );
+    widget.onClosed();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -151,16 +216,16 @@ class _OrderCard extends StatelessWidget {
         .toList();
     final first = items.isEmpty ? null : items.first;
     final more = items.length - 1;
-    final (status, color) = storeOrderStatus(order);
+    final t = _tracking;
+    final (status, color) = t == null
+        ? storeOrderStatus(order)
+        : storeTrackingStatus(t);
+    final active =
+        t != null &&
+        !const {'delivered', 'completed', 'canceled'}.contains(t['status']);
+    final expected = active ? t['expected_delivery'] : null;
     return BounceTap(
-      onTap: () async {
-        await Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => HashStoreOrderPage(orderId: order['id'] as String),
-          ),
-        );
-        onClosed();
-      },
+      onTap: _open,
       child: StorePanel(
         padding: const EdgeInsets.all(14),
         child: Column(
@@ -209,6 +274,17 @@ class _OrderCard extends StatelessWidget {
                             : 'Qty ${first?['quantity'] ?? 1}',
                         style: storeBody(size: 12, color: StoreColors.muted),
                       ),
+                      if (expected != null) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          'Arriving by ${storeDate(expected, 'EEE, d MMM')}',
+                          style: storeBody(
+                            size: 12,
+                            weight: FontWeight.w600,
+                            color: StoreColors.greenSoft,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -223,6 +299,24 @@ class _OrderCard extends StatelessWidget {
                 ),
               ],
             ),
+            if (active) ...[
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _open,
+                  icon: const Icon(Icons.local_shipping_outlined, size: 18),
+                  label: const Text('Track order'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: StoreColors.border),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
