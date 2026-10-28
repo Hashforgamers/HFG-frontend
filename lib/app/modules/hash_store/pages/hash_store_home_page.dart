@@ -92,7 +92,7 @@ class _CatalogBodyState extends State<_CatalogBody> {
                         scrollDirection: Axis.horizontal,
                         child: Row(
                           children: [
-                            _partnerChip(context, 'All partners', null, state),
+                            _partnerChip(context, 'All brands', null, state),
                             for (final vendor in state.vendors.entries) ...[
                               const SizedBox(width: 8),
                               _partnerChip(
@@ -186,7 +186,7 @@ class _CatalogBodyState extends State<_CatalogBody> {
                     child: StoreMessage(
                       icon: Icons.search_off_rounded,
                       title: 'No matches for “${_query.trim()}”',
-                      body: 'Try another name or partner.',
+                      body: 'Try another name or brand.',
                     ),
                   )
                 else ...[
