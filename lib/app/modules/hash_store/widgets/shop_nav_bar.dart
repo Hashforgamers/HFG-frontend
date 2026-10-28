@@ -270,65 +270,60 @@ class _HashShopDockState extends State<HashShopDock>
       maxWidth: fullW,
       maxHeight: HashShopDock.barHeight,
       minHeight: HashShopDock.barHeight,
-      child: NeonSwitchFx(
-        index: activeSlot,
-        count: _tabs.length,
-        child: Stack(
-          children: [
-            // Sliding active-tab pill; grows in last, once the tabs have landed.
-            AnimatedPositioned(
-              duration: const Duration(milliseconds: 320),
-              curve: Curves.easeOutCubic,
-              left: activeSlot * slot + 8,
-              width: slot - 16,
-              top: 5,
-              bottom: 5,
-              child: Opacity(
-                opacity: indicator,
-                child: Transform.scale(
-                  scaleX: 0.4 + 0.6 * indicator,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: StoreColors.green.withValues(alpha: 0.13),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: StoreColors.green.withValues(alpha: 0.45),
-                      ),
+      // No NeonSwitchFx/NeonFlip: replaying the unfold on every tab switch
+      // made the whole bar look rebuilt. The sliding pill marks the change.
+      child: Stack(
+        children: [
+          // Sliding active-tab pill; grows in last, once the tabs have landed.
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 320),
+            curve: Curves.easeOutCubic,
+            left: activeSlot * slot + 8,
+            width: slot - 16,
+            top: 5,
+            bottom: 5,
+            child: Opacity(
+              opacity: indicator,
+              child: Transform.scale(
+                scaleX: 0.4 + 0.6 * indicator,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: StoreColors.green.withValues(alpha: 0.13),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: StoreColors.green.withValues(alpha: 0.45),
                     ),
                   ),
                 ),
               ),
             ),
-            Row(
-              children: [
-                for (final (i, tab) in _tabs.indexed)
-                  _flipIn(
-                    // Right to left: Orders lands first, Hash App last.
-                    _phase(t, 0.32 + 0.11 * (_tabs.length - 1 - i), 0.34),
-                    NeonFlip(
-                      slot: i,
-                      child: _NavItem(
-                        width: slot,
-                        icon: tab.icon,
-                        iconSize: tab.index == -1 ? 17 : 22,
-                        label: tab.label,
-                        selected: tab.index == widget.activeIndex,
-                        badge: tab.index == 2 ? _cartBadge() : null,
-                        onTap: () {
-                          Haptics.selection();
-                          if (tab.index == -1) {
-                            widget.onExit();
-                          } else if (tab.index != widget.activeIndex) {
-                            widget.onSelect(tab.index);
-                          }
-                        },
-                      ),
-                    ),
+          ),
+          Row(
+            children: [
+              for (final (i, tab) in _tabs.indexed)
+                _flipIn(
+                  // Right to left: Orders lands first, Hash App last.
+                  _phase(t, 0.32 + 0.11 * (_tabs.length - 1 - i), 0.34),
+                  _NavItem(
+                    width: slot,
+                    icon: tab.icon,
+                    iconSize: tab.index == -1 ? 17 : 22,
+                    label: tab.label,
+                    selected: tab.index == widget.activeIndex,
+                    badge: tab.index == 2 ? _cartBadge() : null,
+                    onTap: () {
+                      Haptics.selection();
+                      if (tab.index == -1) {
+                        widget.onExit();
+                      } else if (tab.index != widget.activeIndex) {
+                        widget.onSelect(tab.index);
+                      }
+                    },
                   ),
-              ],
-            ),
-          ],
-        ),
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }

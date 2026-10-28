@@ -1,19 +1,48 @@
 import 'package:flutter/material.dart';
 import 'package:hash/app/modules/hash_store/widgets/store_page_intro.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get/get.dart';
+import 'package:hash/app/modules/shop_new/controllers/shop_controller.dart';
 import 'package:hash/app/modules/hash_store/cubit/hash_store_orders_cubit.dart';
 import 'package:hash/app/modules/hash_store/pages/hash_store_order_page.dart';
 import 'package:hash/app/modules/hash_store/widgets/hash_store_app_bar.dart';
 import 'package:hash/app/modules/hash_store/widgets/store_ui.dart';
 import 'package:hash/utils/widgets/bounce_tap_widget.dart';
 
-class HashStoreOrdersView extends StatelessWidget {
+class HashStoreOrdersView extends StatefulWidget {
   const HashStoreOrdersView({super.key});
 
   @override
+  State<HashStoreOrdersView> createState() => _HashStoreOrdersViewState();
+}
+
+class _HashStoreOrdersViewState extends State<HashStoreOrdersView> {
+  final _cubit = HashStoreOrdersCubit()..fetchOrders();
+  Worker? _onShow;
+
+  @override
+  void initState() {
+    super.initState();
+    // The shop keeps this tab mounted, so pick up new orders each time it
+    // is shown again. Loaded orders refresh in place, without a skeleton.
+    if (Get.isRegistered<ShopController>()) {
+      _onShow = ever<int>(Get.find<ShopController>().shopMenuIndex, (i) {
+        if (i == 3) _cubit.fetchOrders();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _onShow?.dispose();
+    _cubit.close();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => HashStoreOrdersCubit()..fetchOrders(),
+    return BlocProvider.value(
+      value: _cubit,
       child: BlocBuilder<HashStoreOrdersCubit, HashStoreOrdersState>(
         builder: (context, state) {
           final cubit = context.read<HashStoreOrdersCubit>();
