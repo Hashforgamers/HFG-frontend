@@ -346,6 +346,62 @@ void main() {
     },
   );
 
+  test('product and service stages use their own labels', () {
+    expect(storeTrackingLabel('placed'), 'New Order');
+    expect(storeTrackingLabel('preparing'), 'Processing');
+    expect(storeTrackingLabel('ready_to_ship'), 'Ready to Ship');
+    expect(storeTrackingLabel('preparing', 'service'), 'Preparing');
+    expect(
+      storeTrackingLabel('ready_for_service', 'service'),
+      'Ready for service',
+    );
+  });
+
+  testWidgets('cancellation request shows immediately and blocks the OTP', (
+    tester,
+  ) async {
+    Map<String, dynamic>? cancellation;
+    Object? sent;
+    final service = MedusaStoreService.forTesting((m, p, d, q) async {
+      if (p.endsWith('/cancellation')) {
+        sent = d;
+        cancellation = {'status': 'requested', 'source': 'customer'};
+        return {'cancellation': cancellation};
+      }
+      if (p.startsWith('/store/hash/')) {
+        return {
+          'order': {'paid': true, 'completion_eligible': true},
+          'tracking': {
+            'status': 'shipped',
+            if (cancellation != null) 'cancellation': cancellation,
+          },
+        };
+      }
+      return {
+        'order': {'id': 'order_1', 'items': [], 'total': 100},
+      };
+    });
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HashStoreOrderPage(orderId: 'order_1', store: service),
+      ),
+    );
+    await tester.pump();
+    expect(find.text('Show completion OTP'), findsOneWidget);
+    await tester.ensureVisible(find.text('Request cancellation'));
+    await tester.tap(find.text('Request cancellation'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Ordered by mistake');
+    await tester.pump();
+    await tester.tap(find.text('Request cancellation').last);
+    await tester.pumpAndSettle();
+    expect(sent, {'reason': 'Ordered by mistake'});
+    expect(find.text('Cancellation requested'), findsOneWidget);
+    expect(find.text('Show completion OTP'), findsNothing);
+    expect(find.textContaining('refunded'), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('polling stops in background and refreshes on resume', (
     tester,
   ) async {

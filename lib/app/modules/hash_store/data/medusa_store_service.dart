@@ -675,6 +675,20 @@ class MedusaStoreService {
   /// `{code, expires_at, instruction}`. Never call in a loop.
   Future<Map<String, dynamic>> requestCompletionOtp(String orderId) =>
       _customer('POST', '/store/hash/orders/$orderId/otp', data: {});
+
+  /// `{status, reason, requested_at, source}`. A repeat request returns the
+  /// existing one. Not a refund: Hash reviews that separately.
+  Future<Map<String, dynamic>> requestCancellation(
+    String orderId,
+    String reason,
+  ) async {
+    final data = await _customer(
+      'POST',
+      '/store/hash/orders/$orderId/cancellation',
+      data: {'reason': reason},
+    );
+    return Map<String, dynamic>.from(data['cancellation'] as Map);
+  }
 }
 
 class StoreException implements Exception {

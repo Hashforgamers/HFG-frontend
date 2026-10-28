@@ -86,6 +86,7 @@ class _HashStoreOrderPageState extends State<HashStoreOrderPage>
           if (_completion != null) {
             _completion!['on_hold'] =
                 _tracking?['on_hold'] ?? _completion!['on_hold'];
+            _completion!['cancellation'] = _tracking?['cancellation'];
             if (_tracking?['status'] == 'canceled') {
               _completion!['completion_eligible'] = false;
             }
@@ -117,6 +118,20 @@ class _HashStoreOrderPageState extends State<HashStoreOrderPage>
         });
       }
     }
+  }
+
+  Future<void> _requestCancellation(String reason) async {
+    final cancellation = await _store.requestCancellation(
+      widget.orderId,
+      reason,
+    );
+    if (!mounted) return;
+    // Show the request and lock the OTP now; the next poll confirms it.
+    setState(() {
+      _tracking?['cancellation'] = cancellation;
+      _completion?['cancellation'] = cancellation;
+    });
+    unawaited(_load());
   }
 
   @override
@@ -180,6 +195,24 @@ class _HashStoreOrderPageState extends State<HashStoreOrderPage>
                     ],
                     StoreOrderTracker(status: _tracking),
                     const SizedBox(height: 16),
+                    if (_tracking != null &&
+                        _completion?['completed_at'] == null &&
+                        (_tracking!['cancellation'] is Map ||
+                            !const {
+                              'canceled',
+                              'delivered',
+                              'completed',
+                            }.contains(_tracking!['status']))) ...[
+                      _CancellationCard(
+                        cancellation: _tracking!['cancellation'] is Map
+                            ? Map<String, dynamic>.from(
+                                _tracking!['cancellation'],
+                              )
+                            : null,
+                        onRequest: _requestCancellation,
+                      ),
+                      const SizedBox(height: 16),
+                    ],
                     _CompletionCard(
                       orderId: widget.orderId,
                       status: _trackingError == null && _error == null
@@ -384,16 +417,21 @@ class _FlipDigit extends StatelessWidget {
   }
 }
 
-/// Placed → Paid → Completed.
-String storeTrackingLabel(Object? status) =>
+/// Product stages by default; services keep their own wording.
+String storeTrackingLabel(Object? status, [Object? kind]) =>
+    (kind == 'service'
+        ? const {'placed': 'Order placed', 'preparing': 'Preparing'}[status]
+        : null) ??
     const {
-      'placed': 'Order placed',
+      'placed': 'New Order',
       'payment_confirmed': 'Payment confirmed',
-      'preparing': 'Preparing your order',
+      'accepted': 'Accepted',
+      'preparing': 'Processing',
+      'ready_to_ship': 'Ready to Ship',
       'shipped': 'Shipped',
       'out_for_delivery': 'Out for delivery',
       'delivery_attempted': 'Delivery attempted',
-      'delivered': 'Delivery confirmed',
+      'delivered': 'Delivered',
       'ready_for_service': 'Ready for service',
       'in_progress': 'Service in progress',
       'completed': 'Service completed',
@@ -484,7 +522,7 @@ class StoreOrderTracker extends StatelessWidget {
           Text(
             status == null
                 ? 'Tracking is being prepared'
-                : storeTrackingLabel(status!['status']),
+                : storeTrackingLabel(status!['status'], status!['kind']),
             style: storeTitle(17),
           ),
           if (status?['on_hold'] == true)
@@ -509,7 +547,7 @@ class StoreOrderTracker extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          storeTrackingLabel(entry['status']),
+                          storeTrackingLabel(entry['status'], status?['kind']),
                           style: storeBody(weight: FontWeight.w600),
                         ),
                         if (entry['at'] != null)
@@ -626,6 +664,13 @@ class _CompletionCardState extends State<_CompletionCard> {
         title: 'Confirming your order',
         body: 'This can take a moment after checkout.',
         action: refresh,
+      );
+    }
+    if (s['cancellation'] is Map) {
+      return _info(
+        icon: Icons.block_rounded,
+        title: 'Completion paused',
+        body: 'A cancellation has been requested for this order.',
       );
     }
     if (s['on_hold'] == true || !paid || !eligible) {
@@ -779,6 +824,148 @@ class _CompletionCardState extends State<_CompletionCard> {
       ],
     ),
   );
+}
+
+/// Cancellation is a request, not a refund or a Medusa cancellation, so the
+/// copy never promises either.
+class _CancellationCard extends StatefulWidget {
+  final Map<String, dynamic>? cancellation;
+  final Future<void> Function(String reason) onRequest;
+  const _CancellationCard({
+    required this.cancellation,
+    required this.onRequest,
+  });
+
+  @override
+  State<_CancellationCard> createState() => _CancellationCardState();
+}
+
+class _CancellationCardState extends State<_CancellationCard> {
+  bool _sending = false;
+
+  static const _states = {
+    'requested': 'Hash has your request and is processing it.',
+    'submitting': 'Contacting the courier to stop the shipment.',
+    'review': 'Waiting on the courier. Hash is reviewing your request.',
+    'courier_requested':
+        'The courier accepted the cancellation. A parcel already in transit '
+        'may return to the partner.',
+    'not_booked':
+        'No courier shipment to stop. Hash is processing your '
+        'request.',
+  };
+
+  Future<void> _ask() async {
+    final controller = TextEditingController();
+    final reason = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: StoreColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            24,
+            22,
+            24,
+            16 + MediaQuery.viewInsetsOf(ctx).bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Request cancellation?', style: storeTitle(20)),
+              const SizedBox(height: 10),
+              Text(
+                'If the order is already with the courier it may be returned '
+                'to the partner, and courier charges may still apply. Hash '
+                'reviews any refund separately.',
+                style: storeBody(color: StoreColors.muted, height: 1.45),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: controller,
+                maxLength: 500,
+                maxLines: 3,
+                style: storeBody(),
+                decoration: const InputDecoration(
+                  hintText: 'Why are you cancelling?',
+                ),
+              ),
+              const SizedBox(height: 12),
+              ValueListenableBuilder(
+                valueListenable: controller,
+                builder: (_, value, _) => StoreButton(
+                  label: 'Request cancellation',
+                  onTap: value.text.trim().isEmpty
+                      ? null
+                      : () => Navigator.pop(ctx, value.text.trim()),
+                ),
+              ),
+              const SizedBox(height: 10),
+              StoreButton(
+                label: 'Keep order',
+                filled: false,
+                onTap: () => Navigator.pop(ctx),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    // Not disposed: the sheet still reads it during its close animation, and
+    // it holds no native resources.
+    if (reason == null || !mounted) return;
+    setState(() => _sending = true);
+    try {
+      await widget.onRequest(reason);
+    } catch (e) {
+      storeToast(e.toString(), error: true);
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = widget.cancellation;
+    if (c == null) {
+      return StoreButton(
+        label: 'Request cancellation',
+        icon: Icons.close_rounded,
+        filled: false,
+        height: 46,
+        loading: _sending,
+        onTap: _ask,
+      );
+    }
+    return StorePanel(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Cancellation requested', style: storeTitle(15)),
+          const SizedBox(height: 4),
+          Text(
+            _states[c['status']] ?? _states['requested']!,
+            style: storeBody(size: 12, color: StoreColors.muted),
+          ),
+          if (c['requested_at'] != null)
+            Text(
+              'Requested ${storeDate(c['requested_at'])}',
+              style: storeBody(size: 11, color: StoreColors.muted),
+            ),
+          const SizedBox(height: 6),
+          Text(
+            'Any refund is reviewed separately by Hash.',
+            style: storeBody(size: 11, color: StoreColors.muted),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// Ticket tear line with notches.
