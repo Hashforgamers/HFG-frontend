@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hash/config/web_links.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:share_plus/share_plus.dart';
@@ -7,7 +8,7 @@ import 'package:hash/core/utils/haptics.dart';
 import 'package:hash/core/utils/share_origin.dart';
 import 'package:hash/features/mini_games/score/mini_game_leaderboard_service.dart';
 
-const _arcadeLink = 'https://hashforgamers.com/game/arcade';
+const _arcadeLink = '$kWebOrigin/game/arcade';
 
 /// Shares the arcade board: the caller's rank and score when they have one,
 /// the current top 3, and a link that opens the leaderboard.

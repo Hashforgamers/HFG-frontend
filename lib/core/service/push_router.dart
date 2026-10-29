@@ -7,7 +7,9 @@
 /// - `type` (+ ids): `rematch`/`ludo_match` + `match_id`,
 ///   `quick_match_waiting` + `match_id` (join, or Quick Match if gone), `ludo`,
 ///   `leaderboard`, `wallet`/`reward`, `chat` + `room_id`, `live` +
-///   `stream_id`, `new_notification`.
+///   `stream_id`, `new_notification`; shop `store_order`/`order_update` +
+///   `order_id`, `store_review` + `order_id`, `store_promotion`; and
+///   `community_*` with a tournament `reference_id`.
 /// - `route`: a named app route such as `/wallet`.
 sealed class PushTarget {
   const PushTarget();
@@ -58,6 +60,9 @@ abstract final class PushRouter {
 
     final type = _s(data, 'type').toLowerCase();
     final matchId = _s(data, 'match_id');
+    final orderId = _s(data, 'order_id').isNotEmpty
+        ? _s(data, 'order_id')
+        : _s(data, 'reference_id');
     switch (type) {
       case 'rematch':
       case 'ludo_match':
@@ -84,8 +89,25 @@ abstract final class PushRouter {
       case 'live':
         final streamId = _s(data, 'stream_id');
         if (streamId.isNotEmpty) return PushLiveStream(streamId);
+      case 'store_order':
+      case 'order_update':
+      case 'store_review':
+        return PushDeepLink(
+          _link(orderId.isEmpty ? 'shop/orders' : 'shop/order/$orderId'),
+        );
+      case 'store_promotion':
+        return PushDeepLink(_link('shop'));
       case 'new_notification':
         return PushNamedRoute(notificationsRoute, arguments: data);
+    }
+
+    // In-app feed rows (`community_registration_success`, ...) point at a
+    // tournament through `reference_id`.
+    final reference = _s(data, 'reference_id');
+    if ((type.startsWith('community_registration') ||
+            type.startsWith('community_tournament')) &&
+        reference.isNotEmpty) {
+      return PushDeepLink(_link('tournament/$reference'));
     }
 
     final route = _s(data, 'route');

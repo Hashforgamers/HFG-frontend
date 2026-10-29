@@ -814,10 +814,7 @@ class FbEventsService {
   Future<void> onTournamentJoined({
     required String eventId,
     required String teamId,
-  }) => _fbLog('Tournament Joined', {
-    'event_id': eventId,
-    'team_id': teamId,
-  });
+  }) => _fbLog('Tournament Joined', {'event_id': eventId, 'team_id': teamId});
 
   Future<void> onFriendInvited({
     required String targetUserId,

@@ -135,4 +135,60 @@ void main() {
       }
     });
   });
+
+  group('shop links', () {
+    DeepLinkDestination parse(String link) =>
+        DeepLinkService.parse(Uri.parse(link));
+
+    test('web and custom-scheme forms resolve the same', () {
+      for (final link in [
+        'https://www.hashforgamers.com/shop/product/prod_01ABC',
+        'hash://shop/product/prod_01ABC',
+      ]) {
+        final d = parse(link);
+        expect(d.type, DeepLinkType.shop, reason: link);
+        expect(d.id, 'product', reason: link);
+        expect(d.secondaryId, 'prod_01ABC', reason: link);
+      }
+    });
+
+    test('sections and orders', () {
+      expect(parse('hash://shop').id, 'home');
+      expect(parse('https://www.hashforgamers.com/shop').id, 'home');
+      expect(parse('hash://shop/cart').id, 'cart');
+      expect(parse('hash://shop/orders').id, 'orders');
+      final order = parse('hash://shop/order/order_9');
+      expect(order.id, 'order');
+      expect(order.secondaryId, 'order_9');
+    });
+
+    test('a product or order without an id is not a link', () {
+      expect(parse('hash://shop/product').isValid, isFalse);
+      expect(parse('hash://shop/order/').isValid, isFalse);
+      expect(parse('hash://shop/whatever').isValid, isFalse);
+    });
+
+    test('only links with a real screen count as openable', () {
+      expect(DeepLinkService.opensScreen(Uri.parse('hash://shop')), isTrue);
+      expect(DeepLinkService.opensScreen(Uri.parse('hash://wallet')), isTrue);
+      expect(DeepLinkService.opensScreen(Uri.parse('hash://cafe/1')), isFalse);
+      expect(DeepLinkService.opensScreen(Uri.parse('hash://nope')), isFalse);
+    });
+  });
+
+  test('the same link twice in a moment is handled once', () {
+    final service = DeepLinkService(appLinks: null);
+    final uri = Uri.parse('hash://shop');
+    final t = DateTime(2026);
+    expect(service.isRepeat(uri, t), isFalse);
+    expect(service.isRepeat(uri, t.add(const Duration(seconds: 1))), isTrue);
+    expect(service.isRepeat(uri, t.add(const Duration(seconds: 10))), isFalse);
+    expect(
+      service.isRepeat(
+        Uri.parse('hash://wallet'),
+        t.add(const Duration(seconds: 10)),
+      ),
+      isFalse,
+    );
+  });
 }

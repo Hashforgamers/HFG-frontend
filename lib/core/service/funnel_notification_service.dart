@@ -87,9 +87,7 @@ class FunnelNotificationService {
       if (Get.isRegistered<UserController>()) {
         final user = Get.find<UserController>().user.value;
         final controllerName = (user.name ?? '').trim();
-        displayName = controllerName.isNotEmpty
-            ? controllerName
-            : displayName;
+        displayName = controllerName.isNotEmpty ? controllerName : displayName;
         username = (user.gameUserName ?? '').trim();
       }
     } catch (_) {}

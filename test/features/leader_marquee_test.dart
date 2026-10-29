@@ -23,7 +23,7 @@ void main() {
     expect(text, contains('🥇 Ana · 12,500 pts'));
     expect(text, contains('🥉 Cy · 80 pts'));
     expect(text, isNot(contains('Di')));
-    expect(text, contains('https://hashforgamers.com/game/arcade'));
+    expect(text, contains('https://www.hashforgamers.com/game/arcade'));
   });
 
   test('without a rank it leads with the board', () {

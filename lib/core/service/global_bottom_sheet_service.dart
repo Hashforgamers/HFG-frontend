@@ -69,6 +69,33 @@ class GlobalBottomSheetService {
     ];
 
     int? selectedVoucher;
+    // Vouchers are sorted by cost, so the first locked one is the next goal.
+    final nextGoal = vouchers
+        .where((v) => hashCoin < (v['requiredCoins'] as int))
+        .firstOrNull;
+    final hasRedeemableVoucher = vouchers.any(
+      (v) => hashCoin >= (v['requiredCoins'] as int),
+    );
+    const earnWays = [
+      (
+        Icons.sports_esports_rounded,
+        'Play games',
+        'Every gaming session',
+        '+50',
+      ),
+      (
+        Icons.group_add_rounded,
+        'Refer friends',
+        'Each successful referral',
+        '+100',
+      ),
+      (
+        Icons.calendar_today_rounded,
+        'Daily login',
+        'A random reward every day',
+        '5-20',
+      ),
+    ];
 
     await showModalBottomSheet(
       context: context,
@@ -216,111 +243,107 @@ class GlobalBottomSheetService {
                                       color: accent.withValues(alpha: 0.35),
                                     ),
                                   ),
-                                  child: Row(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      Container(
-                                        width: 44,
-                                        height: 44,
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          color: accent.withValues(alpha: 0.12),
-                                        ),
-                                        child: const Center(
-                                          child: HashCoinIcon(size: 30),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
+                                      Row(
                                         children: [
-                                          Text(
-                                            'Balance',
-                                            style: GoogleFonts.inter(
-                                              fontSize: 12,
-                                              color: Colors.white70,
-                                              fontWeight: FontWeight.w500,
+                                          Container(
+                                            width: 44,
+                                            height: 44,
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              color: accent.withValues(
+                                                alpha: 0.12,
+                                              ),
+                                            ),
+                                            child: const Center(
+                                              child: HashCoinIcon(size: 30),
                                             ),
                                           ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            '${_formatHashCoins(hashCoin)} HC',
-                                            style: GoogleFonts.inter(
-                                              fontSize: 22,
-                                              color: accent,
-                                              fontWeight: FontWeight.w800,
-                                            ),
+                                          const SizedBox(width: 12),
+                                          Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                'Balance',
+                                                style: GoogleFonts.inter(
+                                                  fontSize: 12,
+                                                  color: Colors.white70,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                '${_formatHashCoins(hashCoin)} HC',
+                                                style: GoogleFonts.inter(
+                                                  fontSize: 22,
+                                                  color: accent,
+                                                  fontWeight: FontWeight.w800,
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ],
                                       ),
-                                      const Spacer(),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 6,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.black.withValues(
-                                            alpha: 0.2,
-                                          ),
+                                      if (nextGoal != null) ...[
+                                        const SizedBox(height: 12),
+                                        ClipRRect(
                                           borderRadius: BorderRadius.circular(
-                                            999,
+                                            99,
+                                          ),
+                                          child: LinearProgressIndicator(
+                                            value:
+                                                hashCoin /
+                                                (nextGoal['requiredCoins']
+                                                    as int),
+                                            minHeight: 6,
+                                            color: accent,
+                                            backgroundColor: Colors.white
+                                                .withValues(alpha: 0.1),
                                           ),
                                         ),
-                                        child: Text(
-                                          'Available',
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          '${_formatHashCoins((nextGoal['requiredCoins'] as int) - hashCoin)} HC '
+                                          'to ${nextGoal['discount']}% OFF',
                                           style: GoogleFonts.inter(
-                                            color: Colors.white60,
-                                            fontSize: 11,
+                                            fontSize: 12,
+                                            color: Colors.white70,
                                             fontWeight: FontWeight.w600,
                                           ),
                                         ),
-                                      ),
+                                      ],
                                     ],
                                   ),
                                 ),
                                 const SizedBox(height: 16),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        'Choose a reward',
-                                        style: GoogleFonts.inter(
-                                          fontSize: 16,
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 9,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: accent.withValues(alpha: 0.1),
-                                        borderRadius: BorderRadius.circular(
-                                          999,
-                                        ),
-                                      ),
-                                      child: Text(
-                                        '${vouchers.length} rewards',
-                                        style: GoogleFonts.inter(
-                                          color: accent,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
+                                Text(
+                                  hasRedeemableVoucher
+                                      ? 'Choose a reward'
+                                      : 'Rewards',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 16,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
                                 const SizedBox(height: 10),
                                 Expanded(
                                   child: ListView.separated(
-                                    itemCount: vouchers.length,
+                                    // Nothing redeemable: end with ways to
+                                    // earn instead of a dead button.
+                                    itemCount:
+                                        vouchers.length +
+                                        (hasRedeemableVoucher ? 0 : 1),
                                     separatorBuilder: (_, _) =>
                                         const SizedBox(height: 10),
                                     itemBuilder: (context, i) {
+                                      if (i == vouchers.length) {
+                                        return _earnWaysCard(earnWays, accent);
+                                      }
                                       final voucher = vouchers[i];
                                       final int requiredCoins =
                                           voucher['requiredCoins'] as int;
@@ -442,66 +465,83 @@ class GlobalBottomSheetService {
                                                       ),
                                                     ),
                                                     const SizedBox(height: 8),
-                                                    Row(
-                                                      children: [
-                                                        Container(
-                                                          padding:
-                                                              const EdgeInsets.symmetric(
-                                                                horizontal: 8,
-                                                                vertical: 4,
-                                                              ),
-                                                          decoration: BoxDecoration(
-                                                            color: accent
-                                                                .withValues(
-                                                                  alpha: 0.08,
-                                                                ),
-                                                            border: Border.all(
-                                                              color: accent
-                                                                  .withValues(
-                                                                    alpha: 0.12,
-                                                                  ),
+                                                    if (!hasEnough) ...[
+                                                      ClipRRect(
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              99,
                                                             ),
-                                                            borderRadius:
-                                                                BorderRadius.circular(
-                                                                  8,
-                                                                ),
-                                                          ),
-                                                          child: Text(
-                                                            code,
-                                                            style: GoogleFonts.inter(
+                                                        child: LinearProgressIndicator(
+                                                          value:
+                                                              hashCoin /
+                                                              requiredCoins,
+                                                          minHeight: 4,
+                                                          color: accent
+                                                              .withValues(
+                                                                alpha: 0.7,
+                                                              ),
+                                                          backgroundColor:
+                                                              Colors.white
+                                                                  .withValues(
+                                                                    alpha: 0.08,
+                                                                  ),
+                                                        ),
+                                                      ),
+                                                      const SizedBox(height: 6),
+                                                      Text(
+                                                        '${_formatHashCoins(coinsNeeded)} HC to go',
+                                                        style:
+                                                            GoogleFonts.inter(
                                                               fontSize: 11,
+                                                              color: Colors
+                                                                  .white60,
                                                               fontWeight:
                                                                   FontWeight
-                                                                      .w700,
-                                                              color: hasEnough
-                                                                  ? accent
-                                                                  : Colors
-                                                                        .white70,
+                                                                      .w600,
                                                             ),
-                                                          ),
-                                                        ),
-                                                        if (!hasEnough) ...[
-                                                          const SizedBox(
-                                                            width: 8,
-                                                          ),
-                                                          Expanded(
+                                                      ),
+                                                    ] else
+                                                      Row(
+                                                        children: [
+                                                          Container(
+                                                            padding:
+                                                                const EdgeInsets.symmetric(
+                                                                  horizontal: 8,
+                                                                  vertical: 4,
+                                                                ),
+                                                            decoration: BoxDecoration(
+                                                              color: accent
+                                                                  .withValues(
+                                                                    alpha: 0.08,
+                                                                  ),
+                                                              border: Border.all(
+                                                                color: accent
+                                                                    .withValues(
+                                                                      alpha:
+                                                                          0.12,
+                                                                    ),
+                                                              ),
+                                                              borderRadius:
+                                                                  BorderRadius.circular(
+                                                                    8,
+                                                                  ),
+                                                            ),
                                                             child: Text(
-                                                              'Need ${_formatHashCoins(coinsNeeded)} more',
+                                                              code,
                                                               style: GoogleFonts.inter(
                                                                 fontSize: 11,
-                                                                color:
-                                                                    const Color(
-                                                                      0xffFF5A5A,
-                                                                    ),
                                                                 fontWeight:
                                                                     FontWeight
-                                                                        .w600,
+                                                                        .w700,
+                                                                color: hasEnough
+                                                                    ? accent
+                                                                    : Colors
+                                                                          .white70,
                                                               ),
                                                             ),
                                                           ),
                                                         ],
-                                                      ],
-                                                    ),
+                                                      ),
                                                   ],
                                                 ),
                                               ),
@@ -528,103 +568,101 @@ class GlobalBottomSheetService {
                                     },
                                   ),
                                 ),
-                                const SizedBox(height: 12),
-                                BlocBuilder<CreateOfferCubit, CreateOfferState>(
-                                  builder: (context, state) {
-                                    final isLoading =
-                                        state is CreateOfferLoading;
-                                    final canRedeem =
-                                        selectedVoucher != null && !isLoading;
-                                    final hasRedeemableVoucher = vouchers.any(
-                                      (voucher) =>
-                                          hashCoin >=
-                                          (voucher['requiredCoins'] as int),
-                                    );
-                                    final ctaText = selectedVoucher != null
-                                        ? 'Redeem ${vouchers[selectedVoucher!]['discount']}% OFF'
-                                        : hasRedeemableVoucher
-                                        ? 'Select a reward to continue'
-                                        : 'Earn more HashCoins to unlock';
-                                    return GestureDetector(
-                                      onTap: canRedeem
-                                          ? () {
-                                              final voucher =
-                                                  vouchers[selectedVoucher!];
-                                              final int discount =
-                                                  voucher['discount'] as int;
-                                              _processRedemption(
-                                                discount,
-                                                hashCoin,
-                                              );
-                                            }
-                                          : null,
-                                      child: AnimatedContainer(
-                                        duration: const Duration(
-                                          milliseconds: 180,
-                                        ),
-                                        width: double.infinity,
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 16,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(
-                                            14,
+                                if (hasRedeemableVoucher) ...[
+                                  const SizedBox(height: 12),
+                                  BlocBuilder<
+                                    CreateOfferCubit,
+                                    CreateOfferState
+                                  >(
+                                    builder: (context, state) {
+                                      final isLoading =
+                                          state is CreateOfferLoading;
+                                      final canRedeem =
+                                          selectedVoucher != null && !isLoading;
+                                      final ctaText = selectedVoucher != null
+                                          ? 'Redeem ${vouchers[selectedVoucher!]['discount']}% OFF'
+                                          : 'Select a reward to continue';
+                                      return GestureDetector(
+                                        onTap: canRedeem
+                                            ? () {
+                                                final voucher =
+                                                    vouchers[selectedVoucher!];
+                                                final int discount =
+                                                    voucher['discount'] as int;
+                                                _processRedemption(
+                                                  discount,
+                                                  hashCoin,
+                                                );
+                                              }
+                                            : null,
+                                        child: AnimatedContainer(
+                                          duration: const Duration(
+                                            milliseconds: 180,
                                           ),
-                                          gradient: canRedeem
-                                              ? LinearGradient(
-                                                  colors: [
-                                                    accent,
-                                                    accent.withValues(
-                                                      alpha: 0.78,
+                                          width: double.infinity,
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 16,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            borderRadius: BorderRadius.circular(
+                                              14,
+                                            ),
+                                            gradient: canRedeem
+                                                ? LinearGradient(
+                                                    colors: [
+                                                      accent,
+                                                      accent.withValues(
+                                                        alpha: 0.78,
+                                                      ),
+                                                    ],
+                                                    begin: Alignment.topCenter,
+                                                    end: Alignment.bottomCenter,
+                                                  )
+                                                : null,
+                                            color: canRedeem
+                                                ? null
+                                                : Colors.white.withValues(
+                                                    alpha: 0.14,
+                                                  ),
+                                          ),
+                                          child: isLoading
+                                              ? Row(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.center,
+                                                  children: [
+                                                    const SizedBox(
+                                                      width: 20,
+                                                      height: 20,
+                                                      child: AppLinearLoader(),
+                                                    ),
+                                                    const SizedBox(width: 10),
+                                                    Text(
+                                                      'Processing...',
+                                                      style: GoogleFonts.inter(
+                                                        fontSize: 16,
+                                                        fontWeight:
+                                                            FontWeight.w700,
+                                                        color: Colors.white,
+                                                      ),
                                                     ),
                                                   ],
-                                                  begin: Alignment.topCenter,
-                                                  end: Alignment.bottomCenter,
                                                 )
-                                              : null,
-                                          color: canRedeem
-                                              ? null
-                                              : Colors.white.withValues(
-                                                  alpha: 0.14,
+                                              : Text(
+                                                  ctaText,
+                                                  textAlign: TextAlign.center,
+                                                  style: GoogleFonts.inter(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.w800,
+                                                    color: canRedeem
+                                                        ? Colors.black
+                                                        : Colors.white,
+                                                  ),
                                                 ),
                                         ),
-                                        child: isLoading
-                                            ? Row(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment.center,
-                                                children: [
-                                                  const SizedBox(
-                                                    width: 20,
-                                                    height: 20,
-                                                    child: AppLinearLoader(),
-                                                  ),
-                                                  const SizedBox(width: 10),
-                                                  Text(
-                                                    'Processing...',
-                                                    style: GoogleFonts.inter(
-                                                      fontSize: 16,
-                                                      fontWeight:
-                                                          FontWeight.w700,
-                                                      color: Colors.white,
-                                                    ),
-                                                  ),
-                                                ],
-                                              )
-                                            : Text(
-                                                ctaText,
-                                                textAlign: TextAlign.center,
-                                                style: GoogleFonts.inter(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.w800,
-                                                  color: canRedeem
-                                                      ? Colors.black
-                                                      : Colors.white,
-                                                ),
-                                              ),
-                                      ),
-                                    );
-                                  },
-                                ),
+                                      );
+                                    },
+                                  ),
+                                ],
                               ],
                             ),
                           ),
@@ -640,6 +678,71 @@ class GlobalBottomSheetService {
       },
     );
   }
+
+  Widget _earnWaysCard(
+    List<(IconData, String, String, String)> ways,
+    Color accent,
+  ) => Container(
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: Colors.white.withValues(alpha: 0.045),
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Ways to earn',
+          style: GoogleFonts.inter(
+            fontSize: 14,
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        for (final (icon, title, subtitle, coins) in ways)
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Row(
+              children: [
+                Icon(icon, color: accent, size: 20),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        subtitle,
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          color: Colors.white60,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  '$coins HC',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: accent,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    ),
+  );
 
   // Helper method to format hash coin numbers
   String _formatHashCoins(int coins) {

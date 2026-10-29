@@ -91,8 +91,9 @@ class _CafeWalletBalanceBannerState extends State<CafeWalletBalanceBanner>
           ? 'Pending reservation ${cafeMoney(wallet.reserved)}'
           : 'Top up at this cafe\'s reception';
     } else if (_failed) {
-      amount = '—';
-      caption = 'Balance unavailable. Tap to retry';
+      // A failed read reads as a quiet status, not a giant dash.
+      amount = 'Couldn\'t load balance';
+      caption = 'Tap to retry';
     } else {
       amount = '…';
       caption = 'Only usable at this cafe';
@@ -127,9 +128,11 @@ class _CafeWalletBalanceBannerState extends State<CafeWalletBalanceBanner>
                 const SizedBox(height: 4),
                 Text(
                   amount,
-                  style: HomeTokens.title(
-                    22,
-                  ).copyWith(color: HomeTokens.goldLight),
+                  style: wallet == null && _failed
+                      ? HomeTokens.title(15).copyWith(color: Colors.white70)
+                      : HomeTokens.title(
+                          22,
+                        ).copyWith(color: HomeTokens.goldLight),
                 ),
                 const SizedBox(height: 2),
                 Text(

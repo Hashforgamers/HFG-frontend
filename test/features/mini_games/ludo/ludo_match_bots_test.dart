@@ -98,6 +98,6 @@ void main() {
   test('invite message carries the code and a tappable https link', () {
     final msg = LudoMatchService.inviteMessage(_match(const {}));
     expect(msg, contains('ABC234'));
-    expect(msg, contains('https://hashforgamers.co.in/game/ludomatch_m1'));
+    expect(msg, contains('https://www.hashforgamers.com/game/ludomatch_m1'));
   });
 }

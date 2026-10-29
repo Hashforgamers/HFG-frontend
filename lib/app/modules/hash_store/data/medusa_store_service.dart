@@ -328,6 +328,23 @@ class MedusaStoreService {
     },
   );
 
+  /// One catalog row by product id, or null when it is not listed.
+  // shortcut: the catalog has no single-product route, so this pages through
+  // `/store/hash/products`. Use a product endpoint once the backend adds one.
+  Future<Map<String, dynamic>?> product(String productId) async {
+    for (var offset = 0; offset < 1000; offset += 100) {
+      final page = await catalog(offset: offset, limit: 100);
+      final rows = (page['products'] as List? ?? []).whereType<Map>();
+      for (final row in rows) {
+        if (row['product_id'] == productId) {
+          return Map<String, dynamic>.from(row);
+        }
+      }
+      if (rows.length < 100) return null;
+    }
+    return null;
+  }
+
   // ------------------------------------------------------------------- cart
 
   String get _cartKey => 'hash_store_cart_$_customerId';
@@ -449,6 +466,127 @@ class MedusaStoreService {
       return null;
     }
     return cart;
+  }
+
+  // ------------------------------------------------------------- promotions
+
+  /// Adds [code] to the cart's promotions and returns the server cart. The
+  /// returned flag is false when the server accepted the request but the code
+  /// does not discount anything in this cart.
+  Future<({Map<String, dynamic> cart, bool applied})> applyCoupon(
+    String cartId,
+    String code,
+  ) async {
+    _requireEditable(cartId);
+    final normalized = code.trim().toUpperCase();
+    final data = await _customer(
+      'POST',
+      '/store/carts/$cartId/promotions',
+      data: {
+        'promo_codes': [normalized],
+      },
+    );
+    final cart = Map<String, dynamic>.from(data['cart'] as Map);
+    return (cart: cart, applied: couponApplies(cart, normalized));
+  }
+
+  Future<Map<String, dynamic>> removeCoupon(String cartId, String code) async {
+    _requireEditable(cartId);
+    final data = await _customer(
+      'DELETE',
+      '/store/carts/$cartId/promotions',
+      data: {
+        'promo_codes': [code],
+      },
+    );
+    return Map<String, dynamic>.from(data['cart'] as Map);
+  }
+
+  /// The code is listed on the cart and backs a positive line adjustment.
+  @visibleForTesting
+  static bool couponApplies(Map<String, dynamic> cart, String code) {
+    final listed = (cart['promotions'] as List? ?? []).any(
+      (p) => p is Map && '${p['code']}'.toUpperCase() == code,
+    );
+    final adjusted = (cart['items'] as List? ?? []).any(
+      (i) =>
+          i is Map &&
+          (i['adjustments'] as List? ?? []).any(
+            (a) =>
+                a is Map &&
+                '${a['code']}'.toUpperCase() == code &&
+                a['amount'] is num &&
+                (a['amount'] as num) > 0,
+          ),
+    );
+    return listed && adjusted;
+  }
+
+  // ---------------------------------------------------------------- reviews
+
+  /// `{reviews, count, offset, limit, rating_summary}`; approved only.
+  Future<Map<String, dynamic>> productReviews(
+    String productId, {
+    int offset = 0,
+    int limit = 20,
+  }) => _public(
+    '/store/hash/products/$productId/reviews',
+    query: {'offset': offset, 'limit': limit},
+  );
+
+  /// The customer's own reviews in every status.
+  Future<List<Map<String, dynamic>>> myReviews({String? productId}) async {
+    final data = await _customer(
+      'GET',
+      '/store/hash/reviews',
+      query: {'offset': 0, 'limit': 20, 'product_id': ?productId},
+    );
+    return (data['reviews'] as List? ?? [])
+        .map((r) => Map<String, dynamic>.from(r as Map))
+        .toList();
+  }
+
+  /// `{eligible, reason}`.
+  Future<Map<String, dynamic>> reviewEligibility(
+    String orderId,
+    String productId,
+  ) => _customer(
+    'GET',
+    '/store/hash/reviews/eligibility',
+    query: {'order_id': orderId, 'product_id': productId},
+  );
+
+  /// Creates a review, or edits/resubmits one when [revision] is given.
+  Future<Map<String, dynamic>> saveReview({
+    required String productId,
+    required String orderId,
+    required int rating,
+    required String title,
+    required String body,
+    int? revision,
+  }) async {
+    final data = await _customer(
+      'POST',
+      '/store/hash/reviews',
+      data: {
+        'product_id': productId,
+        'order_id': orderId,
+        'rating': rating,
+        'title': title.trim(),
+        'body': body.trim(),
+        'revision': ?revision,
+      },
+    );
+    return Map<String, dynamic>.from(data['review'] as Map);
+  }
+
+  Future<Map<String, dynamic>> withdrawReview(String id, int revision) async {
+    final data = await _customer(
+      'DELETE',
+      '/store/hash/reviews/$id',
+      data: {'revision': revision},
+    );
+    return Map<String, dynamic>.from(data['review'] as Map);
   }
 
   // --------------------------------------------------------------- checkout

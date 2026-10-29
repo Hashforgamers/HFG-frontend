@@ -251,6 +251,9 @@ class NeonFlip extends StatelessWidget {
     final step = scope.count > 1 ? math.min(0.11, 0.33 / (scope.count - 1)) : 0;
     final rank = (slot - scope.origin).abs();
     final p = ((scope.t - (0.32 + step * rank)) / 0.34).clamp(0.0, 1.0);
+    // Landed: a spring can settle a hair under t = 1, and an at-rest
+    // perspective layer drew hairlines along the icon edges.
+    if (p >= 1) return child;
     final e = Curves.easeOutBack.transform(p);
     return IgnorePointer(
       ignoring: p < 0.6,

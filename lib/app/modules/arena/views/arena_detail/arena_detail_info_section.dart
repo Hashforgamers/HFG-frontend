@@ -26,6 +26,11 @@ class ArenaDetailInfoSection extends StatelessWidget {
     final timingBadge = _timingBadge(normalizedHours);
 
     final closed = _isClosed(normalizedHours);
+    // List screens pass "Address not available" as a placeholder; don't
+    // present it as if it were an address.
+    final a = address.trim().toLowerCase();
+    final hasAddress =
+        a.isNotEmpty && a != 'null' && a != 'address not available';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -57,20 +62,22 @@ class ArenaDetailInfoSection extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           child: Column(
             children: [
-              _InfoRow(
-                icon: Icons.place_rounded,
-                accent: HomeTokens.green,
-                label: 'Location',
-                value: address,
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Divider(
-                  height: 1,
-                  thickness: 1,
-                  color: Colors.white.withValues(alpha: 0.06),
+              if (hasAddress) ...[
+                _InfoRow(
+                  icon: Icons.place_rounded,
+                  accent: HomeTokens.green,
+                  label: 'Location',
+                  value: address,
                 ),
-              ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Divider(
+                    height: 1,
+                    thickness: 1,
+                    color: Colors.white.withValues(alpha: 0.06),
+                  ),
+                ),
+              ],
               _InfoRow(
                 icon: Icons.schedule_rounded,
                 accent: accentColor,

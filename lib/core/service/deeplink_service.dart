@@ -16,6 +16,7 @@ import 'package:hash/features/mini_games/ludo/online/ludo_match_screen.dart';
 import 'package:hash/features/mini_games/score/mini_game_leaderboard_page.dart';
 import 'package:hash/features/mini_games/score/mini_game_leaderboard_service.dart';
 import 'package:hash/features/mini_games/score/mini_game_score_service.dart';
+import 'package:hash/app/modules/hash_store/store_links.dart';
 import 'package:hash/app/routes/app_routes.dart';
 import 'package:hash/core/service/analytics_service.dart';
 import 'package:hash/core/service_locator.dart';
@@ -41,6 +42,7 @@ enum DeepLinkType {
   booking,
   contest,
   offer,
+  shop,
   unknown,
 }
 
@@ -150,7 +152,8 @@ class DeepLinkService extends GetxController {
       _tournamentRoots.contains(value) ||
       _resourceTypes.containsKey(value) ||
       _standaloneTypes.containsKey(value) ||
-      value == 'contest';
+      value == 'contest' ||
+      value == 'shop';
   final AppLinks _appLinks;
   SharedPreferences? _preferences;
   StreamSubscription<Uri>? _linkSub;
@@ -258,10 +261,34 @@ class DeepLinkService extends GetxController {
     if (_standaloneTypes.containsKey(root)) {
       return out(_standaloneTypes[root]!);
     }
+    // Shop: `shop`, `shop/cart`, `shop/orders`, `shop/product/<id>`,
+    // `shop/order/<id>`. `id` holds the section, `secondaryId` the resource.
+    if (root == 'shop') {
+      final section = lowerAt(0) ?? '';
+      final resource = idAt(1) ?? '';
+      if (section.isEmpty) return out(DeepLinkType.shop, id: 'home');
+      if (const {'cart', 'orders'}.contains(section)) {
+        return out(DeepLinkType.shop, id: section);
+      }
+      if (const {'product', 'order'}.contains(section) && resource.isNotEmpty) {
+        return out(DeepLinkType.shop, id: section, secondaryId: resource);
+      }
+      return out(DeepLinkType.unknown);
+    }
     if (root == 'contest') {
       return out(DeepLinkType.contest, id: id ?? uri.queryParameters['id']);
     }
     return out(DeepLinkType.unknown);
+  }
+
+  /// The link resolves to a real screen rather than the home fallback.
+  static bool opensScreen(Uri uri) {
+    final destination = parse(uri);
+    return switch (destination.type) {
+      DeepLinkType.unknown => false,
+      DeepLinkType.shop || DeepLinkType.teamInvite || DeepLinkType.game => true,
+      final type => _routeFor(type) != AppRoutes.HOME,
+    };
   }
 
   @override
@@ -287,7 +314,24 @@ class DeepLinkService extends GetxController {
     }
   }
 
+  Uri? _lastUri;
+  DateTime? _lastAt;
+
+  /// app_links reports a cold-start link both from `getInitialLink` and on
+  /// `uriLinkStream`, which would open the destination twice.
+  @visibleForTesting
+  bool isRepeat(Uri uri, DateTime now) {
+    final repeat =
+        uri == _lastUri &&
+        _lastAt != null &&
+        now.difference(_lastAt!) < const Duration(seconds: 3);
+    _lastUri = uri;
+    _lastAt = now;
+    return repeat;
+  }
+
   Future<void> handleUri(Uri uri) async {
+    if (isRepeat(uri, DateTime.now())) return;
     final destination = parse(uri);
     if (!destination.isValid) {
       unawaited(_trackFailure(uri, 'invalid_link'));
@@ -351,6 +395,14 @@ class DeepLinkService extends GetxController {
     DeepLinkDestination destination, {
     bool replaceStack = false,
   }) async {
+    if (destination.type == DeepLinkType.shop) {
+      if (replaceStack || Get.currentRoute != AppRoutes.HOME) {
+        Get.offAllNamed(AppRoutes.HOME);
+        await WidgetsBinding.instance.endOfFrame;
+      }
+      await openStoreLink(destination.id!, destination.secondaryId);
+      return;
+    }
     if (destination.type == DeepLinkType.teamInvite) {
       Widget page() => TournamentsTeamInviteJoinView(
         eventId: destination.id!,
@@ -506,6 +558,7 @@ class DeepLinkService extends GetxController {
       case DeepLinkType.passes:
       case DeepLinkType.contest:
       case DeepLinkType.offer:
+      case DeepLinkType.shop:
       case DeepLinkType.unknown:
         return AppRoutes.HOME;
     }

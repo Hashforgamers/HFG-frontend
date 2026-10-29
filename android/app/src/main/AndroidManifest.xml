@@ -55,199 +55,82 @@
             <!-- Scoped to the paths DeepLinkService can actually resolve: a
                  host-wide filter would pull every marketing and blog URL on the
                  domain into the app. -->
+            <!-- Only www verifies: the apex and .co.in hosts 301 here, and
+                 Android app-link verification does not follow redirects. -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data
                     android:scheme="https"
-                    android:host="hashforgamers.co.in"
+                    android:host="www.hashforgamers.com"
                     android:pathPrefix="/tournament"/>
                 <data
                     android:scheme="https"
-                    android:host="hashforgamers.co.in"
+                    android:host="www.hashforgamers.com"
                     android:pathPrefix="/tournaments"/>
                 <data
                     android:scheme="https"
-                    android:host="hashforgamers.co.in"
+                    android:host="www.hashforgamers.com"
                     android:pathPrefix="/contest"/>
                 <data
                     android:scheme="https"
-                    android:host="hashforgamers.co.in"
+                    android:host="www.hashforgamers.com"
                     android:pathPrefix="/team/join"/>
                 <data
                     android:scheme="https"
-                    android:host="hashforgamers.co.in"
+                    android:host="www.hashforgamers.com"
                     android:pathPrefix="/cafe"/>
                 <data
                     android:scheme="https"
-                    android:host="hashforgamers.co.in"
+                    android:host="www.hashforgamers.com"
                     android:pathPrefix="/game"/>
                 <data
                     android:scheme="https"
-                    android:host="hashforgamers.co.in"
+                    android:host="www.hashforgamers.com"
                     android:pathPrefix="/profile"/>
                 <data
                     android:scheme="https"
-                    android:host="hashforgamers.co.in"
+                    android:host="www.hashforgamers.com"
                     android:pathPrefix="/host"/>
                 <data
                     android:scheme="https"
-                    android:host="hashforgamers.co.in"
+                    android:host="www.hashforgamers.com"
                     android:pathPrefix="/referral"/>
                 <data
                     android:scheme="https"
-                    android:host="hashforgamers.co.in"
+                    android:host="www.hashforgamers.com"
                     android:pathPrefix="/bookings"/>
                 <data
                     android:scheme="https"
-                    android:host="hashforgamers.co.in"
+                    android:host="www.hashforgamers.com"
                     android:pathPrefix="/wallet"/>
                 <data
                     android:scheme="https"
-                    android:host="hashforgamers.co.in"
+                    android:host="www.hashforgamers.com"
                     android:pathPrefix="/rewards"/>
                 <data
                     android:scheme="https"
-                    android:host="hashforgamers.co.in"
+                    android:host="www.hashforgamers.com"
                     android:pathPrefix="/passes"/>
                 <data
                     android:scheme="https"
-                    android:host="hashforgamers.co.in"
+                    android:host="www.hashforgamers.com"
                     android:pathPrefix="/offer"/>
-            </intent-filter>
-            <intent-filter android:autoVerify="true">
-                <action android:name="android.intent.action.VIEW"/>
-                <category android:name="android.intent.category.DEFAULT"/>
-                <category android:name="android.intent.category.BROWSABLE"/>
-                <data
-                    android:scheme="https"
-                    android:host="www.hashforgamers.co.in"
-                    android:pathPrefix="/tournament"/>
-                <data
-                    android:scheme="https"
-                    android:host="www.hashforgamers.co.in"
-                    android:pathPrefix="/tournaments"/>
-                <data
-                    android:scheme="https"
-                    android:host="www.hashforgamers.co.in"
-                    android:pathPrefix="/contest"/>
-                <data
-                    android:scheme="https"
-                    android:host="www.hashforgamers.co.in"
-                    android:pathPrefix="/team/join"/>
-                <data
-                    android:scheme="https"
-                    android:host="www.hashforgamers.co.in"
-                    android:pathPrefix="/cafe"/>
-                <data
-                    android:scheme="https"
-                    android:host="www.hashforgamers.co.in"
-                    android:pathPrefix="/game"/>
-                <data
-                    android:scheme="https"
-                    android:host="www.hashforgamers.co.in"
-                    android:pathPrefix="/profile"/>
-                <data
-                    android:scheme="https"
-                    android:host="www.hashforgamers.co.in"
-                    android:pathPrefix="/host"/>
-                <data
-                    android:scheme="https"
-                    android:host="www.hashforgamers.co.in"
-                    android:pathPrefix="/referral"/>
-                <data
-                    android:scheme="https"
-                    android:host="www.hashforgamers.co.in"
-                    android:pathPrefix="/bookings"/>
-                <data
-                    android:scheme="https"
-                    android:host="www.hashforgamers.co.in"
-                    android:pathPrefix="/wallet"/>
-                <data
-                    android:scheme="https"
-                    android:host="www.hashforgamers.co.in"
-                    android:pathPrefix="/rewards"/>
-                <data
-                    android:scheme="https"
-                    android:host="www.hashforgamers.co.in"
-                    android:pathPrefix="/passes"/>
-                <data
-                    android:scheme="https"
-                    android:host="www.hashforgamers.co.in"
-                    android:pathPrefix="/offer"/>
-            </intent-filter>
-            <intent-filter android:autoVerify="true">
-                <action android:name="android.intent.action.VIEW"/>
-                <category android:name="android.intent.category.DEFAULT"/>
-                <category android:name="android.intent.category.BROWSABLE"/>
-                <data
-                    android:scheme="https"
-                    android:host="hashforgamers.com"
-                    android:pathPrefix="/contest"/>
-                <data
-                    android:scheme="https"
-                    android:host="hashforgamers.com"
-                    android:pathPrefix="/team/join"/>
-                <data
-                    android:scheme="https"
-                    android:host="hashforgamers.com"
-                    android:pathPrefix="/tournaments"/>
-            </intent-filter>
-            <intent-filter android:autoVerify="true">
-                <action android:name="android.intent.action.VIEW"/>
-                <category android:name="android.intent.category.DEFAULT"/>
-                <category android:name="android.intent.category.BROWSABLE"/>
                 <data
                     android:scheme="https"
                     android:host="www.hashforgamers.com"
-                    android:pathPrefix="/contest"/>
-                <data
-                    android:scheme="https"
-                    android:host="www.hashforgamers.com"
-                    android:pathPrefix="/team/join"/>
-                <data
-                    android:scheme="https"
-                    android:host="www.hashforgamers.com"
-                    android:pathPrefix="/tournaments"/>
+                    android:pathPrefix="/shop"/>
             </intent-filter>
 
-            <!-- Custom Scheme Deep Links -->
+            <!-- Custom Scheme Deep Links: every host, matching iOS's
+                 CFBundleURLSchemes; DeepLinkService rejects unknown ones. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="hash" android:host="contest"/>
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW"/>
-                <category android:name="android.intent.category.DEFAULT"/>
-                <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="hash" android:host="offer"/>
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW"/>
-                <category android:name="android.intent.category.DEFAULT"/>
-                <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="hash" android:host="system"/>
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW"/>
-                <category android:name="android.intent.category.DEFAULT"/>
-                <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="hashforgamers" android:host="team" android:pathPrefix="/join"/>
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW"/>
-                <category android:name="android.intent.category.DEFAULT"/>
-                <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="hashforgamers" android:host="tournaments"/>
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW"/>
-                <category android:name="android.intent.category.DEFAULT"/>
-                <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="hashforgamers" android:host="game"/>
+                <data android:scheme="hash"/>
+                <data android:scheme="hashforgamers"/>
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

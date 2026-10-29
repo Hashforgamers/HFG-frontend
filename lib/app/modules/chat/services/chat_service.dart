@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:hash/config/web_links.dart';
 import 'dart:math' as math;
 import 'package:flutter/widgets.dart';
 
@@ -1240,7 +1241,7 @@ class ChatService extends GetxService with WidgetsBindingObserver {
       path: '/$pathPrefix$safeMatchId',
     ).toString();
     final webLink = Uri.https(
-      'hashforgamers.com',
+      kWebHost,
       '/game/$pathPrefix$safeMatchId',
     ).toString();
     final previewText = open
@@ -1307,7 +1308,7 @@ class ChatService extends GetxService with WidgetsBindingObserver {
       queryParameters: {'team_id': safeTeamId},
     ).toString();
     final webLink = Uri.https(
-      'hashforgamers.com',
+      kWebHost,
       '/tournaments/$safeEventId',
       {'team_id': safeTeamId},
     ).toString();

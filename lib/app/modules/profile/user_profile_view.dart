@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:hash/config/web_links.dart';
 import 'package:hash/core/utils/app_snackbar.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -1075,7 +1076,7 @@ class _UserProfileViewState extends State<UserProfileView> {
       ShareParams(
         text:
             'Check out ${name?.isNotEmpty == true ? name : 'my'} gamer profile on HASH 🎮\n'
-            'https://hashforgamers.com/profile/$uid',
+            '$kWebOrigin/profile/$uid',
         subject: 'HASH gamer profile',
         sharePositionOrigin: origin,
       ),

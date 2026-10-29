@@ -3,7 +3,9 @@ import 'package:hash/utils/widgets/loader.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/notifications/controllers/app_notifications_controller.dart';
+import 'package:hash/core/service/deeplink_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
+import 'package:hash/core/service/push_router.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
 
@@ -44,6 +46,21 @@ class _NotificationsViewState extends State<NotificationsView> {
       _fbEventsService.onNotificationIgnored(notificationId: id);
     }
     super.dispose();
+  }
+
+  /// Same mapping as a push tap; rows with nothing to open stay put.
+  Future<void> _openTarget(Map<String, dynamic> item) async {
+    switch (PushRouter.resolve(item)) {
+      case PushDeepLink(:final uri)
+          when DeepLinkService.opensScreen(uri) &&
+              Get.isRegistered<DeepLinkService>():
+        await Get.find<DeepLinkService>().handleUri(uri);
+      case PushNamedRoute(:final route, :final arguments)
+          when route != PushRouter.notificationsRoute:
+        await Get.toNamed(route, arguments: arguments);
+      default:
+        break;
+    }
   }
 
   @override
@@ -100,6 +117,7 @@ class _NotificationsViewState extends State<NotificationsView> {
                   if (!isRead && id.isNotEmpty) {
                     await _controller.markAsRead(id);
                   }
+                  await _openTarget(item);
                 },
                 onLongPress: () async {
                   if (id.isEmpty) return;

@@ -1,4 +1,5 @@
 import 'package:hash/core/utils/share_origin.dart';
+import 'package:hash/config/web_links.dart';
 import 'dart:async';
 import 'dart:ui';
 
@@ -1307,7 +1308,7 @@ class ExpandedTeamListView extends StatelessWidget {
         text:
             'Join my team "${team.name}" on HashForGamers.\n'
             'hashforgamers://team/join?event_id=${tournament.id}&team_id=${team.id}\n'
-            'https://hashforgamers.com/team/join?event_id=${tournament.id}&team_id=${team.id}',
+            '$kWebOrigin/team/join?event_id=${tournament.id}&team_id=${team.id}',
       ),
     );
     ScaffoldMessenger.of(context).showSnackBar(

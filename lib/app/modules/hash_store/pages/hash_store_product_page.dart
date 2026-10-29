@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hash/app/modules/hash_store/cubit/hash_store_cart_cubit.dart';
 import 'package:hash/app/modules/hash_store/pages/hash_store_checkout_page.dart';
+import 'package:hash/app/modules/hash_store/widgets/store_reviews.dart';
 import 'package:hash/app/modules/hash_store/widgets/store_ui.dart';
 
 /// Pushes the product page, carrying the shop's shared cart along.
@@ -165,6 +166,8 @@ class _HashStoreProductPageState extends State<HashStoreProductPage> {
                         ),
                         const SizedBox(height: 16),
                         Text('${p['title'] ?? ''}', style: storeTitle(28)),
+                        const SizedBox(height: 6),
+                        StoreRatingLine(p['rating_summary'], size: 14),
                         const SizedBox(height: 10),
                         Row(
                           children: [
@@ -214,6 +217,12 @@ class _HashStoreProductPageState extends State<HashStoreProductPage> {
                               color: Colors.white70,
                               height: 1.5,
                             ),
+                          ),
+                        ],
+                        if (p['product_id'] is String) ...[
+                          const SizedBox(height: 28),
+                          StoreProductReviews(
+                            productId: p['product_id'] as String,
                           ),
                         ],
                         const SizedBox(height: 28),

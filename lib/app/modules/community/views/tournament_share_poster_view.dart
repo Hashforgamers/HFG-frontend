@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:hash/config/web_links.dart';
 import 'package:hash/core/utils/app_snackbar.dart';
 import 'dart:ui' as ui;
 
@@ -119,7 +120,7 @@ class _TournamentSharePosterViewState extends State<TournamentSharePosterView> {
       await file.writeAsBytes(bytes.buffer.asUint8List(), flush: true);
 
       final t = widget.tournament;
-      final link = 'https://hashforgamers.com/tournaments/${t.id}';
+      final link = '$kWebOrigin/tournaments/${t.id}';
       await SharePlus.instance.share(
         ShareParams(
           files: [XFile(file.path, mimeType: 'image/png')],

@@ -161,7 +161,8 @@ class SegmentSdkService {
     // so track events would keep the launch-time user's traits.
     final context = await analytics.state.context.state;
     if (context != null) {
-      context.traits = (await analytics.state.userInfo.state).userTraits ?? traits;
+      context.traits =
+          (await analytics.state.userInfo.state).userTraits ?? traits;
       analytics.state.context.setState(context);
     }
     _lastIdentityFingerprint = fingerprint;

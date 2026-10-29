@@ -66,8 +66,13 @@ class ArenaDetailQuickActions extends StatelessWidget {
           onTap: () =>
               _open(context, Uri(scheme: 'mailto', path: email.trim())),
         ),
-      _Action(icon: Icons.ios_share_rounded, label: 'Share', onTap: onShare),
     ];
+    // The hero already has a share button; only fill an otherwise empty row.
+    if (actions.isEmpty) {
+      actions.add(
+        _Action(icon: Icons.ios_share_rounded, label: 'Share', onTap: onShare),
+      );
+    }
 
     return Row(
       children: [

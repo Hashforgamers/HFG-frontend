@@ -3,6 +3,7 @@ import 'package:hash/core/utils/app_snackbar.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import 'package:hash/app/modules/game_pass/view/game_pass_view.dart';
 import 'package:hash/app/modules/wallet/cubit/transaction_cubit.dart';
 import 'package:hash/core/repositories/model/transaction_history_model.dart';
@@ -100,7 +101,6 @@ class _WalletScreenState extends State<WalletScreen> {
   final razorpayCtr = Get.put(RazorpayWalletController());
   final TextEditingController amountController = TextEditingController();
   final TextEditingController searchController = TextEditingController();
-  final GlobalKey _transactionsKey = GlobalKey();
   String _transactionFilter = 'all';
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
@@ -218,9 +218,9 @@ class _WalletScreenState extends State<WalletScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _balanceCard(),
-                const SizedBox(height: 32),
-                _quickActionButtons(),
-                const SizedBox(height: 32),
+                const SizedBox(height: 12),
+                _hashPassRow(),
+                const SizedBox(height: 28),
                 _recentTransactions(),
               ],
             ),
@@ -231,110 +231,88 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   // ────────────────────────── WIDGETS ──────────────────────────
+  // Add money is the main action, so it lives on the balance card.
   Widget _balanceCard() {
+    const accent = Color(0xff00DC00);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF111111),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF222222)),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [accent.withValues(alpha: 0.14), const Color(0xFF111111)],
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: accent.withValues(alpha: 0.3)),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Simple balance display
-          Column(
-            children: [
-              Text(
-                "Balance",
+          Text(
+            "Wallet balance",
+            style: GoogleFonts.inter(
+              color: Colors.grey[400],
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            walletCtr.formattedBalance,
+            style: GoogleFonts.orbitron(
+              fontSize: 32,
+              color: accent,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 18),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _showAddMoneyBottomSheet,
+              icon: const Icon(Icons.add_rounded, size: 20),
+              label: Text(
+                "Add money",
                 style: GoogleFonts.inter(
-                  color: Colors.grey[400],
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                walletCtr.formattedBalance,
-                style: GoogleFonts.orbitron(
-                  fontSize: 32,
-                  color: const Color(0xff00DC00),
+                  fontSize: 15,
                   fontWeight: FontWeight.w700,
                 ),
               ),
-            ],
+              style: ElevatedButton.styleFrom(
+                backgroundColor: accent,
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _quickActionButtons() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: _actionButton(
-                icon: Icons.account_balance_wallet,
-                label: "Add Funds",
-                onTap: () => _showAddMoneyBottomSheet(),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _actionButton(
-                icon: Icons.history,
-                label: "Transactions",
-                onTap: _scrollToTransactions,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _actionButton(
-                icon: Icons.card_membership,
-                label: "Hash Pass",
-                onTap: () {
-                  Get.to(() => GamePassViewPage());
-                },
-              ),
-            ),
-          ],
+  Widget _hashPassRow() {
+    return Material(
+      color: const Color(0xFF111111),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: const BorderSide(color: Color(0xFF222222)),
+      ),
+      child: ListTile(
+        onTap: () => Get.to(() => GamePassViewPage()),
+        leading: const Icon(Icons.card_membership, color: Colors.white),
+        title: Text(
+          "Hash Pass",
+          style: GoogleFonts.inter(
+            color: Colors.white,
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+          ),
         ),
-      ],
-    );
-  }
-
-  Widget _actionButton({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 88,
-        decoration: BoxDecoration(
-          color: Colors.black,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFF333333)),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: Colors.white, size: 28),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: GoogleFonts.inter(
-                color: Colors.white,
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
+        trailing: const Icon(Icons.chevron_right, color: Colors.white54),
       ),
     );
   }
@@ -343,58 +321,17 @@ class _WalletScreenState extends State<WalletScreen> {
     final transactions = _visibleTransactions();
 
     return Column(
-      key: _transactionsKey,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Header with Filter button
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              "Recent Transactions",
-              style: GoogleFonts.poppins(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            GestureDetector(
-              onTap: _showTransactionFilter,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF111111),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFF222222)),
-                ),
-                child: Row(
-                  children: [
-                    Text(
-                      _transactionFilter == 'all'
-                          ? "Filter"
-                          : _transactionFilter.capitalizeFirst!,
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Icon(
-                      Icons.keyboard_arrow_down,
-                      color: Colors.white,
-                      size: 16,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
+        Text(
+          "Transactions",
+          style: GoogleFonts.poppins(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 14),
 
         // Search bar
         Container(
@@ -425,7 +362,42 @@ class _WalletScreenState extends State<WalletScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 12),
+        // One tap instead of a dropdown and a sheet for three options.
+        Wrap(
+          spacing: 8,
+          children: [
+            for (final (value, label) in const [
+              ('all', 'All'),
+              ('credit', 'Money in'),
+              ('debit', 'Money out'),
+            ])
+              ChoiceChip(
+                label: Text(label),
+                selected: _transactionFilter == value,
+                showCheckmark: false,
+                onSelected: (_) => setState(() => _transactionFilter = value),
+                labelStyle: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: _transactionFilter == value
+                      ? Colors.black
+                      : Colors.white70,
+                ),
+                selectedColor: const Color(0xff00DC00),
+                backgroundColor: const Color(0xFF111111),
+                side: BorderSide(
+                  color: _transactionFilter == value
+                      ? const Color(0xff00DC00)
+                      : const Color(0xFF222222),
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 16),
 
         if (widget.isTransactionLoading)
           const Padding(
@@ -470,11 +442,40 @@ class _WalletScreenState extends State<WalletScreen> {
             ),
           )
         else
-          ...transactions.map(
-            (transaction) => _transactionCardFromHistoryModel(transaction),
-          ),
+          for (final (i, transaction) in transactions.indexed) ...[
+            // A date header whenever the day changes; the API lists newest
+            // first, so consecutive rows share a day.
+            if (i == 0 || transactions[i - 1].date != transaction.date)
+              Padding(
+                padding: EdgeInsets.only(top: i == 0 ? 0 : 10, bottom: 8),
+                child: Text(
+                  _dayLabel(transaction.date),
+                  style: GoogleFonts.inter(
+                    color: Colors.grey[500],
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+              ),
+            _transactionCardFromHistoryModel(transaction),
+          ],
       ],
     );
+  }
+
+  /// Today / Yesterday / "2 Oct" / "22 Feb 2025" for a `yyyy-MM-dd` date.
+  String _dayLabel(String date) {
+    final day = DateTime.tryParse(date);
+    if (day == null) return date;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final diff = today.difference(DateTime(day.year, day.month, day.day));
+    if (diff.inDays == 0) return 'Today';
+    if (diff.inDays == 1) return 'Yesterday';
+    return DateFormat(
+      day.year == now.year ? 'd MMM' : 'd MMM yyyy',
+    ).format(day);
   }
 
   List<TransactionHistoryModel> _visibleTransactions() {
@@ -489,53 +490,13 @@ class _WalletScreenState extends State<WalletScreen> {
       if (!matchesFilter) return false;
       if (query.isEmpty) return true;
       return type.contains(query) ||
+          _getTransactionDescription(
+            transaction,
+          ).toLowerCase().contains(query) ||
           transaction.referenceId.toLowerCase().contains(query) ||
           transaction.id.toLowerCase().contains(query) ||
           transaction.amount.toString().contains(query);
     }).toList();
-  }
-
-  void _scrollToTransactions() {
-    final target = _transactionsKey.currentContext;
-    if (target != null) {
-      Scrollable.ensureVisible(
-        target,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-    }
-  }
-
-  void _showTransactionFilter() {
-    Get.bottomSheet(
-      SafeArea(
-        child: Container(
-          color: const Color(0xFF111111),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <String>['all', 'credit', 'debit'].map((filter) {
-              final selected = filter == _transactionFilter;
-              return ListTile(
-                leading: Icon(
-                  selected
-                      ? Icons.radio_button_checked
-                      : Icons.radio_button_unchecked,
-                  color: selected ? const Color(0xff00DC00) : Colors.white54,
-                ),
-                title: Text(
-                  filter.capitalizeFirst!,
-                  style: const TextStyle(color: Colors.white),
-                ),
-                onTap: () {
-                  setState(() => _transactionFilter = filter);
-                  Get.back();
-                },
-              );
-            }).toList(),
-          ),
-        ),
-      ),
-    );
   }
 
   Widget _transactionErrorCard(String message) {
@@ -571,57 +532,56 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   Widget _transactionCardFromHistoryModel(TransactionHistoryModel transaction) {
+    final credit = _isCreditTransaction(transaction);
+    final tint = credit ? const Color(0xff00DC00) : Colors.white;
+    final subtitle = _getTransactionSubtitleFromHistory(transaction);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
         color: const Color(0xFF111111),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFF222222)),
       ),
       child: Row(
         children: [
-          // Transaction icon
           Container(
-            width: 48,
-            height: 48,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
-              color: _getTransactionIconColorFromHistory(transaction),
+              color: tint.withValues(alpha: credit ? 0.14 : 0.08),
               shape: BoxShape.circle,
             ),
             child: Icon(
               _getTransactionIconFromHistoryModel(transaction),
-              color: Colors.white,
-              size: 20,
+              color: tint,
+              size: 18,
             ),
           ),
-          const SizedBox(width: 16),
-
-          // Transaction details
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   _getTransactionDescription(transaction),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(
                     color: Colors.white,
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 3),
                 Text(
-                  _getTransactionSubtitleFromHistory(transaction),
-                  style: GoogleFonts.inter(
-                    color: Colors.grey[400],
-                    fontSize: 13,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  transaction.time,
+                  [
+                    _transactionWhen(transaction),
+                    subtitle,
+                  ].where((s) => s.isNotEmpty).join('  ·  '),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(
                     color: Colors.grey[500],
                     fontSize: 12,
@@ -630,51 +590,26 @@ class _WalletScreenState extends State<WalletScreen> {
               ],
             ),
           ),
-
-          // Amount and date
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                "${_isCreditTransaction(transaction) ? '+' : '-'}${Money.symbol}${transaction.amount.toStringAsFixed(2)}",
-                style: GoogleFonts.inter(
-                  color: _isCreditTransaction(transaction)
-                      ? const Color(0xff00DC00)
-                      : Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                transaction.date,
-                style: GoogleFonts.inter(color: Colors.grey[500], fontSize: 11),
-              ),
-            ],
+          const SizedBox(width: 12),
+          // Amounts can arrive already signed; show the sign once.
+          Text(
+            "${credit ? '+' : '-'}${Money.symbol}${transaction.amount.abs().toStringAsFixed(2)}",
+            style: GoogleFonts.inter(
+              color: tint,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Color _getTransactionIconColorFromHistory(
-    TransactionHistoryModel transaction,
-  ) {
-    // Different colors for different transaction types
-    switch (transaction.type.toLowerCase()) {
-      case 'credit':
-      case 'add':
-      case 'topup':
-        return const Color(0xff00DC00);
-      case 'debit':
-      case 'withdraw':
-      case 'deduct':
-        return Colors.red;
-      case 'refund':
-        return Colors.blue;
-      default:
-        return Colors.grey;
-    }
+  /// "10:03 AM"; the day is in the group header above the row.
+  String _transactionWhen(TransactionHistoryModel transaction) {
+    final at = DateTime.tryParse('${transaction.date} ${transaction.time}');
+    if (at == null) return transaction.time;
+    return DateFormat('h:mm a').format(at);
   }
 
   String _getTransactionDescription(TransactionHistoryModel transaction) {
@@ -692,20 +627,24 @@ class _WalletScreenState extends State<WalletScreen> {
         return 'Payment';
       case 'refund':
         return 'Refund';
+      case 'booking':
+        return 'Cafe booking';
+      case 'pay_at_cafe':
+        return 'Paid at cafe';
       default:
-        return 'Transaction';
+        // Unknown codes like SOME_TYPE read as "Some type", not raw caps.
+        final words = transaction.type.toLowerCase().replaceAll('_', ' ');
+        return words.isEmpty
+            ? 'Transaction'
+            : '${words[0].toUpperCase()}${words.substring(1)}';
     }
   }
 
   String _getTransactionSubtitleFromHistory(
     TransactionHistoryModel transaction,
-  ) {
-    // Return transaction reference or type
-    if (transaction.referenceId.isNotEmpty) {
-      return 'Ref: ${transaction.referenceId}';
-    }
-    return transaction.type.toUpperCase();
-  }
+  ) => transaction.referenceId.isNotEmpty
+      ? 'Ref ${transaction.referenceId}'
+      : '';
 
   IconData _getTransactionIconFromHistoryModel(
     TransactionHistoryModel transaction,
@@ -723,6 +662,10 @@ class _WalletScreenState extends State<WalletScreen> {
         return PhosphorIconsFill.arrowUp;
       case 'refund':
         return PhosphorIconsFill.arrowCounterClockwise;
+      case 'booking':
+        return PhosphorIconsFill.gameController;
+      case 'pay_at_cafe':
+        return PhosphorIconsFill.storefront;
       default:
         return PhosphorIconsFill.wallet;
     }

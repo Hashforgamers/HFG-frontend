@@ -4,7 +4,6 @@ import 'package:hash/app/modules/hash_store/cubit/hash_store_cart_cubit.dart';
 import 'package:hash/app/modules/hash_store/cubit/hash_store_home_cubit.dart';
 import 'package:hash/app/modules/hash_store/pages/hash_store_product_page.dart';
 import 'package:hash/app/modules/hash_store/widgets/hash_store_app_bar.dart';
-import 'package:hash/app/modules/hash_store/widgets/store_page_intro.dart';
 import 'package:hash/app/modules/hash_store/widgets/store_product_card.dart';
 import 'package:hash/app/modules/hash_store/widgets/store_ui.dart';
 
@@ -28,8 +27,24 @@ class _CatalogBody extends StatefulWidget {
   State<_CatalogBody> createState() => _CatalogBodyState();
 }
 
+// shortcut: the catalog has no category field, so chips match product
+// titles. Switch to a server category once /store/hash/products sends one.
+const _categories = <(String, IconData, String?)>[
+  ('All', Icons.sports_esports_rounded, null),
+  (
+    'Accessories',
+    Icons.headphones_rounded,
+    r'headset|headphone|earphone|mouse ?pad|controller|cable|stand',
+  ),
+  ('Keyboards', Icons.keyboard_alt_outlined, r'keyboard'),
+  ('Mouse', Icons.mouse_outlined, r'\bmouse\b(?! ?pad)|\bmice\b'),
+  ('Monitors', Icons.desktop_windows_outlined, r'monitor|display'),
+  ('Chairs', Icons.chair_outlined, r'chair'),
+];
+
 class _CatalogBodyState extends State<_CatalogBody> {
   String _query = '';
+  int _category = 0;
 
   String? get vendorName => widget.vendorName;
 
@@ -37,14 +52,20 @@ class _CatalogBodyState extends State<_CatalogBody> {
   // Move to server search once /store/hash/products supports it.
   List<Map<String, dynamic>> _filter(List<Map<String, dynamic>> products) {
     final q = _query.trim().toLowerCase();
-    if (q.isEmpty) return products;
+    final pattern = _categories[_category].$3;
+    final category = pattern == null
+        ? null
+        : RegExp(pattern, caseSensitive: false);
     return products
         .where(
-          (p) => [
-            p['title'],
-            p['vendor_name'],
-            p['description'],
-          ].any((v) => '${v ?? ''}'.toLowerCase().contains(q)),
+          (p) =>
+              (category == null || category.hasMatch('${p['title'] ?? ''}')) &&
+              (q.isEmpty ||
+                  [
+                    p['title'],
+                    p['vendor_name'],
+                    p['description'],
+                  ].any((v) => '${v ?? ''}'.toLowerCase().contains(q))),
         )
         .toList();
   }
@@ -74,39 +95,7 @@ class _CatalogBodyState extends State<_CatalogBody> {
                     foregroundColor: Colors.white,
                     title: Text(vendorName!, style: storeTitle(16)),
                   ),
-                SliverToBoxAdapter(
-                  child: StorePageIntro(
-                    eyebrow: vendorName == null ? 'Hash Shop' : 'Shop partner',
-                    title: vendorName ?? 'Upgrade your game.',
-                    subtitle: vendorName == null
-                        ? 'Gear for your setup. Sessions for your next win.'
-                        : 'Explore products and sessions from this partner.',
-                    trailing: const StoreCartButton(),
-                  ),
-                ),
-                if (vendorName == null && state.vendors.isNotEmpty)
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: [
-                            _partnerChip(context, 'All brands', null, state),
-                            for (final vendor in state.vendors.entries) ...[
-                              const SizedBox(width: 8),
-                              _partnerChip(
-                                context,
-                                vendor.value,
-                                vendor.key,
-                                state,
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
+                const SliverToBoxAdapter(child: SizedBox(height: 12)),
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
@@ -115,7 +104,7 @@ class _CatalogBodyState extends State<_CatalogBody> {
                       textInputAction: TextInputAction.search,
                       style: storeBody(size: 14),
                       decoration: InputDecoration(
-                        hintText: 'Search gear and sessions',
+                        hintText: 'Search for gaming gear, accessories...',
                         hintStyle: storeBody(
                           size: 14,
                           color: StoreColors.muted,
@@ -145,6 +134,23 @@ class _CatalogBodyState extends State<_CatalogBody> {
                     ),
                   ),
                 ),
+                SliverToBoxAdapter(
+                  child: SizedBox(
+                    height: 80,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: _categories.length,
+                      separatorBuilder: (_, _) => const SizedBox(width: 6),
+                      itemBuilder: (_, i) => _CategoryChip(
+                        label: _categories[i].$1,
+                        icon: _categories[i].$2,
+                        selected: i == _category,
+                        onTap: () => setState(() => _category = i),
+                      ),
+                    ),
+                  ),
+                ),
                 if (state.loading)
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -152,7 +158,7 @@ class _CatalogBodyState extends State<_CatalogBody> {
                       crossAxisCount: 2,
                       mainAxisSpacing: 12,
                       crossAxisSpacing: 12,
-                      childAspectRatio: 0.62,
+                      childAspectRatio: 1,
                       children: [
                         for (var i = 0; i < 4; i++)
                           const StoreSkeleton(
@@ -185,8 +191,10 @@ class _CatalogBodyState extends State<_CatalogBody> {
                   SliverToBoxAdapter(
                     child: StoreMessage(
                       icon: Icons.search_off_rounded,
-                      title: 'No matches for “${_query.trim()}”',
-                      body: 'Try another name or brand.',
+                      title: _query.trim().isEmpty
+                          ? 'Nothing in ${_categories[_category].$1} yet'
+                          : 'No matches for “${_query.trim()}”',
+                      body: 'Try another category, name or brand.',
                     ),
                   )
                 else ...[
@@ -196,14 +204,11 @@ class _CatalogBodyState extends State<_CatalogBody> {
                       child: Row(
                         children: [
                           Expanded(
-                            child: Text(
-                              'Explore the collection',
-                              style: storeTitle(15),
-                            ),
+                            child: Text('Products', style: storeTitle(20)),
                           ),
                           Builder(
                             builder: (_) {
-                              final n = _query.trim().isEmpty
+                              final n = _query.trim().isEmpty && _category == 0
                                   ? state.count
                                   : products.length;
                               return Text(
@@ -228,7 +233,7 @@ class _CatalogBodyState extends State<_CatalogBody> {
                             crossAxisCount: 2,
                             mainAxisSpacing: 12,
                             crossAxisSpacing: 12,
-                            childAspectRatio: 0.62,
+                            childAspectRatio: 1,
                           ),
                       itemBuilder: (context, i) =>
                           BlocBuilder<HashStoreCartCubit, HashStoreCartState>(
@@ -277,28 +282,73 @@ class _CatalogBodyState extends State<_CatalogBody> {
       ),
     );
   }
+}
 
-  Widget _partnerChip(
-    BuildContext context,
-    String label,
-    String? id,
-    HashStoreHomeState state,
-  ) => ChoiceChip(
-    label: Text(label),
-    selected: state.vendorId == id,
-    showCheckmark: false,
-    labelStyle: storeBody(
-      size: 12,
-      color: state.vendorId == id ? Colors.white : StoreColors.muted,
+class _CategoryChip extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+  const _CategoryChip({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    selected: selected,
+    label: label,
+    child: ExcludeSemantics(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: SizedBox(
+          width: 64,
+          child: Column(
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: selected ? StoreColors.purple : StoreColors.surface,
+                  border: Border.all(
+                    color: selected
+                        ? StoreColors.purpleSoft
+                        : StoreColors.border,
+                  ),
+                ),
+                child: Icon(icon, color: Colors.white, size: 20),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: storeBody(
+                  size: 11,
+                  weight: selected ? FontWeight.w700 : FontWeight.w400,
+                  color: selected ? Colors.white : StoreColors.muted,
+                ),
+              ),
+              const SizedBox(height: 4),
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: selected ? 32 : 0,
+                height: 3,
+                decoration: BoxDecoration(
+                  color: StoreColors.purpleSoft,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     ),
-    selectedColor: StoreColors.purple.withValues(alpha: 0.28),
-    backgroundColor: StoreColors.surface,
-    side: BorderSide(
-      color: state.vendorId == id ? StoreColors.purpleSoft : StoreColors.border,
-    ),
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-    onSelected: state.loading
-        ? null
-        : (_) => context.read<HashStoreHomeCubit>().fetchProducts(vendorId: id),
   );
 }

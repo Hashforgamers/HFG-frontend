@@ -196,6 +196,11 @@ class _HashStoreCheckoutPageState extends State<HashStoreCheckoutPage> {
               'Your delivery total changed. Review the updated total and tap Place order to accept.';
           return;
         }
+        if (isRazorpayProvider(_providerId) && storeNum(cart['total']) <= 0) {
+          throw const StoreException(
+            'This order total is ₹0, which online payment cannot process. Remove the offer or contact Hash support.',
+          );
+        }
         final collection = await _store.startPayment(cart, _providerId!);
         if (kDebugMode) debugPrint('[HashStoreCheckout] Payment session ready');
         paymentSetup = false;
@@ -585,6 +590,19 @@ class _HashStoreCheckoutPageState extends State<HashStoreCheckoutPage> {
                     ),
                     const SizedBox(height: 16),
                     StoreSection(
+                      title: 'Offers',
+                      child: _Coupons(
+                        store: _store,
+                        cart: _cart,
+                        enabled: !_placing && !_saving,
+                        onCart: (cart) {
+                          context.read<HashStoreCartCubit>().replace(cart);
+                          setState(() => _cart = cart);
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    StoreSection(
                       title: 'Summary',
                       child: StoreTotals(cart: _cart),
                     ),
@@ -820,6 +838,163 @@ class _SavedAddress extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// Coupon entry plus the offers on the server cart. Totals always come from
+/// the returned cart; nothing is computed here.
+class _Coupons extends StatefulWidget {
+  final MedusaStoreService store;
+  final Map<String, dynamic> cart;
+  final bool enabled;
+  final ValueChanged<Map<String, dynamic>> onCart;
+  const _Coupons({
+    required this.store,
+    required this.cart,
+    required this.enabled,
+    required this.onCart,
+  });
+
+  @override
+  State<_Coupons> createState() => _CouponsState();
+}
+
+class _CouponsState extends State<_Coupons> {
+  final _code = TextEditingController();
+  bool _busy = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _code.dispose();
+    super.dispose();
+  }
+
+  Future<void> _run(Future<Map<String, dynamic>> Function() call) async {
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      widget.onCart(await call());
+    } catch (e) {
+      if (mounted) setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  void _apply() {
+    final code = _code.text.trim().toUpperCase();
+    if (code.isEmpty) return;
+    _run(() async {
+      final result = await widget.store.applyCoupon(
+        widget.cart['id'] as String,
+        code,
+      );
+      if (result.applied) {
+        _code.clear();
+      } else {
+        _error = 'This code does not apply to this cart';
+      }
+      return result.cart;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final promotions = (widget.cart['promotions'] as List? ?? [])
+        .whereType<Map>()
+        .toList();
+    final enabled = widget.enabled && !_busy;
+    return StorePanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _code,
+                  enabled: enabled,
+                  textCapitalization: TextCapitalization.characters,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _apply(),
+                  style: storeBody(size: 15),
+                  cursorColor: StoreColors.green,
+                  decoration: InputDecoration(
+                    hintText: 'Coupon code',
+                    hintStyle: storeBody(color: StoreColors.faint),
+                    prefixIcon: const Icon(
+                      Icons.local_offer_outlined,
+                      size: 20,
+                      color: StoreColors.faint,
+                    ),
+                    border: InputBorder.none,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: enabled ? _apply : null,
+                style: TextButton.styleFrom(
+                  foregroundColor: StoreColors.greenSoft,
+                ),
+                child: _busy
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Apply'),
+              ),
+            ],
+          ),
+          if (_error != null)
+            Semantics(
+              liveRegion: true,
+              child: Text(
+                _error!,
+                style: storeBody(size: 12, color: StoreColors.danger),
+              ),
+            ),
+          for (final p in promotions)
+            Row(
+              children: [
+                const Icon(
+                  Icons.check_circle_rounded,
+                  size: 16,
+                  color: StoreColors.greenSoft,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    p['is_automatic'] == true
+                        ? 'Offer applied automatically'
+                        : '${p['code'] ?? ''} applied',
+                    style: storeBody(size: 13, weight: FontWeight.w600),
+                  ),
+                ),
+                if (p['is_automatic'] != true && p['code'] != null)
+                  TextButton(
+                    onPressed: enabled
+                        ? () => _run(
+                            () => widget.store.removeCoupon(
+                              widget.cart['id'] as String,
+                              '${p['code']}',
+                            ),
+                          )
+                        : null,
+                    style: TextButton.styleFrom(
+                      foregroundColor: StoreColors.muted,
+                    ),
+                    child: const Text('Remove'),
+                  ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
 }
 
 class _Notice extends StatelessWidget {

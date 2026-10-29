@@ -71,6 +71,7 @@ class _HomeViewState extends State<HomeView> {
   Timer? _fabExpandTimer;
   Timer? _shopBarCollapseTimer;
   Worker? _bookingsWorker;
+  Worker? _shopOpenWorker;
   final _cafeSessionSync = CafeLiveSessionSync.instance;
 
   @override
@@ -85,6 +86,12 @@ class _HomeViewState extends State<HomeView> {
         ? Get.find<SessionProgressController>()
         : Get.put(SessionProgressController(), permanent: true);
     _scheduleSessionProgressSync(bookingController.userBookings);
+    // Deep links and pushes open the shop through the controller.
+    _shopOpenWorker = ever<bool>(controller.isShopOpen, (open) {
+      if (open && !_isShopBarExpanded && mounted) {
+        setState(() => _isShopBarExpanded = true);
+      }
+    });
     _bookingsWorker = ever<List<Map<String, dynamic>>>(
       bookingController.userBookings,
       _scheduleSessionProgressSync,
@@ -354,6 +361,7 @@ class _HomeViewState extends State<HomeView> {
     _fabExpandTimer?.cancel();
     _shopBarCollapseTimer?.cancel();
     _bookingsWorker?.dispose();
+    _shopOpenWorker?.dispose();
     _cafeSessionSync.sessions.removeListener(_onCafeSessionsChanged);
     _cafeSessionSync.stop();
     super.dispose();
@@ -362,6 +370,8 @@ class _HomeViewState extends State<HomeView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // Content runs under the frosted nav bar instead of stopping above it.
+      extendBody: true,
       body: Stack(
         children: [
           AnimatedSwitcher(
@@ -481,46 +491,87 @@ class _HomeViewState extends State<HomeView> {
           alignment: Alignment.bottomCenter,
           clipBehavior: Clip.none,
           children: [
-            // --- Bottom Navigation Bar ---
-            NeonSwitchFx(
-              index: _navTabs
-                  .indexWhere((t) => t.screen == controller.selectedIndex.value)
-                  .clamp(0, _navTabs.length - 1),
-              count: _navTabs.length,
-              // Slower than the shop dock so the main tabs read clearly.
-              response: 1.3,
-              child: BottomNavigationBar(
-                type: BottomNavigationBarType.fixed,
-                enableFeedback: true,
-                showSelectedLabels: true,
-                showUnselectedLabels: false,
-                selectedFontSize: 10.5,
-                unselectedFontSize: 10,
-                selectedLabelStyle: GoogleFonts.inter(
-                  fontWeight: FontWeight.w700,
-                  height: 1.4,
-                ),
-                currentIndex: _navTabs
-                    .indexWhere(
-                      (t) => t.screen == controller.selectedIndex.value,
-                    )
-                    .clamp(0, _navTabs.length - 1),
-                onTap: (position) =>
-                    _onMainNavigationTap(_navTabs[position].screen),
-                backgroundColor: Colors.black,
-                selectedItemColor: const Color(0xff00DC00),
-                unselectedItemColor: Colors.grey[800],
-                items: <BottomNavigationBarItem>[
-                  for (final (i, tab) in _navTabs.indexed)
-                    _buildNavigationItem(
-                      tab.icon,
-                      slot: i,
-                      label: tab.label,
-                      isSelected: controller.selectedIndex.value == tab.screen,
-                      isSpecial: tab.isSpecial,
-                      iconHeight: tab.iconHeight,
+            // --- Bottom Navigation Bar: frosted glass over the content ---
+            ClipRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                child: DecoratedBox(
+                  // Brand green-to-pink glass; the dark base keeps the icons
+                  // legible over busy artwork.
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Color.alphaBlend(
+                          HomeTokens.green.withValues(alpha: 0.16),
+                          Colors.black.withValues(alpha: 0.55),
+                        ),
+                        Color.alphaBlend(
+                          HomeTokens.pink.withValues(alpha: 0.16),
+                          Colors.black.withValues(alpha: 0.55),
+                        ),
+                      ],
                     ),
-                ],
+                    border: Border(
+                      top: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.08),
+                      ),
+                    ),
+                  ),
+                  // Tabs stop short of the HASH SHOP pill; the last tab
+                  // ("Me") used to sit hidden and untappable under it.
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      right: HomeController.isHashShopReleased
+                          ? HashShopDock.pillWidth
+                          : 0,
+                    ),
+                    child: NeonSwitchFx(
+                      index: _navTabs
+                          .indexWhere(
+                            (t) => t.screen == controller.selectedIndex.value,
+                          )
+                          .clamp(0, _navTabs.length - 1),
+                      count: _navTabs.length,
+                      // Slower than the shop dock so the main tabs read clearly.
+                      response: 1.3,
+                      child: BottomNavigationBar(
+                        type: BottomNavigationBarType.fixed,
+                        enableFeedback: true,
+                        showSelectedLabels: true,
+                        showUnselectedLabels: false,
+                        selectedFontSize: 10.5,
+                        unselectedFontSize: 10,
+                        selectedLabelStyle: GoogleFonts.inter(
+                          fontWeight: FontWeight.w700,
+                          height: 1.4,
+                        ),
+                        currentIndex: _navTabs
+                            .indexWhere(
+                              (t) => t.screen == controller.selectedIndex.value,
+                            )
+                            .clamp(0, _navTabs.length - 1),
+                        onTap: (position) =>
+                            _onMainNavigationTap(_navTabs[position].screen),
+                        backgroundColor: Colors.transparent,
+                        elevation: 0,
+                        selectedItemColor: const Color(0xff00DC00),
+                        unselectedItemColor: Colors.grey[600],
+                        items: <BottomNavigationBarItem>[
+                          for (final (i, tab) in _navTabs.indexed)
+                            _buildNavigationItem(
+                              tab.icon,
+                              slot: i,
+                              label: tab.label,
+                              isSelected:
+                                  controller.selectedIndex.value == tab.screen,
+                              isSpecial: tab.isSpecial,
+                              iconHeight: tab.iconHeight,
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
 
@@ -576,7 +627,8 @@ class _HomeViewState extends State<HomeView> {
     final selected = controller.selectedIndex.value == 2
         ? Color(0xffFBA544)
         : Color(0xff00DC00);
-    final unselected = Colors.grey[800];
+    // Brighter than grey[800] so idle tabs read on the tinted glass.
+    final unselected = Colors.grey[600];
 
     if (isSpecial) {
       return BottomNavigationBarItem(
@@ -587,11 +639,10 @@ class _HomeViewState extends State<HomeView> {
             duration: const Duration(milliseconds: 200),
             height: isSelected ? 27 : 25,
             width: isSelected ? 27 : 25,
-            child: Image.asset(
+            child: _tintedIcon(
               iconPath,
-              height: 12,
-              color: isSelected ? selected : unselected,
-              colorBlendMode: BlendMode.srcIn,
+              12,
+              isSelected ? selected : unselected!,
             ),
           ),
         ),
@@ -606,17 +657,29 @@ class _HomeViewState extends State<HomeView> {
         child: AnimatedScale(
           scale: isSelected ? 1.2 : 1.0,
           duration: const Duration(milliseconds: 200),
-          child: Image.asset(
+          child: _tintedIcon(
             iconPath,
-            height: iconHeight,
-            color: isSelected ? selected : unselected,
-            colorBlendMode: BlendMode.srcIn,
+            iconHeight,
+            isSelected ? selected : unselected!,
           ),
         ),
       ),
       label: label,
     );
   }
+
+  /// Paints a monochrome icon in [color], keeping its alpha. A colour matrix
+  /// rather than BlendMode.srcIn: under Impeller the blend outlined each
+  /// icon's bounds with a hairline box.
+  Widget _tintedIcon(String path, double height, Color color) => ColorFiltered(
+    colorFilter: ColorFilter.matrix([
+      0, 0, 0, 0, color.r * 255, //
+      0, 0, 0, 0, color.g * 255,
+      0, 0, 0, 0, color.b * 255,
+      0, 0, 0, color.a, 0,
+    ]),
+    child: Image.asset(path, height: height),
+  );
 }
 
 class _NavTab {

@@ -1869,7 +1869,6 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                     _buildPassesSection(),
                     sectionGap,
                     gameTitlesGrid(_gamesController),
-                    sectionGap,
                     const HomeSectionTitle(title: 'Visit ', accent: 'Info'),
                     const SizedBox(height: 14),
                     ArenaDetailInfoSection(
@@ -3004,8 +3003,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
       ];
       for (final c in candidates) {
         final name = (c ?? '').toString().trim();
-        if (name.isEmpty) continue;
-        if (_looksLikeConsoleLabel(name)) continue;
+        if (!isLikelyArenaGameTitle(name)) continue;
         return name;
       }
       return '';
@@ -3072,6 +3070,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
             title,
             SizedBox(height: 14),
             SizedBox(height: 150, child: Center(child: AppLinearLoader())),
+            SizedBox(height: 28),
           ],
         );
       }
@@ -3167,6 +3166,8 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
               },
             ),
           ),
+          // The gap below lives here, so a hidden section leaves no hole.
+          const SizedBox(height: 28),
         ],
       );
     });

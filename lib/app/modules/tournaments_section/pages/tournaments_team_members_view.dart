@@ -1,4 +1,5 @@
 import 'package:hash/core/utils/share_origin.dart';
+import 'package:hash/config/web_links.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -1208,7 +1209,7 @@ class _TournamentsTeamMembersViewState
     final deepLink =
         'hashforgamers://team/join?event_id=${widget.eventId}&team_id=${widget.teamId}';
     final webLink =
-        'https://hashforgamers.com/team/join?event_id=${widget.eventId}&team_id=${widget.teamId}';
+        '$kWebOrigin/team/join?event_id=${widget.eventId}&team_id=${widget.teamId}';
     SharePlus.instance.share(
       ShareParams(sharePositionOrigin: shareOriginRect(), 
         text:

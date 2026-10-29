@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:hash/config/web_links.dart';
 import 'package:hash/core/service/app_remote_config.dart';
 import 'dart:math';
 
@@ -248,7 +249,7 @@ class LudoMatchService {
   /// The same invite as an https App Link, so it shows up as a tappable link
   /// in WhatsApp (custom schemes aren't linkified there).
   static String webInviteLink(String matchId) =>
-      'https://hashforgamers.co.in/game/ludomatch_$matchId';
+      '$kWebOrigin/game/ludomatch_$matchId';
 
   /// Ready-to-send invite text for WhatsApp / the share sheet.
   static String inviteMessage(LudoMatch match) {

@@ -76,4 +76,42 @@ void main() {
       expect(DeepLinkService.parse(uri).isValid, isTrue, reason: '$uri');
     }
   });
+
+  test('shop pushes open the order, the orders tab or the shop', () {
+    expect(
+      _uri(PushRouter.resolve({'type': 'store_order', 'order_id': 'order_1'})),
+      'hash://shop/order/order_1',
+    );
+    expect(
+      _uri(PushRouter.resolve({'type': 'store_review', 'reference_id': 'o2'})),
+      'hash://shop/order/o2',
+    );
+    expect(
+      _uri(PushRouter.resolve({'type': 'order_update'})),
+      'hash://shop/orders',
+    );
+    expect(
+      _uri(PushRouter.resolve({'type': 'store_promotion'})),
+      'hash://shop',
+    );
+  });
+
+  test('tournament feed rows open the tournament; others do not', () {
+    expect(
+      _uri(
+        PushRouter.resolve({
+          'type': 'community_registration_success',
+          'reference_id': 't1',
+        }),
+      ),
+      'hash://tournament/t1',
+    );
+    expect(
+      PushRouter.resolve({
+        'type': 'community_host_verification_payment_reference',
+        'reference_id': 'x',
+      }),
+      isA<PushNone>(),
+    );
+  });
 }

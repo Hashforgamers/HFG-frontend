@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:hash/app/modules/hash_store/data/medusa_store_service.dart';
+import 'package:hash/app/modules/hash_store/widgets/store_reviews.dart';
 import 'package:hash/app/modules/hash_store/widgets/store_ui.dart';
 import 'package:hash/core/utils/haptics.dart';
 
@@ -230,10 +231,20 @@ class _HashStoreOrderPageState extends State<HashStoreOrderPage>
                         ),
                         child: Column(
                           children: [
-                            for (final item in (order['items'] as List? ?? []))
+                            for (final item
+                                in (order['items'] as List? ?? [])) ...[
                               _ItemRow(
                                 item: Map<String, dynamic>.from(item as Map),
                               ),
+                              // Server eligibility is the gate; completion
+                              // only avoids a request per item before then.
+                              if (_completion?['completed_at'] != null &&
+                                  item['product_id'] is String)
+                                StoreReviewAction(
+                                  orderId: widget.orderId,
+                                  productId: item['product_id'] as String,
+                                ),
+                            ],
                           ],
                         ),
                       ),

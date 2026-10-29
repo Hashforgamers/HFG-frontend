@@ -113,6 +113,10 @@ List<String> _extractGameValues(dynamic source) {
   return values;
 }
 
+/// Whether [value] names a real game, not a console, facility or placeholder
+/// such as "Unknown", which used to render as a blank game card.
+bool isLikelyArenaGameTitle(String value) => _isLikelyGameTitle(value);
+
 bool _isLikelyGameTitle(String value) {
   final normalized = value
       .toLowerCase()
@@ -121,6 +125,16 @@ bool _isLikelyGameTitle(String value) {
       .trim();
 
   if (normalized.isEmpty) return false;
+  if (const {
+    'unknown',
+    'n/a',
+    'na',
+    'none',
+    'null',
+    'tbd',
+  }.contains(normalized)) {
+    return false;
+  }
   if (_looksLikeConsoleLabel(normalized)) return false;
   if (_looksLikeFacilityLabel(normalized)) return false;
 

@@ -29,6 +29,10 @@ class HashShopDock extends StatefulWidget {
   /// Height of the bar above the home indicator; matches the main tab bar.
   static const barHeight = kBottomNavigationBarHeight;
 
+  /// Width of the closed "HASH SHOP" pill; the main tab bar leaves this much
+  /// room on the right so no tab sits under it.
+  static const pillWidth = 84.0;
+
   const HashShopDock({
     super.key,
     required this.open,
@@ -50,8 +54,10 @@ class _HashShopDockState extends State<HashShopDock>
     value: widget.open ? 1 : 0,
   );
 
-  static const _pillWidth = 84.0;
+  static const _pillWidth = HashShopDock.pillWidth;
   static const _pillHeight = 46.0;
+  // Centres the closed pill in the bar instead of poking above it.
+  static const _pillGap = (HashShopDock.barHeight - _pillHeight) / 2;
 
   static const _tabs = [
     (index: -1, icon: Icons.arrow_back_ios_new_rounded, label: 'Hash App'),
@@ -111,7 +117,7 @@ class _HashShopDockState extends State<HashShopDock>
             )!.clamp(_pillWidth, fullW);
             final shape = Curves.easeOutCubic.transform(t);
             final height = lerpDouble(_pillHeight, fullH, shape)!;
-            final lift = lerpDouble(bottomInset + 5, 0, shape)!;
+            final lift = lerpDouble(bottomInset + _pillGap, 0, shape)!;
             final radius = BorderRadius.only(
               topLeft: const Radius.circular(24),
               bottomLeft: Radius.circular(lerpDouble(24, 0, shape)!),
@@ -186,7 +192,10 @@ class _HashShopDockState extends State<HashShopDock>
                               origin: Offset(
                                 width - _pillWidth / 2,
                                 height -
-                                    (bottomInset + 5 + _pillHeight / 2 - lift)
+                                    (bottomInset +
+                                            _pillGap +
+                                            _pillHeight / 2 -
+                                            lift)
                                         .clamp(0, height),
                               ),
                               streakFrom: width,
@@ -330,6 +339,7 @@ class _HashShopDockState extends State<HashShopDock>
 
   /// Split-flap entrance: the tab swings down from above in 3D.
   Widget _flipIn(double p, Widget child) {
+    if (p >= 1) return child; // At rest: no 3D layer, no edge hairlines.
     final e = Curves.easeOutBack.transform(p);
     return IgnorePointer(
       ignoring: p < 0.6,

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:hash/config/web_links.dart';
 import 'package:hash/core/utils/app_snackbar.dart';
 import 'dart:ui' as ui;
 
@@ -127,7 +128,7 @@ class _TournamentCardShareViewState extends State<TournamentCardShareView> {
           subject: '${tournament.title} — HASH Tournament',
           text:
               '🔥 ${tournament.title}\nPlay. Compete. Win on HASH.\n'
-              'https://hashforgamers.com/tournaments/${tournament.id}\n\n'
+              '$kWebOrigin/tournaments/${tournament.id}\n\n'
               '#HASH #Esports #GamingTournament',
           sharePositionOrigin: _shareOrigin(),
         ),
