@@ -1,7 +1,7 @@
+import 'package:hash/app/modules/arena/controllers/cafe_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 
 class ViewDetailScreen extends StatelessWidget {
   final Map<String, dynamic> booking;
@@ -125,56 +125,52 @@ class ViewDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _metricTile({
+  Widget _detailRow({
     required IconData icon,
     required String label,
     required String value,
     Color valueColor = Colors.white,
+    bool divider = true,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      padding: const EdgeInsets.symmetric(vertical: 11),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        border: divider
+            ? Border(
+                bottom: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
+              )
+            : null,
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: const Color(0xff00DC00), size: 16),
-          const SizedBox(width: 8),
+          Icon(icon, color: Colors.white38, size: 17),
+          const SizedBox(width: 10),
+          Text(
+            label,
+            style: GoogleFonts.inter(color: Colors.white60, fontSize: 13),
+          ),
+          const SizedBox(width: 12),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.inter(
-                    color: Colors.white54,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  value,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.inter(
-                    color: valueColor,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(
+                color: valueColor,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
       ),
     );
   }
+
+  /// Short names like "pc" read as acronyms; longer ones get title case.
+  String _prettyGame(String name) =>
+      name.length <= 3 ? name.toUpperCase() : _prettyStatus(name);
 
   Widget _buildServiceRow(dynamic service) {
     final serviceMap = _asMap(service);
@@ -229,45 +225,29 @@ class ViewDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final slot = _asMap(booking['slot']);
     final gamingType = _asMap(slot['gaming_type_id']);
-    final cafeData = _asMap(gamingType['cafe_name']);
-
-    final cafeName = _readString(
-      cafeData['cafe_name'],
-      fallback: 'Unknown Cafe',
-    );
-    final gameName = _readString(
-      gamingType['game_name'],
-      fallback: 'Unknown Game',
+    final cafeName =
+        CybercafesController.cafeNameForBooking(booking) ?? 'Your booking';
+    final gameName = _prettyGame(
+      _readString(gamingType['game_name'], fallback: 'Game'),
     );
     final statusRaw = _readString(booking['status'], fallback: 'pending');
     final statusLabel = _prettyStatus(statusRaw);
     final statusColor = _statusColor(statusRaw);
-    final location = _readString(
-      slot['location'],
-      fallback: 'Location unavailable',
-    );
+    final location = _readString(slot['location'], fallback: '');
     final bookingId = _readString(booking['booking_id'], fallback: '--');
-    final accessCode = _readString(booking['access_code'], fallback: '---');
+    final accessCode = _readString(booking['access_code'], fallback: '');
     final formattedDate = _formatDate(booking['book_date']);
     final formattedTime = _formatTimeRange(startTime, endTime);
     final price = _readDouble(gamingType['single_slot_price']);
     final extraServices = _asList(booking['extra_services']);
-
-    final qrData =
-        'Booking ID: $bookingId\n'
-        'Cafe: $cafeName\n'
-        'Game: $gameName\n'
-        'Date: $formattedDate\n'
-        'Time: $formattedTime\n'
-        'Price: Rs ${price.toStringAsFixed(0)}\n'
-        'Status: $statusLabel\n'
-        'Access Code: $accessCode';
 
     return Scaffold(
       backgroundColor: _bgColor,
       appBar: AppBar(
         backgroundColor: _bgColor,
         elevation: 0,
+        scrolledUnderElevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
         centerTitle: false,
         titleSpacing: 0,
         title: Text(
@@ -351,40 +331,92 @@ class ViewDetailScreen extends StatelessWidget {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        gameName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.inter(
-                          color: const Color(0xff00DC00),
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 4),
                       Row(
                         children: [
                           const Icon(
-                            Icons.location_on_rounded,
+                            Icons.sports_esports_rounded,
                             size: 16,
                             color: Color(0xff00DC00),
                           ),
-                          const SizedBox(width: 5),
-                          Expanded(
-                            child: Text(
-                              location,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                color: Colors.white70,
-                                fontWeight: FontWeight.w500,
-                              ),
+                          const SizedBox(width: 6),
+                          Text(
+                            gameName,
+                            style: GoogleFonts.inter(
+                              color: const Color(0xff00DC00),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ],
                       ),
+                      const SizedBox(height: 14),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.event_rounded,
+                              color: Colors.white70,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    formattedDate,
+                                    style: GoogleFonts.inter(
+                                      color: Colors.white,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    formattedTime,
+                                    style: GoogleFonts.inter(
+                                      color: Colors.white70,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (location.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.location_on_rounded,
+                              size: 16,
+                              color: Colors.white54,
+                            ),
+                            const SizedBox(width: 5),
+                            Expanded(
+                              child: Text(
+                                location,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  color: Colors.white70,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -394,108 +426,55 @@ class ViewDetailScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Booking Summary',
+                        'Summary',
                         style: GoogleFonts.inter(
                           color: Colors.white,
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          final tileWidth = (constraints.maxWidth - 12) / 2;
-                          return Wrap(
-                            spacing: 12,
-                            runSpacing: 12,
-                            children: [
-                              SizedBox(
-                                width: tileWidth,
-                                child: _metricTile(
-                                  icon: Icons.confirmation_number_outlined,
-                                  label: 'Booking ID',
-                                  value: bookingId,
-                                ),
-                              ),
-                              SizedBox(
-                                width: tileWidth,
-                                child: _metricTile(
-                                  icon: Icons.calendar_month_outlined,
-                                  label: 'Date',
-                                  value: formattedDate,
-                                ),
-                              ),
-                              SizedBox(
-                                width: tileWidth,
-                                child: _metricTile(
-                                  icon: Icons.access_time_rounded,
-                                  label: 'Time',
-                                  value: formattedTime,
-                                ),
-                              ),
-                              SizedBox(
-                                width: tileWidth,
-                                child: _metricTile(
-                                  icon: Icons.currency_rupee_rounded,
-                                  label: 'Amount',
-                                  value: 'Rs ${price.toStringAsFixed(0)}',
-                                  valueColor: const Color(0xff00DC00),
-                                ),
-                              ),
-                              SizedBox(
-                                width: tileWidth,
-                                child: _metricTile(
-                                  icon: Icons.password_rounded,
-                                  label: 'Access Code',
-                                  value: accessCode,
-                                ),
-                              ),
-                              SizedBox(
-                                width: tileWidth,
-                                child: _metricTile(
-                                  icon: Icons.sports_esports_rounded,
-                                  label: 'Booked For',
-                                  value: gameName,
-                                ),
-                              ),
-                            ],
-                          );
-                        },
+                      const SizedBox(height: 4),
+                      _detailRow(
+                        icon: Icons.confirmation_number_outlined,
+                        label: 'Booking ID',
+                        value: '#$bookingId',
+                      ),
+                      if (accessCode.isNotEmpty)
+                        _detailRow(
+                          icon: Icons.password_rounded,
+                          label: 'Access code',
+                          value: accessCode,
+                        ),
+                      _detailRow(
+                        icon: Icons.currency_rupee_rounded,
+                        label: 'Amount',
+                        value: 'Rs ${price.toStringAsFixed(0)}',
+                        valueColor: const Color(0xff00DC00),
+                        divider: false,
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 14),
-                _sectionContainer(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Additional Services',
-                        style: GoogleFonts.inter(
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      if (extraServices.isEmpty)
+                if (extraServices.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  _sectionContainer(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          'No additional services added.',
+                          'Additional Services',
                           style: GoogleFonts.inter(
-                            color: Colors.white60,
-                            fontSize: 13,
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
                           ),
-                        )
-                      else
-                        Column(
-                          children: extraServices
-                              .map<Widget>(_buildServiceRow)
-                              .toList(),
                         ),
-                    ],
+                        const SizedBox(height: 10),
+                        ...extraServices.map<Widget>(_buildServiceRow),
+                      ],
+                    ),
                   ),
-                ),
+                ],
                 const SizedBox(height: 14),
                 _sectionContainer(
                   child: Column(
@@ -541,55 +520,6 @@ class ViewDetailScreen extends StatelessWidget {
                         style: GoogleFonts.inter(
                           color: Colors.white70,
                           fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 14),
-                _sectionContainer(
-                  child: Column(
-                    children: [
-                      Text(
-                        'Entry QR',
-                        style: GoogleFonts.inter(
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Colors.black,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.1),
-                          ),
-                        ),
-                        child: QrImageView(
-                          data: qrData,
-                          version: QrVersions.auto,
-                          size: 140,
-                          backgroundColor: Colors.transparent,
-                          eyeStyle: const QrEyeStyle(
-                            eyeShape: QrEyeShape.circle,
-                            color: Colors.white,
-                          ),
-                          dataModuleStyle: const QrDataModuleStyle(
-                            dataModuleShape: QrDataModuleShape.square,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Show this QR at the cafe desk during check-in.',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.inter(
-                          color: Colors.white54,
-                          fontSize: 12,
                         ),
                       ),
                     ],

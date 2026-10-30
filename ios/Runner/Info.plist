@@ -64,6 +64,8 @@
 	<string>Hash</string>
 	<key>FirebaseAppDelegateProxyEnabled</key>
 	<true/>
+	<key>FlutterDeepLinkingEnabled</key>
+	<false/>
 	<key>GMSApiKey</key>
 	<string>AIzaSyDjaI5XOoq4r0AbJVfDSz9tiQqLGBC_yNU</string>
 	<key>LSApplicationQueriesSchemes</key>

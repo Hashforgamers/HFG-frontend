@@ -45,7 +45,11 @@ class OptimizedAppBar extends StatelessWidget {
         : gradientBottomColor;
 
     return SliverAppBar(
-      backgroundColor: Colors.black.withValues(alpha: 0.58),
+      // The bar itself stays clear; only the rounded glass below is tinted,
+      // so no rectangular layer shows past its rounded corners.
+      backgroundColor: Colors.transparent,
+      surfaceTintColor: Colors.transparent,
+      scrolledUnderElevation: 0,
       systemOverlayStyle: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
       ),
@@ -65,12 +69,21 @@ class OptimizedAppBar extends StatelessWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  const Color(0xFFFFFFFF).withValues(alpha: 0.055),
-                  gradientBottomColor.withValues(alpha: 0.07),
-                  tintEnd.withValues(alpha: 0.06),
+                  Color.alphaBlend(
+                    const Color(0xFFFFFFFF).withValues(alpha: 0.055),
+                    Colors.black.withValues(alpha: 0.58),
+                  ),
+                  Color.alphaBlend(
+                    gradientBottomColor.withValues(alpha: 0.07),
+                    Colors.black.withValues(alpha: 0.58),
+                  ),
+                  Color.alphaBlend(
+                    tintEnd.withValues(alpha: 0.06),
+                    Colors.black.withValues(alpha: 0.58),
+                  ),
                 ],
               ),
-              borderRadius: BorderRadius.circular(25),
+              borderRadius: BorderRadius.circular(30),
             ),
             child: Align(
               alignment: Alignment.bottomCenter,
@@ -93,6 +106,7 @@ class OptimizedAppBar extends StatelessWidget {
         ),
       ),
       leadingWidth: 55,
+      titleSpacing: 6,
       centerTitle: false,
       leading: Obx(
         () => Padding(
@@ -163,13 +177,14 @@ class OptimizedAppBar extends StatelessWidget {
       ),
       actions: [
         Padding(
-          padding: const EdgeInsets.only(right: 10),
+          padding: const EdgeInsets.only(right: 8),
           child: Row(
             children: [
               Obx(() {
                 final unread = notificationsController.unreadCount.value;
                 return IconButton(
                   tooltip: 'Notifications',
+                  visualDensity: VisualDensity.compact,
                   onPressed: () => Get.toNamed(AppRoutes.NOTIFICATIONS),
                   icon: Stack(
                     clipBehavior: Clip.none,

@@ -1,3 +1,4 @@
+import 'package:hash/app/modules/payment/razorpay_branding.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -57,13 +58,15 @@ class RazorpayWalletController extends GetxController {
       prefill['email'] = normalizedEmail;
     }
 
+    if (userName.trim().isNotEmpty) prefill['name'] = userName.trim();
+
     final options = {
       'key': ApiEndpoints.razorpayKeyWallet,
       'amount': amountPaise,
-      'name': userName,
+      'name': razorpayMerchantName,
       'description': 'Wallet Top-up',
       if (prefill.isNotEmpty) 'prefill': prefill,
-      'theme': {'color': '#1E88E5'},
+      'theme': razorpayTheme,
       'order_id': orderId,
     };
 

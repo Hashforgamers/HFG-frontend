@@ -496,82 +496,95 @@ class _HomeViewState extends State<HomeView> {
           clipBehavior: Clip.none,
           children: [
             // --- Bottom Navigation Bar: frosted glass over the content ---
-            ClipRect(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-                child: DecoratedBox(
-                  // Brand green-to-pink glass; the dark base keeps the icons
-                  // legible over busy artwork.
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Color.alphaBlend(
-                          HomeTokens.green.withValues(alpha: 0.16),
-                          Colors.black.withValues(alpha: 0.55),
-                        ),
-                        Color.alphaBlend(
-                          HomeTokens.pink.withValues(alpha: 0.16),
-                          Colors.black.withValues(alpha: 0.55),
-                        ),
-                      ],
-                    ),
-                    border: Border(
-                      top: BorderSide(
-                        color: Colors.white.withValues(alpha: 0.08),
-                      ),
-                    ),
-                  ),
-                  // Tabs stop short of the HASH SHOP pill; the last tab
-                  // ("Me") used to sit hidden and untappable under it.
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      right: HomeController.isHashShopReleased
-                          ? HashShopDock.pillWidth
-                          : 0,
-                    ),
-                    child: NeonSwitchFx(
-                      index: _navTabs
-                          .indexWhere(
-                            (t) => t.screen == controller.selectedIndex.value,
-                          )
-                          .clamp(0, _navTabs.length - 1),
-                      count: _navTabs.length,
-                      // Slower than the shop dock so the main tabs read clearly.
-                      response: 1.3,
-                      child: BottomNavigationBar(
-                        type: BottomNavigationBarType.fixed,
-                        enableFeedback: true,
-                        showSelectedLabels: true,
-                        showUnselectedLabels: false,
-                        selectedFontSize: 10.5,
-                        unselectedFontSize: 10,
-                        selectedLabelStyle: GoogleFonts.inter(
-                          fontWeight: FontWeight.w700,
-                          height: 1.4,
-                        ),
-                        currentIndex: _navTabs
-                            .indexWhere(
-                              (t) => t.screen == controller.selectedIndex.value,
-                            )
-                            .clamp(0, _navTabs.length - 1),
-                        onTap: (position) =>
-                            _onMainNavigationTap(_navTabs[position].screen),
-                        backgroundColor: Colors.transparent,
-                        elevation: 0,
-                        selectedItemColor: const Color(0xff00DC00),
-                        unselectedItemColor: Colors.grey[600],
-                        items: <BottomNavigationBarItem>[
-                          for (final (i, tab) in _navTabs.indexed)
-                            _buildNavigationItem(
-                              tab.icon,
-                              slot: i,
-                              label: tab.label,
-                              isSelected:
-                                  controller.selectedIndex.value == tab.screen,
-                              isSpecial: tab.isSpecial,
-                              iconHeight: tab.iconHeight,
+            // Fades out under the open shop dock; its rounded, translucent
+            // corners otherwise showed these tabs through.
+            IgnorePointer(
+              ignoring: isShopMenuOpen,
+              child: AnimatedOpacity(
+                opacity: isShopMenuOpen ? 0 : 1,
+                duration: const Duration(milliseconds: 220),
+                child: ClipRect(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                    child: DecoratedBox(
+                      // Brand green-to-pink glass; the dark base keeps the icons
+                      // legible over busy artwork.
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Color.alphaBlend(
+                              HomeTokens.green.withValues(alpha: 0.16),
+                              Colors.black.withValues(alpha: 0.55),
                             ),
-                        ],
+                            Color.alphaBlend(
+                              HomeTokens.pink.withValues(alpha: 0.16),
+                              Colors.black.withValues(alpha: 0.55),
+                            ),
+                          ],
+                        ),
+                        border: Border(
+                          top: BorderSide(
+                            color: Colors.white.withValues(alpha: 0.08),
+                          ),
+                        ),
+                      ),
+                      // Tabs stop short of the HASH SHOP pill; the last tab
+                      // ("Me") used to sit hidden and untappable under it.
+                      child: Padding(
+                        padding: EdgeInsets.only(
+                          right: HomeController.isHashShopReleased
+                              ? HashShopDock.pillWidth
+                              : 0,
+                        ),
+                        child: NeonSwitchFx(
+                          index: _navTabs
+                              .indexWhere(
+                                (t) =>
+                                    t.screen == controller.selectedIndex.value,
+                              )
+                              .clamp(0, _navTabs.length - 1),
+                          count: _navTabs.length,
+                          // Slower than the shop dock so the main tabs read clearly.
+                          response: 1.3,
+                          child: BottomNavigationBar(
+                            type: BottomNavigationBarType.fixed,
+                            enableFeedback: true,
+                            showSelectedLabels: true,
+                            showUnselectedLabels: false,
+                            selectedFontSize: 10.5,
+                            unselectedFontSize: 10,
+                            selectedLabelStyle: GoogleFonts.inter(
+                              fontWeight: FontWeight.w700,
+                              height: 1.4,
+                            ),
+                            currentIndex: _navTabs
+                                .indexWhere(
+                                  (t) =>
+                                      t.screen ==
+                                      controller.selectedIndex.value,
+                                )
+                                .clamp(0, _navTabs.length - 1),
+                            onTap: (position) =>
+                                _onMainNavigationTap(_navTabs[position].screen),
+                            backgroundColor: Colors.transparent,
+                            elevation: 0,
+                            selectedItemColor: const Color(0xff00DC00),
+                            unselectedItemColor: Colors.grey[600],
+                            items: <BottomNavigationBarItem>[
+                              for (final (i, tab) in _navTabs.indexed)
+                                _buildNavigationItem(
+                                  tab.icon,
+                                  slot: i,
+                                  label: tab.label,
+                                  isSelected:
+                                      controller.selectedIndex.value ==
+                                      tab.screen,
+                                  isSpecial: tab.isSpecial,
+                                  iconHeight: tab.iconHeight,
+                                ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   ),

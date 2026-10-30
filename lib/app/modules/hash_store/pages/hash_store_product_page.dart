@@ -46,6 +46,7 @@ class _HashStoreProductPageState extends State<HashStoreProductPage> {
         ? null
         : storeNum(p['available']).toInt();
     final soldOut = available != null && available <= 0;
+    final price = storeCardPrice(p);
     final maxQty = available ?? 10;
     final busy = context.select((HashStoreCartCubit c) => c.state.busy);
     final inCart = context.select(
@@ -189,11 +190,40 @@ class _HashStoreProductPageState extends State<HashStoreProductPage> {
                         Row(
                           children: [
                             Expanded(
-                              child: Text(
-                                storeMoney(p['price_inr']),
-                                style: storeTitle(
-                                  30,
-                                ).copyWith(color: StoreColors.greenSoft),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    price.price == null
+                                        ? 'Price unavailable'
+                                        : storeMoney(price.price),
+                                    style: storeTitle(
+                                      30,
+                                    ).copyWith(color: StoreColors.greenSoft),
+                                  ),
+                                  if (price.off > 0)
+                                    Text.rich(
+                                      TextSpan(
+                                        children: [
+                                          TextSpan(
+                                            text: storeMoney(price.was),
+                                            style: const TextStyle(
+                                              decoration:
+                                                  TextDecoration.lineThrough,
+                                            ),
+                                          ),
+                                          TextSpan(
+                                            text:
+                                                '  ${price.off}% off · Save ${storeMoney(price.save)}',
+                                          ),
+                                        ],
+                                      ),
+                                      style: storeBody(
+                                        size: 13,
+                                        color: StoreColors.muted,
+                                      ),
+                                    ),
+                                ],
                               ),
                             ),
                             if (!soldOut && !inCart)
@@ -208,6 +238,16 @@ class _HashStoreProductPageState extends State<HashStoreProductPage> {
                               ),
                           ],
                         ),
+                        for (final o in storeCouponOffers(p)) ...[
+                          const SizedBox(height: 10),
+                          Text(
+                            'Code ${o['code']}: pay ${storeMoney(o['price_after_discount'])} — apply it in your bag',
+                            style: storeBody(
+                              size: 13,
+                              color: StoreColors.purpleSoft,
+                            ),
+                          ),
+                        ],
                         if (description.isNotEmpty) ...[
                           const SizedBox(height: 24),
                           Text(

@@ -12,6 +12,29 @@ class CybercafesController extends GetxController {
   CybercafesController({required this.remoteRepo});
 
   var cybercafes = [].obs; // Observable list to store cybercafes data
+
+  /// Cafe name for a booking map. Bookings come back with
+  /// `gaming_type_id.cafe_name: null`, so this falls back to the cafe list
+  /// already loaded on home, matched by vendor id. Null when neither has it.
+  static String? cafeNameForBooking(Map booking) {
+    final slot = booking['slot'];
+    final type = slot is Map ? slot['gaming_type_id'] : null;
+    final cafe = type is Map ? type['cafe_name'] : null;
+    final direct = cafe is Map ? '${cafe['cafe_name'] ?? ''}'.trim() : '';
+    if (direct.isNotEmpty) return direct;
+
+    final vendorId =
+        '${(type is Map ? type['vendor_id'] : null) ?? booking['vendor_id'] ?? ''}';
+    if (vendorId.isEmpty) return null;
+    for (final c in _cachedCybercafes ?? const []) {
+      if (c is Map && '${c['vendor_id']}' == vendorId) {
+        final name = '${c['cafe_name'] ?? ''}'.trim();
+        return name.isEmpty ? null : name;
+      }
+    }
+    return null;
+  }
+
   var isLoading = false.obs; // Observable to manage loading state
 
   @override

@@ -48,7 +48,10 @@ class HashLiveHome extends StatelessWidget {
                         side: const BorderSide(color: Color(0xFF00DC00)),
                         minimumSize: const Size.fromHeight(46),
                       ),
-                      icon: const Icon(Icons.video_call_rounded, color: Color(0xFF00DC00)),
+                      icon: const Icon(
+                        Icons.video_call_rounded,
+                        color: Color(0xFF00DC00),
+                      ),
                       label: Text(
                         'Go Live',
                         style: GoogleFonts.inter(
@@ -101,37 +104,62 @@ class _LiveNowCard extends StatelessWidget {
             Stack(
               children: [
                 ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(14),
+                  ),
                   child: Container(
                     height: 130,
                     width: double.infinity,
                     color: const Color(0xFF1C1C1C),
                     alignment: Alignment.center,
-                    child: const Icon(Icons.play_circle_fill_rounded, size: 42, color: Colors.white70),
+                    child: const Icon(
+                      Icons.play_circle_fill_rounded,
+                      size: 42,
+                      color: Colors.white70,
+                    ),
                   ),
                 ),
                 Positioned(
                   top: 8,
                   left: 8,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.redAccent,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Text('LIVE', style: GoogleFonts.inter(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
+                    child: Text(
+                      'LIVE',
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ),
                 Positioned(
                   top: 8,
                   right: 8,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.black54,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Text(item['viewers']!, style: GoogleFonts.inter(color: Colors.white70, fontSize: 10)),
+                    child: Text(
+                      item['viewers']!,
+                      style: GoogleFonts.inter(
+                        color: Colors.white70,
+                        fontSize: 10,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -143,13 +171,16 @@ class _LiveNowCard extends StatelessWidget {
                 children: [
                   CircleAvatar(
                     radius: 14,
-                    backgroundImage:
-                        (item['photo_url'] ?? '').trim().isNotEmpty
+                    backgroundImage: (item['photo_url'] ?? '').trim().isNotEmpty
                         ? NetworkImage((item['photo_url'] ?? '').trim())
                         : null,
                     backgroundColor: const Color(0xFF00DC00),
                     child: (item['photo_url'] ?? '').trim().isEmpty
-                        ? const Icon(Icons.person, size: 14, color: Colors.black)
+                        ? const Icon(
+                            Icons.person,
+                            size: 14,
+                            color: Colors.black,
+                          )
                         : null,
                   ),
                   const SizedBox(width: 8),
@@ -157,10 +188,29 @@ class _LiveNowCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(item['creator']!, style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13)),
-                        Text(item['game']!, style: GoogleFonts.inter(color: Colors.white70, fontSize: 12)),
+                        Text(
+                          item['creator']!,
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                        ),
+                        Text(
+                          item['game']!,
+                          style: GoogleFonts.inter(
+                            color: Colors.white70,
+                            fontSize: 12,
+                          ),
+                        ),
                         const SizedBox(height: 4),
-                        Text(item['cafe']!, style: GoogleFonts.inter(color: const Color(0xFF00DC00), fontSize: 11)),
+                        Text(
+                          item['cafe']!,
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF00DC00),
+                            fontSize: 11,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -195,10 +245,26 @@ class _UpcomingTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(item['title']!, style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13)),
+                Text(
+                  item['title']!,
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
                 const SizedBox(height: 4),
-                Text('Host: ${item['host']}', style: GoogleFonts.inter(color: Colors.white70, fontSize: 12)),
-                Text(item['time']!, style: GoogleFonts.inter(color: const Color(0xFF00DC00), fontSize: 12)),
+                Text(
+                  'Host: ${item['host']}',
+                  style: GoogleFonts.inter(color: Colors.white70, fontSize: 12),
+                ),
+                Text(
+                  item['time']!,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF00DC00),
+                    fontSize: 12,
+                  ),
+                ),
               ],
             ),
           ),
@@ -207,7 +273,13 @@ class _UpcomingTile extends StatelessWidget {
             style: OutlinedButton.styleFrom(
               side: const BorderSide(color: Color(0xFF00DC00)),
             ),
-            child: Text('Notify Me', style: GoogleFonts.inter(color: const Color(0xFF00DC00), fontSize: 12)),
+            child: Text(
+              'Notify Me',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF00DC00),
+                fontSize: 12,
+              ),
+            ),
           ),
         ],
       ),
@@ -216,13 +288,36 @@ class _UpcomingTile extends StatelessWidget {
 }
 
 const List<Map<String, String>> _liveNow = [
-  {'creator': 'RogueRana', 'game': 'Valorant Ranked', 'viewers': '3.2k watching', 'cafe': 'Hash Arena Delhi'},
-  {'creator': 'NoScopeNeil', 'game': 'BGMI Scrims', 'viewers': '1.1k watching', 'cafe': 'Hash Hub Pune'},
-  {'creator': 'AstraAvi', 'game': 'FIFA Showdown', 'viewers': '850 watching', 'cafe': 'Hash Cafe Mumbai'},
+  {
+    'creator': 'RogueRana',
+    'game': 'Valorant Ranked',
+    'viewers': '3.2k watching',
+    'cafe': 'Hash Arena Delhi',
+  },
+  {
+    'creator': 'NoScopeNeil',
+    'game': 'BGMI Scrims',
+    'viewers': '1.1k watching',
+    'cafe': 'Hash Hub Pune',
+  },
+  {
+    'creator': 'AstraAvi',
+    'game': 'FIFA Showdown',
+    'viewers': '850 watching',
+    'cafe': 'Hash Cafe Mumbai',
+  },
 ];
 
 const List<Map<String, String>> _upcoming = [
   {'title': 'Road to Immortal', 'host': 'RogueRana', 'time': 'Today, 8:30 PM'},
-  {'title': 'BGMI Night Grind', 'host': 'NoScopeNeil', 'time': 'Today, 10:00 PM'},
-  {'title': 'Weekend FIFA Cup Warmup', 'host': 'AstraAvi', 'time': 'Tomorrow, 6:00 PM'},
+  {
+    'title': 'BGMI Night Grind',
+    'host': 'NoScopeNeil',
+    'time': 'Today, 10:00 PM',
+  },
+  {
+    'title': 'Weekend FIFA Cup Warmup',
+    'host': 'AstraAvi',
+    'time': 'Tomorrow, 6:00 PM',
+  },
 ];

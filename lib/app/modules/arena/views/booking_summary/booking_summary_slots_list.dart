@@ -1,3 +1,4 @@
+import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/arena/views/booking_design.dart';
@@ -70,7 +71,7 @@ class _BookingSummarySlotsListState extends State<BookingSummarySlotsList> {
                     Text('Selected slots', style: BookingText.title(context)),
                     const SizedBox(height: 3),
                     Text(
-                      '${sortedSlots.length} slots • ${widget.selectedDate}',
+                      '${sortedSlots.length} ${sortedSlots.length == 1 ? 'slot' : 'slots'} • ${_prettyDate(widget.selectedDate)}',
                       style: BookingText.muted(context),
                     ),
                   ],
@@ -168,7 +169,7 @@ class _BookingSummarySlotsListState extends State<BookingSummarySlotsList> {
                                 const SizedBox(width: 5),
                                 Expanded(
                                   child: Text(
-                                    '${slot['start_time']} - ${slot['end_time']}',
+                                    '${_prettyTime(slot['start_time'])} – ${_prettyTime(slot['end_time'])}',
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: BookingText.muted(context),
@@ -237,4 +238,28 @@ class _BookingSummarySlotsListState extends State<BookingSummarySlotsList> {
       ),
     );
   }
+}
+
+/// "20261031" or "2026-10-31" -> "Sat, 31 Oct".
+String _prettyDate(String raw) {
+  final t = raw.trim();
+  final parsed =
+      DateTime.tryParse(t) ??
+      (RegExp(r'^\d{8}$').hasMatch(t)
+          ? DateTime.tryParse(
+              '${t.substring(0, 4)}-${t.substring(4, 6)}-${t.substring(6)}',
+            )
+          : null);
+  return parsed == null ? t : DateFormat('EEE, d MMM').format(parsed);
+}
+
+/// "05:00:00" -> "5:00 AM".
+String _prettyTime(dynamic raw) {
+  final t = '${raw ?? ''}'.trim();
+  for (final f in ['HH:mm:ss', 'HH:mm']) {
+    try {
+      return DateFormat('h:mm a').format(DateFormat(f).parseStrict(t));
+    } catch (_) {}
+  }
+  return t;
 }

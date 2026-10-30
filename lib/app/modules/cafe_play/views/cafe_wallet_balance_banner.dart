@@ -101,13 +101,13 @@ class _CafeWalletBalanceBannerState extends State<CafeWalletBalanceBanner>
 
     return HomeCard(
       accent: HomeTokens.gold,
-      padding: const EdgeInsets.fromLTRB(16, 16, 14, 16),
+      padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
       onTap: wallet == null && _failed ? _load : _openWallet,
       child: Row(
         children: [
           Container(
-            width: 44,
-            height: 44,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
               color: HomeTokens.gold.withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(13),
@@ -116,25 +116,37 @@ class _CafeWalletBalanceBannerState extends State<CafeWalletBalanceBanner>
             child: const Icon(
               Icons.account_balance_wallet_rounded,
               color: HomeTokens.gold,
-              size: 22,
+              size: 19,
             ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const HomeEyebrow('Cafe wallet', color: HomeTokens.gold),
-                const SizedBox(height: 4),
-                Text(
-                  amount,
-                  style: wallet == null && _failed
-                      ? HomeTokens.title(15).copyWith(color: Colors.white70)
-                      : HomeTokens.title(
-                          22,
-                        ).copyWith(color: HomeTokens.goldLight),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    const HomeEyebrow('Cafe wallet', color: HomeTokens.gold),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        amount,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: wallet == null && _failed
+                            ? HomeTokens.title(
+                                13,
+                              ).copyWith(color: Colors.white70)
+                            : HomeTokens.title(
+                                17,
+                              ).copyWith(color: HomeTokens.goldLight),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 1),
                 Text(
                   caption,
                   style: HomeTokens.body(HomeTokens.textTertiary, size: 12),
@@ -163,18 +175,8 @@ class _ScanPill extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
-          gradient: const LinearGradient(
-            colors: [HomeTokens.greenBright, HomeTokens.green],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: HomeTokens.green.withValues(alpha: 0.3),
-              blurRadius: 14,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          color: HomeTokens.green.withValues(alpha: 0.12),
+          border: Border.all(color: HomeTokens.green.withValues(alpha: 0.45)),
         ),
         child: Material(
           color: Colors.transparent,
@@ -182,22 +184,22 @@ class _ScanPill extends StatelessWidget {
             onTap: onTap,
             borderRadius: BorderRadius.circular(12),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Icon(
                     Icons.qr_code_scanner_rounded,
-                    color: Colors.black,
+                    color: HomeTokens.green,
                     size: 17,
                   ),
                   const SizedBox(width: 6),
                   Text(
                     'Scan PC',
                     style: GoogleFonts.inter(
-                      color: Colors.black,
+                      color: HomeTokens.green,
                       fontSize: 13,
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ],

@@ -1,3 +1,4 @@
+import 'package:hash/app/modules/live/utils/live_youtube_utils.dart';
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -72,6 +73,10 @@ class HashLiveService extends GetxService {
   }) async {
     final uid = currentUid;
     if (uid == null) throw Exception('Please login to go live.');
+    final cleanUrl = LiveYoutubeUtils.canonicalUrl(youtubeUrl);
+    if (cleanUrl == null) {
+      throw Exception('Only YouTube live links are allowed.');
+    }
 
     final userCtrl = Get.isRegistered<UserController>()
         ? Get.find<UserController>()
@@ -149,7 +154,7 @@ class HashLiveService extends GetxService {
     final payload = <String, dynamic>{
       'title': title.trim(),
       'game': game.trim(),
-      'youtube_url': youtubeUrl.trim(),
+      'youtube_url': cleanUrl,
       'host_uid': uid,
       'host_name': hostName,
       'host_photo_url': hostPhoto,

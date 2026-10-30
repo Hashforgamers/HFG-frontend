@@ -1,3 +1,4 @@
+import 'package:hash/app/modules/payment/razorpay_branding.dart';
 import 'dart:async';
 import 'package:hash/core/utils/app_snackbar.dart';
 
@@ -49,6 +50,8 @@ class RazorpayController extends GetxController {
   double successAmount = 0;
   String successTimeText = '';
   String successEmail = '';
+  String successCafeName = '';
+  String successConsoleText = '';
 
   double _pendingWalletContribution = 0;
   String? _pendingWalletDebitReferenceId;
@@ -85,10 +88,14 @@ class RazorpayController extends GetxController {
     required double amount,
     required String timeText,
     required String email,
+    String cafeName = '',
+    String consoleText = '',
   }) {
     successAmount = amount;
     successTimeText = timeText;
     successEmail = email;
+    successCafeName = cafeName;
+    successConsoleText = consoleText;
   }
 
   /// A currency string for the success screen, or empty when unknown.
@@ -172,16 +179,17 @@ class RazorpayController extends GetxController {
     if (normalizedEmail.isNotEmpty) {
       prefill['email'] = normalizedEmail;
     }
+    if (name.trim().isNotEmpty) prefill['name'] = name.trim();
 
     final options = {
       'key': ApiEndpoints.razorpayKeyWallet,
       'amount': (amount * 100).toInt(),
       'currency': 'INR',
-      'name': name.trim().isEmpty ? 'HashForGamers' : name,
+      'name': razorpayMerchantName,
       'description': description,
       'order_id': orderId,
       if (prefill.isNotEmpty) 'prefill': prefill,
-      'theme': {'color': '#00DC00'},
+      'theme': razorpayTheme,
       'retry': {'enabled': true, 'max_count': 2},
     };
 
@@ -454,6 +462,10 @@ class RazorpayController extends GetxController {
       await Get.off(
         () => PaymentSuccessScreen(
           method: paymentMode,
+          paymentId: paymentId,
+          bookingId: bookingIds.join(', #'),
+          cafeName: successCafeName,
+          consoleText: successConsoleText,
           dateText: confirmedBookingDate,
           timeText: successTimeText,
           totalText: _successTotalText,

@@ -1,17 +1,26 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 
 import 'booking_design.dart';
+import 'package:hash/app/modules/home/widgets/home_design.dart';
 import 'package:hash/core/localization/app_region.dart';
 
+/// Shown after a console slot is booked: a ticket with the café, slot and
+/// payment, then one action into the player's bookings.
 class PaymentSuccessScreen extends StatelessWidget {
   const PaymentSuccessScreen({
     super.key,
-    this.paymentId = '#453545',
+    this.paymentId = '',
+    this.bookingId = '',
+    this.cafeName = '',
+    this.consoleText = '',
     required this.dateText,
     required this.timeText,
-    this.method = 'Google Pay',
+    this.method = '',
     required this.totalText,
     required this.email,
     this.onViewInvoice,
@@ -19,7 +28,11 @@ class PaymentSuccessScreen extends StatelessWidget {
     this.isBookingCreatedOnly = false,
   });
 
+  /// Gateway payment id (Razorpay). Empty for wallet, pass and pay-at-café.
   final String paymentId;
+  final String bookingId;
+  final String cafeName;
+  final String consoleText;
   final String dateText;
   final String timeText;
   final String method;
@@ -27,25 +40,18 @@ class PaymentSuccessScreen extends StatelessWidget {
   final String email;
   final VoidCallback? onViewInvoice;
   final Color accentColor;
+
+  /// Pay-at-café booking: nothing has been paid yet.
   final bool isBookingCreatedOnly;
 
-  static const _bg = BookingColors.bg;
-  static const _text = BookingColors.textPrimary;
   static const _muted = BookingColors.textSecondary;
-  static const _card = BookingColors.surface;
-  static const _cardBorder = BookingColors.border;
-
-  String _safeValue(String value, {String fallback = '--'}) {
-    final v = value.trim();
-    return v.isEmpty ? fallback : v;
-  }
 
   String _formattedTotal() {
     final value = totalText.trim();
-    if (value.isEmpty) return 'Paid';
+    if (value.isEmpty) return '--';
     if (value.startsWith('Rs') ||
         value.startsWith('INR') ||
-        value.contains('${Money.symbol}')) {
+        value.contains(Money.symbol)) {
       return value;
     }
     final parsed = double.tryParse(value);
@@ -54,48 +60,80 @@ class PaymentSuccessScreen extends StatelessWidget {
     return '${Money.symbol} ${parsed.toStringAsFixed(2)}';
   }
 
+  /// Callers pass API times ("05:00:00 - 05:30:00", maybe "+N more");
+  /// each clock time becomes "5:00 AM".
+  String _prettyTime() => timeText.trim().replaceAllMapped(
+    RegExp(r'\b([01]?\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?\b'),
+    (m) => DateFormat(
+      'h:mm a',
+    ).format(DateTime(2000, 1, 1, int.parse(m[1]!), int.parse(m[2]!))),
+  );
+
+  /// Callers pass the API date (yyyy-MM-dd); show it as "Sat, 31 Oct".
+  String _prettyDate() {
+    final parsed = DateTime.tryParse(dateText.trim());
+    return parsed == null
+        ? dateText.trim()
+        : DateFormat('EEE, d MMM').format(parsed);
+  }
+
+  /// "razorpay_upi" -> "Razorpay Upi"; "wallet" -> "Hash Wallet".
+  String _prettyMethod() {
+    final raw = method.trim().toLowerCase();
+    if (raw.isEmpty) return isBookingCreatedOnly ? 'Pay at café' : 'Online';
+    const known = {
+      'wallet': 'Hash Wallet',
+      'gateway': 'UPI / Card',
+      'cafe_wallet': 'Cafe Wallet',
+      'pay_at_cafe': 'Pay at café',
+      'none': 'Game Pass',
+    };
+    if (known.containsKey(raw)) return known[raw]!;
+    return raw
+        .split(RegExp(r'[_\s]+'))
+        .where((w) => w.isNotEmpty)
+        .map((w) => w[0].toUpperCase() + w.substring(1))
+        .join(' ');
+  }
+
   @override
   Widget build(BuildContext context) {
-    final details = <_TxnItem>[
-      _TxnItem(
-        icon: Icons.calendar_today_outlined,
-        label: 'Date',
-        value: _safeValue(dateText),
-      ),
-      _TxnItem(
-        icon: Icons.schedule_outlined,
-        label: 'Time',
-        value: _safeValue(timeText),
-      ),
-      if (!isBookingCreatedOnly)
-        _TxnItem(
-          icon: Icons.account_balance_wallet_outlined,
-          label: 'Payment Method',
-          value: _safeValue(method, fallback: 'Online'),
-        ),
-      if (!isBookingCreatedOnly)
-        _TxnItem(
-          icon: Icons.confirmation_number_outlined,
-          label: 'Payment ID',
-          value: _safeValue(paymentId),
-          copyable: true,
-        ),
-      if (email.trim().isNotEmpty)
-        _TxnItem(
-          icon: Icons.alternate_email,
-          label: 'Email',
-          value: email.trim(),
-          copyable: true,
-        ),
-    ];
+    final title = isBookingCreatedOnly ? 'Booking confirmed' : "You're booked!";
+    final subtitle = isBookingCreatedOnly
+        ? 'Pay at the café counter when you arrive.'
+        : 'Payment received. See you at the café.';
+    final reference = paymentId.trim().isNotEmpty
+        ? (label: 'Payment ID', value: paymentId.trim())
+        : bookingId.trim().isNotEmpty
+        ? (label: 'Booking ID', value: '#${bookingId.trim()}')
+        : null;
 
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: BookingColors.bg,
       body: Stack(
         children: [
           Positioned(
-            top: -120,
-            right: -60,
+            top: 220,
+            left: -60,
+            child: IgnorePointer(
+              child: Container(
+                width: 280,
+                height: 280,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      HomeTokens.pink.withValues(alpha: 0.22),
+                      HomeTokens.pink.withValues(alpha: 0),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 300,
+            right: -70,
             child: IgnorePointer(
               child: Container(
                 width: 260,
@@ -104,8 +142,8 @@ class PaymentSuccessScreen extends StatelessWidget {
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
                     colors: [
-                      accentColor.withValues(alpha: 0.30),
-                      accentColor.withValues(alpha: 0.01),
+                      HomeTokens.orange.withValues(alpha: 0.18),
+                      HomeTokens.orange.withValues(alpha: 0),
                     ],
                   ),
                 ),
@@ -116,68 +154,73 @@ class PaymentSuccessScreen extends StatelessWidget {
             child: Column(
               children: [
                 Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                    children: [
-                      _SuccessBadge(accentColor: accentColor),
-                      const SizedBox(height: 20),
-                      Text(
-                        isBookingCreatedOnly
-                            ? 'Booking Created'
-                            : 'Payment Complete',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.inter(
-                          color: _text,
-                          fontSize: 28,
-                          fontWeight: FontWeight.w800,
+                  // Centres the badge, title and ticket in the space above the
+                  // button; still scrolls on short screens.
+                  child: LayoutBuilder(
+                    builder: (context, c) => SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: c.maxHeight - 28,
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _SuccessBadge(accentColor: accentColor),
+                            const SizedBox(height: 18),
+                            Text(
+                              title,
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.inter(
+                                color: BookingColors.textPrimary,
+                                fontSize: 26,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.5,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              subtitle,
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.inter(
+                                color: _muted,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            _Ticket(
+                              accentColor: accentColor,
+                              cafeName: cafeName.trim(),
+                              consoleText: consoleText.trim(),
+                              dateText: _prettyDate(),
+                              timeText: _prettyTime(),
+                              amountLabel: isBookingCreatedOnly
+                                  ? 'To pay'
+                                  : 'Paid',
+                              amount: _formattedTotal(),
+                              method: _prettyMethod(),
+                              reference: reference,
+                              onCopy: (label, value) =>
+                                  _copy(context, value, '$label copied'),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        isBookingCreatedOnly
-                            ? 'Your booking is confirmed. Pay at cafe counter.'
-                            : 'Your booking is confirmed and ready.',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.inter(
-                          color: _muted,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      _PaymentIdChip(
-                        paymentId: _safeValue(
-                          isBookingCreatedOnly ? 'BOOKING CREATED' : paymentId,
-                        ),
-                        accentColor: accentColor,
-                        onCopy: () => _copy(
-                          context,
-                          isBookingCreatedOnly ? 'BOOKING CREATED' : paymentId,
-                          isBookingCreatedOnly
-                              ? 'Booking status copied'
-                              : 'Payment ID copied',
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      _AmountCard(
-                        total: _formattedTotal(),
-                        accentColor: accentColor,
-                      ),
-                      const SizedBox(height: 16),
-                      _DetailsCard(
-                        items: details,
-                        onCopy: (label, value) =>
-                            _copy(context, value, '$label copied'),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
                   child: BookingPrimaryButton(
-                    label: 'Continue',
+                    label: 'View my booking',
                     icon: Icons.arrow_forward_rounded,
-                    gradient: BookingColors.successGradient,
+                    gradient: const LinearGradient(
+                      colors: [Colors.white, Color(0xFFE4E6E8)],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
                     onPressed: () {
                       HapticFeedback.lightImpact();
                       if (onViewInvoice != null) {
@@ -221,327 +264,290 @@ class _SuccessBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: TweenAnimationBuilder<double>(
-        tween: Tween(begin: 0.92, end: 1),
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.easeOutBack,
-        builder: (context, scale, child) {
-          return Transform.scale(scale: scale, child: child);
-        },
-        child: SizedBox(
-          width: 144,
-          height: 144,
-          child: Stack(
-            alignment: Alignment.center,
+        tween: Tween(begin: 0.6, end: 1),
+        duration: const Duration(milliseconds: 600),
+        curve: Curves.elasticOut,
+        builder: (context, scale, child) =>
+            Transform.scale(scale: scale, child: child),
+        child: Container(
+          width: 84,
+          height: 84,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: accentColor,
+            boxShadow: [
+              BoxShadow(
+                color: accentColor.withValues(alpha: 0.3),
+                blurRadius: 30,
+              ),
+            ],
+          ),
+          child: const Icon(
+            Icons.check_rounded,
+            color: BookingColors.textOnAccent,
+            size: 46,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Booking pass: café and console up top, a perforated tear line, then the
+/// slot and payment.
+class _Ticket extends StatelessWidget {
+  const _Ticket({
+    required this.accentColor,
+    required this.cafeName,
+    required this.consoleText,
+    required this.dateText,
+    required this.timeText,
+    required this.amountLabel,
+    required this.amount,
+    required this.method,
+    required this.reference,
+    required this.onCopy,
+  });
+
+  final Color accentColor;
+  final String cafeName;
+  final String consoleText;
+  final String dateText;
+  final String timeText;
+  final String amountLabel;
+  final String amount;
+  final String method;
+  final ({String label, String value})? reference;
+  final void Function(String label, String value) onCopy;
+
+  static const _notch = 11.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasHeader = cafeName.isNotEmpty || consoleText.isNotEmpty;
+    return ClipPath(
+      clipper: hasHeader ? const _TicketClipper(notchY: 82, r: _notch) : null,
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(
-                width: 144,
-                height: 144,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: accentColor.withValues(alpha: 0.24),
+              if (hasHeader) ...[
+                SizedBox(
+                  height: 82,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 18),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.sports_esports_rounded,
+                            color: BookingColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (cafeName.isNotEmpty)
+                                Text(
+                                  cafeName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.inter(
+                                    color: BookingColors.textPrimary,
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              if (consoleText.isNotEmpty)
+                                Text(
+                                  consoleText,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.inter(
+                                    color: BookingColors.textSecondary,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              Container(
-                width: 116,
-                height: 116,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      accentColor.withValues(alpha: 0.34),
-                      accentColor.withValues(alpha: 0.07),
-                    ],
-                  ),
-                ),
-              ),
-              Container(
-                width: 84,
-                height: 84,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: accentColor,
-                  boxShadow: [
-                    BoxShadow(
-                      color: accentColor.withValues(alpha: 0.35),
-                      blurRadius: 28,
-                      spreadRadius: 1,
+                const _DashedLine(),
+              ],
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(child: _field('Date', dateText)),
+                        const SizedBox(width: 12),
+                        Expanded(child: _field('Time', timeText)),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(child: _field(amountLabel, amount, big: true)),
+                        const SizedBox(width: 12),
+                        Expanded(child: _field('Method', method)),
+                      ],
                     ),
                   ],
                 ),
-                padding: const EdgeInsets.all(18),
-                child: Image.asset(
-                  'assets/checkmark.png',
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, error, stackTrace) {
-                    return const Icon(
-                      Icons.check_rounded,
-                      color: Color(0xFF0C1A11),
-                      size: 44,
-                    );
-                  },
-                ),
               ),
+              if (reference != null)
+                Material(
+                  color: Colors.white.withValues(alpha: 0.03),
+                  child: InkWell(
+                    onTap: () => onCopy(reference!.label, reference!.value),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 12,
+                      ),
+                      child: Row(
+                        children: [
+                          Text(
+                            reference!.label,
+                            style: GoogleFonts.inter(
+                              color: Colors.white.withValues(alpha: 0.55),
+                              fontSize: 12,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              reference!.value,
+                              textAlign: TextAlign.right,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.inter(
+                                color: BookingColors.textSecondary,
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Icon(
+                            Icons.copy_rounded,
+                            size: 14,
+                            color: Colors.white.withValues(alpha: 0.55),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
       ),
     );
   }
-}
 
-class _PaymentIdChip extends StatelessWidget {
-  const _PaymentIdChip({
-    required this.paymentId,
-    required this.accentColor,
-    required this.onCopy,
-  });
-
-  final String paymentId;
-  final Color accentColor;
-  final VoidCallback onCopy;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 360),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: PaymentSuccessScreen._card,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: PaymentSuccessScreen._cardBorder),
+  Widget _field(
+    String label,
+    String value, {
+    Color valueColor = BookingColors.textPrimary,
+    bool big = false,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label.toUpperCase(),
+          style: GoogleFonts.inter(
+            color: Colors.white.withValues(alpha: 0.55),
+            fontSize: 10.5,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.8,
+          ),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.receipt_long, size: 16, color: accentColor),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                paymentId,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.inter(
-                  color: Colors.white,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.2,
-                ),
-              ),
-            ),
-            const SizedBox(width: 6),
-            GestureDetector(
-              onTap: onCopy,
-              child: const Icon(
-                Icons.copy_rounded,
-                size: 15,
-                color: PaymentSuccessScreen._muted,
-              ),
-            ),
-          ],
+        const SizedBox(height: 4),
+        Text(
+          value.isEmpty ? '--' : value,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: GoogleFonts.inter(
+            color: valueColor,
+            fontSize: big ? 20 : 14.5,
+            fontWeight: big ? FontWeight.w800 : FontWeight.w600,
+            height: 1.25,
+          ),
         ),
-      ),
+      ],
     );
   }
 }
 
-class _AmountCard extends StatelessWidget {
-  const _AmountCard({required this.total, required this.accentColor});
-
-  final String total;
-  final Color accentColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: PaymentSuccessScreen._card,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: PaymentSuccessScreen._cardBorder),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: accentColor.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              Icons.currency_rupee_rounded,
-              size: 20,
-              color: accentColor,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Amount Paid',
-                  style: GoogleFonts.inter(
-                    color: PaymentSuccessScreen._muted,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  total,
-                  style: GoogleFonts.inter(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DetailsCard extends StatelessWidget {
-  const _DetailsCard({required this.items, required this.onCopy});
-
-  final List<_TxnItem> items;
-  final void Function(String label, String value) onCopy;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: PaymentSuccessScreen._card,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: PaymentSuccessScreen._cardBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-            child: Text(
-              'Transaction Details',
-              style: GoogleFonts.inter(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          for (int i = 0; i < items.length; i++) ...[
-            _DetailRow(
-              item: items[i],
-              onCopy: items[i].copyable
-                  ? () => onCopy(items[i].label, items[i].value)
-                  : null,
-            ),
-            if (i != items.length - 1)
-              const Divider(
-                height: 1,
-                thickness: 1,
-                color: PaymentSuccessScreen._cardBorder,
-              ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _DetailRow extends StatelessWidget {
-  const _DetailRow({required this.item, this.onCopy});
-
-  final _TxnItem item;
-  final VoidCallback? onCopy;
+class _DashedLine extends StatelessWidget {
+  const _DashedLine();
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        children: [
-          Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.04),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              item.icon,
-              size: 16,
-              color: PaymentSuccessScreen._muted,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              item.label,
-              style: GoogleFonts.inter(
-                color: PaymentSuccessScreen._muted,
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
+      padding: const EdgeInsets.symmetric(horizontal: _Ticket._notch + 6),
+      child: LayoutBuilder(
+        builder: (context, c) {
+          final count = (c.maxWidth / 10).floor();
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: List.generate(
+              count,
+              (_) => Container(
+                width: 5,
+                height: 1,
+                color: BookingColors.borderStrong,
               ),
             ),
-          ),
-          const SizedBox(width: 12),
-          Flexible(
-            flex: 3,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Flexible(
-                  child: Text(
-                    item.value,
-                    textAlign: TextAlign.right,
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                if (onCopy != null) ...[
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: onCopy,
-                    child: const Icon(
-                      Icons.copy_rounded,
-                      size: 14,
-                      color: PaymentSuccessScreen._muted,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
 }
 
-class _TxnItem {
-  const _TxnItem({
-    required this.icon,
-    required this.label,
-    required this.value,
-    this.copyable = false,
-  });
+/// Rounded rectangle with a half-circle notch cut into each side at [notchY].
+class _TicketClipper extends CustomClipper<Path> {
+  const _TicketClipper({required this.notchY, required this.r});
 
-  final IconData icon;
-  final String label;
-  final String value;
-  final bool copyable;
+  final double notchY;
+  final double r;
+
+  @override
+  Path getClip(Size size) {
+    final card = Path()
+      ..addRRect(
+        RRect.fromRectAndRadius(Offset.zero & size, const Radius.circular(20)),
+      );
+    final notches = Path()
+      ..addOval(Rect.fromCircle(center: Offset(0, notchY), radius: r))
+      ..addOval(Rect.fromCircle(center: Offset(size.width, notchY), radius: r));
+    return Path.combine(PathOperation.difference, card, notches);
+  }
+
+  @override
+  bool shouldReclip(_TicketClipper old) => old.notchY != notchY || old.r != r;
 }

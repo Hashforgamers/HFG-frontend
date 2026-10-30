@@ -94,7 +94,7 @@ class ArenaDetailInfoSection extends StatelessWidget {
 
   String _normalizeOpeningHours(String rawValue) {
     final trimmed = rawValue.trim();
-    if (trimmed.isEmpty) return 'Timings unavailable';
+    if (trimmed.isEmpty) return 'Hours not listed';
 
     final normalized = trimmed
         .replaceAll('to', '-')
@@ -285,4 +285,18 @@ class _InfoRow extends StatelessWidget {
       ],
     );
   }
+}
+
+/// "HH:mm - HH:mm" from a cafe's API `opening_time` / `closing_time`, or ''
+/// when either is missing. Seconds are dropped so the info section can format
+/// it. Replaces a hard-coded "9 AM - 12 AM" that disagreed with the slots.
+String cafeHoursFromApi(Map cafe) {
+  String hm(dynamic v) {
+    final p = '${v ?? ''}'.trim().split(':');
+    return p.length >= 2 ? '${p[0]}:${p[1]}' : '';
+  }
+
+  final open = hm(cafe['opening_time']);
+  final close = hm(cafe['closing_time']);
+  return open.isEmpty || close.isEmpty ? '' : '$open - $close';
 }

@@ -1,3 +1,4 @@
+import 'package:hash/app/modules/payment/razorpay_branding.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -94,14 +95,15 @@ class TournamentPaymentService {
         _showToast(context, '$wallet selected. Complete payment to continue.');
       });
 
+      if (user.$3.trim().isNotEmpty) prefill['name'] = user.$3.trim();
       razorpay.open({
         'key': ApiEndpoints.razorpayKeyWallet,
         'amount': (amountRupees * 100).toInt(),
-        'name': user.$3,
+        'name': razorpayMerchantName,
         'description': 'Tournament Registration - ${tournament.title}',
         'order_id': orderId,
         if (prefill.isNotEmpty) 'prefill': prefill,
-        'theme': {'color': '#C06701'},
+        'theme': razorpayTheme,
       });
       Haptics.cta();
 

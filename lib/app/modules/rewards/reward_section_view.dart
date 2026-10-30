@@ -20,7 +20,7 @@ class RewardsSection extends StatelessWidget {
     final WalletController walletController = Get.find<WalletController>();
 
     return Wrap(
-      spacing: 8,
+      spacing: 6,
       children: [
         GestureDetector(
           onTap: () => _onRedeemPressed(context),
@@ -88,7 +88,6 @@ class RewardsSection extends StatelessWidget {
         filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 8),
-          constraints: const BoxConstraints(minWidth: 80),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
@@ -105,7 +104,7 @@ class RewardsSection extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               icon,
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               Text(
                 amount,
                 style: GoogleFonts.bigShouldersDisplay(

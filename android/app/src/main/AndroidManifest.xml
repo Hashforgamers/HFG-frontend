@@ -47,6 +47,13 @@
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
+            <!-- app_links (DeepLinkService) routes links. Flutter's own deep
+                 linking would also push the URL path as a route, which GetX
+                 sends to unknownRoute and stacks a second Home on top. -->
+            <meta-data
+              android:name="flutter_deeplinking_enabled"
+              android:value="false"
+              />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>

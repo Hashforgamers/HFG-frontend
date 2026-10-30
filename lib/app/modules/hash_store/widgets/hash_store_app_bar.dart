@@ -22,6 +22,8 @@ class HashStoreAppBar extends StatelessWidget {
 
     return SliverAppBar(
       backgroundColor: Colors.transparent,
+      surfaceTintColor: Colors.transparent,
+      scrolledUnderElevation: 0,
       systemOverlayStyle: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
       ),
@@ -42,7 +44,7 @@ class HashStoreAppBar extends StatelessWidget {
                   const Color(0xFF7A44C0).withValues(alpha: 0.09),
                 ],
               ),
-              borderRadius: BorderRadius.circular(25),
+              borderRadius: BorderRadius.circular(30),
             ),
           ),
         ),

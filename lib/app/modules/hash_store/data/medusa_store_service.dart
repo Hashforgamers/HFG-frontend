@@ -326,6 +326,7 @@ class MedusaStoreService {
   }) => _public(
     '/store/hash/products',
     query: {
+      'currency_code': 'inr',
       'limit': limit,
       'offset': offset,
       if (vendorId != null) 'vendor_id': vendorId,
@@ -673,10 +674,15 @@ class MedusaStoreService {
     }
   }
 
+  /// Each option's native `amount` is delivery plus the Hash platform fee;
+  /// `delivery_paise` is the delivery part alone.
   Future<({bool sellerPaid, List<Map<String, dynamic>> options})>
   deliveryOptions(String cartId) async {
     final policy = await deliveryPolicy(cartId);
-    if (policy['payer'] != 'customer' && policy['payer'] != 'seller') {
+    final fee = policy['platform_fee_minor'] ?? 0;
+    if ((policy['payer'] != 'customer' && policy['payer'] != 'seller') ||
+        fee is! int ||
+        fee < 0) {
       throw const StoreException(
         'Delivery policy is unavailable. Please try again.',
       );
@@ -696,15 +702,21 @@ class MedusaStoreService {
       final amount =
           quote['amount'] ??
           (quote['calculated_price'] as Map?)?['calculated_amount'];
-      if (amount is! num ||
-          !amount.isFinite ||
-          amount < 0 ||
-          (policy['payer'] == 'seller' && amount != 0)) {
+      final delivery = amount is num && amount.isFinite
+          ? (amount * 100).round() - fee
+          : -1;
+      if (delivery < 0 || (policy['payer'] == 'seller' && delivery != 0)) {
         throw const StoreException(
           'Delivery quote is unavailable. Please try again.',
         );
       }
-      options.add({...option, ...quote, 'id': option['id'], 'amount': amount});
+      options.add({
+        ...option,
+        ...quote,
+        'id': option['id'],
+        'amount': amount,
+        'delivery_paise': delivery,
+      });
     }
     return (sellerPaid: policy['payer'] == 'seller', options: options);
   }

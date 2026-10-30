@@ -24,12 +24,7 @@ class StoreProductCard extends StatelessWidget {
     final soldOut =
         product['available'] != null && storeNum(product['available']) <= 0;
     final title = '${product['title'] ?? 'Hash product'}';
-    final price = storeNum(product['price_inr']);
-    // Only a real seller-set MRP is shown struck through; never invented.
-    final mrp = storeNum(product['compare_at_price_inr']);
-    final off = mrp > price && price > 0
-        ? ((mrp - price) / mrp * 100).round()
-        : 0;
+    final (:price, was: mrp, :off, save: _) = storeCardPrice(product);
     return Material(
       color: StoreColors.surface,
       clipBehavior: Clip.antiAlias,
@@ -101,7 +96,7 @@ class StoreProductCard extends StatelessWidget {
                                   spacing: 6,
                                   children: [
                                     Text(
-                                      storeMoney(product['price_inr']),
+                                      price == null ? '—' : storeMoney(price),
                                       style: storeTitle(18),
                                     ),
                                     if (off > 0) ...[

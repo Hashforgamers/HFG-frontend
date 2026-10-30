@@ -19,7 +19,13 @@ class GoLiveScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.black,
         elevation: 0,
-        title: Text('Go Live', style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w700)),
+        title: Text(
+          'Go Live',
+          style: GoogleFonts.inter(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         bottom: const PreferredSize(
           preferredSize: Size.fromHeight(56),
           child: Padding(
@@ -43,28 +49,39 @@ class GoLiveScreen extends StatelessWidget {
           const SizedBox(height: 6),
           Obx(
             () => DropdownButtonFormField<String>(
-              initialValue: controller.selectedGame.value.isEmpty ? null : controller.selectedGame.value,
+              initialValue: controller.selectedGame.value.isEmpty
+                  ? null
+                  : controller.selectedGame.value,
               dropdownColor: const Color(0xFF1A1A1A),
               style: const TextStyle(color: Colors.white),
               decoration: _inputDecoration(),
-              items: controller.games.map((game) => DropdownMenuItem(value: game, child: Text(game))).toList(),
+              items: controller.games
+                  .map(
+                    (game) => DropdownMenuItem(value: game, child: Text(game)),
+                  )
+                  .toList(),
               onChanged: (value) => controller.setGame(value ?? ''),
             ),
           ),
           const SizedBox(height: 12),
-          _fieldLabel('YouTube Link'),
+          _fieldLabel('YouTube live link'),
           const SizedBox(height: 6),
           TextField(
             controller: controller.youtubeController,
             style: const TextStyle(color: Colors.white),
-            decoration: _inputDecoration(hint: 'Paste stream URL'),
+            decoration: _inputDecoration(
+              hint: 'youtube.com/live/… or youtu.be/…',
+            ),
           ),
           const SizedBox(height: 12),
           Obx(
             () => SwitchListTile(
               value: controller.isStreamingFromCafe.value,
               activeThumbColor: const Color(0xFF00DC00),
-              title: Text('Streaming from Café', style: GoogleFonts.inter(color: Colors.white)),
+              title: Text(
+                'Streaming from Café',
+                style: GoogleFonts.inter(color: Colors.white),
+              ),
               onChanged: controller.setStreamingFromCafe,
               contentPadding: EdgeInsets.zero,
             ),
@@ -88,9 +105,15 @@ class GoLiveScreen extends StatelessWidget {
                   ? const SizedBox(
                       height: 20,
                       width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.black,
+                      ),
                     )
-                  : Text('Start Live', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+                  : Text(
+                      'Start Live',
+                      style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                    ),
             ),
           ),
         ],
@@ -99,18 +122,18 @@ class GoLiveScreen extends StatelessWidget {
   }
 
   Widget _fieldLabel(String text) => Text(
-        text,
-        style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w600),
-      );
+    text,
+    style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w600),
+  );
 
   InputDecoration _inputDecoration({String? hint}) => InputDecoration(
-        hintText: hint,
-        hintStyle: const TextStyle(color: Colors.white54),
-        filled: true,
-        fillColor: const Color(0xFF1A1A1A),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-      );
+    hintText: hint,
+    hintStyle: const TextStyle(color: Colors.white54),
+    filled: true,
+    fillColor: const Color(0xFF1A1A1A),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide.none,
+    ),
+  );
 }

@@ -12,7 +12,9 @@ class BookingSummaryPaymentOptionChip extends StatelessWidget {
   final String label;
   final IconData icon;
   final bool isSelected;
-  final VoidCallback onTap;
+
+  /// Null shows the option disabled (for example an empty wallet).
+  final VoidCallback? onTap;
 
   const BookingSummaryPaymentOptionChip({
     super.key,
@@ -28,59 +30,65 @@ class BookingSummaryPaymentOptionChip extends StatelessWidget {
 
     return Semantics(
       button: true,
+      enabled: onTap != null,
       selected: isSelected,
       label: label,
-      child: Material(
-        color: isSelected
-            ? accent.withValues(alpha: 0.10)
-            : BookingColors.surfaceAlt,
-        borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          onTap: () {
-            HapticFeedback.selectionClick();
-            onTap();
-          },
+      child: Opacity(
+        opacity: onTap == null ? 0.45 : 1,
+        child: Material(
+          color: isSelected
+              ? accent.withValues(alpha: 0.10)
+              : BookingColors.surfaceAlt,
           borderRadius: BorderRadius.circular(14),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: isSelected
-                    ? BookingColors.accentBright
-                    : BookingColors.border,
-                width: isSelected ? 1.4 : 1,
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  icon,
-                  size: 20,
+          child: InkWell(
+            onTap: onTap == null
+                ? null
+                : () {
+                    HapticFeedback.selectionClick();
+                    onTap!();
+                  },
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
                   color: isSelected
                       ? BookingColors.accentBright
-                      : BookingColors.textSecondary,
+                      : BookingColors.border,
+                  width: isSelected ? 1.4 : 1,
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.inter(
-                      color: isSelected
-                          ? BookingColors.textPrimary
-                          : BookingColors.textSecondary,
-                      fontSize: 14,
-                      fontWeight: isSelected
-                          ? FontWeight.w700
-                          : FontWeight.w500,
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    icon,
+                    size: 20,
+                    color: isSelected
+                        ? BookingColors.accentBright
+                        : BookingColors.textSecondary,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        color: isSelected
+                            ? BookingColors.textPrimary
+                            : BookingColors.textSecondary,
+                        fontSize: 14,
+                        fontWeight: isSelected
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 10),
-                _Indicator(isSelected: isSelected),
-              ],
+                  const SizedBox(width: 10),
+                  _Indicator(isSelected: isSelected),
+                ],
+              ),
             ),
           ),
         ),

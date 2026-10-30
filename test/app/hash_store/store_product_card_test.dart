@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hash/app/modules/hash_store/widgets/store_product_card.dart';
+import 'package:hash/app/modules/hash_store/widgets/store_ui.dart';
 
 void main() {
   testWidgets('card fits the grid cell on a narrow phone with large text', (
@@ -61,5 +62,53 @@ void main() {
       ),
     );
     expect(find.textContaining('OFF'), findsNothing);
+  });
+
+  test('card price comes from the automatic offer preview', () {
+    final offer = storeCardPrice({
+      'price_inr': 10,
+      'pricing': {
+        'original_amount': 10,
+        'discount_amount': 3,
+        'calculated_amount': 7,
+        'discount_percent': 30,
+      },
+    });
+    expect((offer.price, offer.was, offer.off, offer.save), (7, 10, 30, 3));
+    final none = storeCardPrice({
+      'pricing': {'original_amount': 10, 'calculated_amount': 10},
+    });
+    expect((none.price, none.off), (10, 0));
+    expect(storeCardPrice({'price_inr': 10, 'pricing': null}).price, isNull);
+  });
+
+  testWidgets('totals show delivery and platform fee as separate rows', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: StoreTotals(
+            cart: {
+              'item_subtotal': 100,
+              'shipping_total': 60,
+              'total': 160,
+              'shipping_methods': [
+                {
+                  'data': {
+                    'hash_customer_shipping_paise': 5000,
+                    'hash_platform_fee_paise': 1000,
+                  },
+                },
+              ],
+            },
+          ),
+        ),
+      ),
+    );
+    expect(find.text('Hash platform fee (GST inclusive)'), findsOneWidget);
+    expect(find.text(storeMoney(50)), findsOneWidget);
+    expect(find.text(storeMoney(10)), findsOneWidget);
+    expect(find.text(storeMoney(160)), findsOneWidget);
   });
 }

@@ -22,9 +22,7 @@ import 'package:hash/app/modules/arena/views/arena_detail/arena_detail_quick_act
 import 'package:hash/app/modules/arena/views/arena_detail/arena_detail_reviews_section.dart';
 import 'package:hash/app/modules/arena/views/booking_design.dart';
 import 'package:hash/app/modules/arena/views/booking_screen.dart';
-import 'package:hash/app/modules/arena/views/menu_view.dart';
 import 'package:hash/app/modules/cafe_play/views/cafe_wallet_balance_banner.dart';
-import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service/funnel_notification_service.dart';
@@ -72,19 +70,13 @@ class ArenaDetailView extends StatefulWidget {
 }
 
 class _ArenaDetailViewState extends State<ArenaDetailView> {
-  static const Duration _foodAvailabilityCacheTtl = Duration(minutes: 15);
-  static final Map<int, bool> _foodAvailabilityCache = <int, bool>{};
-  static final Map<int, DateTime> _foodAvailabilityCacheTime =
-      <int, DateTime>{};
 
   late final CafeGamesController _gamesController;
-  final RemoteRepoInterface _remoteRepo = locator<RemoteRepoInterface>();
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
   final funnelNotificationService = locator<FunnelNotificationService>();
   final AnalyticsService _analytics = locator<AnalyticsService>();
   late final ConfettiController _squadConfettiController;
-  bool? _hasFoodOrderingAvailableCache;
   bool _isBookingFlowLaunching = false;
   final Set<String> _activeModalGuards = <String>{};
   int _selectedPassTabIndex = 0;
@@ -197,40 +189,6 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
     return true;
   }
 
-  Future<bool> _hasFoodOrderingAvailable() async {
-    final cached = _hasFoodOrderingAvailableCache;
-    if (cached != null) return cached;
-
-    final sharedCached = _foodAvailabilityCache[widget.vendorId];
-    final sharedCachedAt = _foodAvailabilityCacheTime[widget.vendorId];
-    final hasFreshSharedCache =
-        sharedCached != null &&
-        sharedCachedAt != null &&
-        DateTime.now().difference(sharedCachedAt) < _foodAvailabilityCacheTtl;
-    if (hasFreshSharedCache) {
-      _hasFoodOrderingAvailableCache = sharedCached;
-      return sharedCached;
-    }
-
-    try {
-      final foodMenu = await _remoteRepo.getFoodMenu(
-        vendorId: widget.vendorId.toString(),
-      );
-      final hasItems = foodMenu.categories.any(
-        (category) => category.menus?.isNotEmpty ?? false,
-      );
-      _hasFoodOrderingAvailableCache = hasItems;
-      _foodAvailabilityCache[widget.vendorId] = hasItems;
-      _foodAvailabilityCacheTime[widget.vendorId] = DateTime.now();
-      return hasItems;
-    } catch (_) {
-      _hasFoodOrderingAvailableCache = false;
-      _foodAvailabilityCache[widget.vendorId] = false;
-      _foodAvailabilityCacheTime[widget.vendorId] = DateTime.now();
-      return false;
-    }
-  }
-
   Future<T?> _openModalOnce<T>(
     String key,
     Future<T?> Function() openModal,
@@ -278,55 +236,14 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
         return;
       }
 
-      final hasFood = await _hasFoodOrderingAvailable();
-      if (!mounted || !context.mounted) {
-        return;
-      }
-
-      if (hasFood) {
-        final response = await showFoodOrderPrompt(context, () {
-          Get.to(
-            MenuViewPage(
-              vendorId: widget.vendorId.toString(),
-              email: widget.email,
-              onContinue: (cartItems) {
-                if (!mounted || !context.mounted) {
-                  return;
-                }
-                showBookSlotBottomSheet(
-                  context: context,
-                  email: widget.email,
-                  cartItems: cartItems,
-                  initialConsoleType: preferredConsoleType,
-                );
-              },
-            ),
-          );
-        });
-
-        if (!mounted || !context.mounted) {
-          return;
-        }
-
-        if (response != true) {
-          await showBookSlotBottomSheet(
-            context: context,
-            email: widget.email,
-            cartItems: null,
-            initialConsoleType: preferredConsoleType,
-          );
-        }
-      } else {
-        if (!mounted || !context.mounted) {
-          return;
-        }
-        await showBookSlotBottomSheet(
-          context: context,
-          email: widget.email,
-          cartItems: null,
-          initialConsoleType: preferredConsoleType,
-        );
-      }
+      // Food used to be asked here in a pop-up before any slot was shown;
+      // it is now offered on the booking summary instead.
+      await showBookSlotBottomSheet(
+        context: context,
+        email: widget.email,
+        cartItems: null,
+        initialConsoleType: preferredConsoleType,
+      );
     } finally {
       _isBookingFlowLaunching = false;
     }
@@ -1801,7 +1718,10 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
         .cast<String>();
 
     void share() {
-      Share.share('${widget.title}\n${widget.address}\nCheck it out on Hash Hub.', sharePositionOrigin: shareOriginRect(),);
+      Share.share(
+        '${widget.title}\n${widget.address}\nCheck it out on Hash Hub.',
+        sharePositionOrigin: shareOriginRect(),
+      );
       segmentService.onCustomEvent('Cafe Shared', {
         'cafe_id': widget.vendorId.toString(),
         'channel': 'system_share',
@@ -1917,152 +1837,6 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
           ),
         ],
       ),
-    );
-  }
-
-  Future<bool?> showFoodOrderPrompt(
-    BuildContext context,
-    VoidCallback onYes,
-  ) async {
-    return await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          backgroundColor: const Color(0xFF181818),
-          child: SizedBox(
-            width: MediaQuery.of(context).size.width * 0.95,
-            height: MediaQuery.of(context).size.height * 0.5,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 35, horizontal: 16),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      SizedBox(
-                        width: 70,
-                        height: 60,
-                        child: Center(
-                          child: CachedNetworkImage(
-                            imageUrl:
-                                'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075193/menu9_xlmk0e.png',
-                            width: 70,
-                            height: 60,
-                            fit: BoxFit.contain,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 2),
-                      SizedBox(
-                        width: 70,
-                        height: 60,
-                        child: Center(
-                          child: CachedNetworkImage(
-                            imageUrl:
-                                'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075189/menu4_wgmjrq.png',
-                            width: 70,
-                            height: 60,
-                            fit: BoxFit.contain,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 2),
-                      SizedBox(
-                        width: 70,
-                        height: 60,
-                        child: Center(
-                          child: CachedNetworkImage(
-                            imageUrl:
-                                'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075187/menu2_go9rv3.png',
-                            width: 70,
-                            height: 60,
-                            fit: BoxFit.contain,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 40),
-                  Text(
-                    "Want to order ahead \nfrom the café?",
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 40),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.pop(context, true); // Return true for "Yes"
-                          onYes(); // Callback for "Yes"
-                        },
-                        child: Container(
-                          height: 40,
-                          width: 120,
-                          decoration: BoxDecoration(
-                            border: Border.all(
-                              color: Color(0xff00DC00),
-                              width: 1.5,
-                            ),
-                            borderRadius: BorderRadius.circular(25),
-                          ),
-                          child: Center(
-                            child: Text(
-                              "Yes, please",
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      SizedBox(width: 10),
-                      GestureDetector(
-                        onTap: () => Navigator.pop(
-                          context,
-                          false,
-                        ), // Return false for "No"
-                        child: Container(
-                          height: 40,
-                          width: 120,
-                          decoration: BoxDecoration(
-                            border: Border.all(
-                              color: Colors.white24,
-                              width: 1.5,
-                            ),
-                            borderRadius: BorderRadius.circular(25),
-                          ),
-                          child: Center(
-                            child: Text(
-                              "No, thanks",
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
     );
   }
 
@@ -2417,6 +2191,62 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
         }
       }
 
+      // Opens the slot screen for [selectedConsole]. Solo by default; the slot
+      // screen offers a switch to squad instead of asking up front.
+      Future<void> launch(
+        Map<String, dynamic> selectedConsole, {
+        BookingPartySelection? party,
+      }) async {
+        final selectedType = (selectedConsole['type'] ?? '').toString();
+        final selectedGameId = asInt(selectedConsole['booking_game_id']);
+        if (selectedGameId == null) {
+          _showSafeErrorSnackBar(
+            this.context,
+            'No booking option found for this console.',
+          );
+          return;
+        }
+        final isSquad = party?.isSquad ?? false;
+        final canSquad =
+            _normalizeConsoleType(selectedType) == 'pc' &&
+            _estimateMaxSquadSize(selectedType) >= 2;
+        Navigator.of(this.context).push(
+          MaterialPageRoute(
+            builder: (slotContext) => BookingScreen(
+              email: safeEmail,
+              consoleType: _getConsoleType(selectedType),
+              title: widget.title,
+              gameId: selectedGameId,
+              vendorId: widget.vendorId,
+              cartItems: cartItems ?? [],
+              isSquadBooking: isSquad,
+              requiredConsoleCount: party?.requiredConsoleCount ?? 1,
+              selectedSquadMembers:
+                  party?.selectedMembers ?? const <ChatUserModel>[],
+              onSquadTap: isSquad || !canSquad
+                  ? null
+                  : () async {
+                      final selection = await _showBookingPartyBottomSheet(
+                        slotContext,
+                        selectedType,
+                      );
+                      if (!mounted || selection == null || !selection.isSquad) {
+                        return;
+                      }
+                      Navigator.of(slotContext).pop();
+                      await launch(selectedConsole, party: selection);
+                    },
+            ),
+          ),
+        );
+      }
+
+      if (preferredIndex >= 0) {
+        // A console was already tapped on the cafe page; don't ask again.
+        await launch(consoleOptions[preferredIndex]);
+        return null;
+      }
+
       return showModalBottomSheet(
         context: context,
         isScrollControlled: true,
@@ -2605,7 +2435,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                                           if (startPrice > 0) ...[
                                             const SizedBox(height: 4),
                                             Text(
-                                              'Starts at ${Money.symbol}${startPrice.toStringAsFixed(startPrice % 1 == 0 ? 0 : 1)}/hr',
+                                              'Starts at ${Money.symbol}${startPrice.toStringAsFixed(startPrice % 1 == 0 ? 0 : 1)}/slot',
                                               style: GoogleFonts.inter(
                                                 color: Colors.white70,
                                                 fontSize: 11,
@@ -2627,73 +2457,14 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                             child: ElevatedButton(
                               onPressed: canContinue
                                   ? () async {
-                                      final selectedConsole =
-                                          consoleOptions[selectedIndex];
-                                      final selectedType =
-                                          (selectedConsole['type'] ?? '')
-                                              .toString();
-                                      final selectedGameId = asInt(
-                                        selectedConsole['booking_game_id'],
-                                      );
                                       Navigator.of(context).pop();
                                       if (!mounted) return;
                                       await Future.delayed(
                                         const Duration(milliseconds: 140),
                                       );
                                       if (!mounted) return;
-                                      if (selectedGameId == null) {
-                                        _showSafeErrorSnackBar(
-                                          this.context,
-                                          'No booking option found for this console.',
-                                        );
-                                        return;
-                                      }
-                                      int requiredConsoleCount = 1;
-                                      String bookingModeLabel = 'solo';
-                                      List<ChatUserModel> selectedSquadMembers =
-                                          const <ChatUserModel>[];
-
-                                      if (_normalizeConsoleType(selectedType) ==
-                                          'pc') {
-                                        final bookingSelection =
-                                            await _showBookingPartyBottomSheet(
-                                              this.context,
-                                              selectedType,
-                                            );
-                                        if (!mounted ||
-                                            bookingSelection == null) {
-                                          return;
-                                        }
-                                        requiredConsoleCount = bookingSelection
-                                            .requiredConsoleCount;
-                                        bookingModeLabel =
-                                            bookingSelection.isSquad
-                                            ? 'squad'
-                                            : 'solo';
-                                        selectedSquadMembers =
-                                            bookingSelection.selectedMembers;
-                                      }
-
-                                      if (!mounted) return;
-                                      Navigator.of(this.context).push(
-                                        MaterialPageRoute(
-                                          builder: (_) => BookingScreen(
-                                            email: safeEmail,
-                                            consoleType: _getConsoleType(
-                                              selectedType,
-                                            ),
-                                            title: widget.title,
-                                            gameId: selectedGameId,
-                                            vendorId: widget.vendorId,
-                                            cartItems: cartItems ?? [],
-                                            isSquadBooking:
-                                                bookingModeLabel == 'squad',
-                                            requiredConsoleCount:
-                                                requiredConsoleCount,
-                                            selectedSquadMembers:
-                                                selectedSquadMembers,
-                                          ),
-                                        ),
+                                      await launch(
+                                        consoleOptions[selectedIndex],
                                       );
                                     }
                                   : null,

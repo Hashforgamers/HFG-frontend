@@ -1,3 +1,4 @@
+import 'package:hash/app/modules/arena/controllers/cafe_controller.dart';
 import 'package:hash/app/modules/home/widgets/home_design.dart';
 import 'dart:ui' show FontFeature;
 import 'package:hash/app/modules/hash_store/widgets/neon_switch.dart';
@@ -564,9 +565,7 @@ class _BookingsList extends StatelessWidget {
           final d = bookings[i];
           return BookingTicketCard(
             game: d['slot']?['gaming_type_id']?['game_name'] ?? 'Unknown',
-            cafe:
-                d['slot']?['gaming_type_id']?['cafe_name']?['cafe_name'] ??
-                'Cafe',
+            cafe: CybercafesController.cafeNameForBooking(d) ?? 'Cafe',
             start: fmt(d['slot']?['time']?['start_time']),
             end: fmt(d['slot']?['time']?['end_time']),
             status: (d['status'] ?? 'Pending').toString(),

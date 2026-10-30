@@ -39,7 +39,13 @@ class _HostProfileScreenState extends State<HostProfileScreen> {
       appBar: AppBar(
         backgroundColor: Colors.black,
         elevation: 0,
-        title: Text('Host Profile', style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w700)),
+        title: Text(
+          'Host Profile',
+          style: GoogleFonts.inter(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         bottom: const PreferredSize(
           preferredSize: Size.fromHeight(56),
           child: Padding(
@@ -72,11 +78,26 @@ class _HostProfileScreenState extends State<HostProfileScreen> {
                   CircleAvatar(
                     radius: 36,
                     backgroundColor: const Color(0xFF00DC00),
-                    backgroundImage: photo.isNotEmpty ? CachedNetworkImageProvider(photo) : null,
-                    child: photo.isEmpty ? const Icon(Icons.person, size: 34, color: Colors.black) : null,
+                    backgroundImage: photo.isNotEmpty
+                        ? CachedNetworkImageProvider(photo)
+                        : null,
+                    child: photo.isEmpty
+                        ? const Icon(
+                            Icons.person,
+                            size: 34,
+                            color: Colors.black,
+                          )
+                        : null,
                   ),
                   const SizedBox(height: 12),
-                  Text(hostName, style: GoogleFonts.orbitron(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)),
+                  Text(
+                    hostName,
+                    style: GoogleFonts.orbitron(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                   const SizedBox(height: 8),
                   StreamBuilder<int>(
                     stream: _service.watchHostFollowersCount(widget.hostUid),
@@ -95,9 +116,22 @@ class _HostProfileScreenState extends State<HostProfileScreen> {
                   const SizedBox(height: 10),
                   if (isLive)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(color: Colors.redAccent, borderRadius: BorderRadius.circular(10)),
-                      child: Text('Currently Live', style: GoogleFonts.inter(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.redAccent,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        'Currently Live',
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
                   const Spacer(),
                   if (!isOwnProfile)
@@ -108,10 +142,17 @@ class _HostProfileScreenState extends State<HostProfileScreen> {
                           onPressed: _controller.isFollowSubmitting.value
                               ? null
                               : () => _controller.toggleFollow(widget.hostUid),
-                          style: OutlinedButton.styleFrom(side: const BorderSide(color: Color(0xFF00DC00))),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Color(0xFF00DC00)),
+                          ),
                           child: Text(
-                            _controller.isFollowingHost.value ? 'Following' : 'Follow',
-                            style: GoogleFonts.inter(color: const Color(0xFF00DC00), fontWeight: FontWeight.w700),
+                            _controller.isFollowingHost.value
+                                ? 'Following'
+                                : 'Follow',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFF00DC00),
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
                       ),

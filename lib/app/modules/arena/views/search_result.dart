@@ -1,3 +1,4 @@
+import 'package:hash/app/modules/arena/views/arena_detail/arena_detail_info_section.dart';
 import 'dart:async';
 import 'dart:math' as math;
 
@@ -828,7 +829,7 @@ class _SearchResultState extends State<SearchResult> {
                   images: imagesList,
                   title: title,
                   address: address,
-                  openingHours: '9 AM - 12 AM', // TODO: plug real hours
+                  openingHours: cafeHoursFromApi(cafe),
                   availableGames: availableGames,
                   amenities: featsAll,
                   phone:

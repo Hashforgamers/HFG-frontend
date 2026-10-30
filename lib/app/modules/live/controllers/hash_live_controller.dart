@@ -59,7 +59,9 @@ class HashLiveController extends GetxController {
       return null;
     }
     if (!_isValidYoutubeUrl(url)) {
-      _showError('Please enter a valid YouTube live link.');
+      _showError(
+        'Only YouTube live links work here, like youtube.com/live/… or youtu.be/…',
+      );
       return null;
     }
 

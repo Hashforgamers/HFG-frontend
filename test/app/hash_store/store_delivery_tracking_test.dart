@@ -62,6 +62,29 @@ void main() {
     );
   }
 
+  test('platform fee is split out of the native delivery amount', () async {
+    for (final (payer, amount, delivery) in [
+      ('seller', 10, 0),
+      ('customer', 99.5, 8950),
+    ]) {
+      final service = MedusaStoreService.forTesting(
+        (m, p, d, q) async => p.endsWith('/delivery')
+            ? {'payer': payer, 'platform_fee_minor': 1000}
+            : p == '/store/shipping-options'
+            ? {
+                'shipping_options': [
+                  {'id': 'so', 'provider_id': 'hash_delivery_hash_delivery'},
+                ],
+              }
+            : {
+                'shipping_option': {'amount': amount},
+              },
+      );
+      final options = (await service.deliveryOptions('cart_1')).options;
+      expect(options.single['delivery_paise'], delivery);
+    }
+  });
+
   test('missing package data blocks customer quoting', () async {
     final service = MedusaStoreService.forTesting((m, p, d, q) async {
       expect(p.endsWith('/delivery'), isTrue);

@@ -148,7 +148,9 @@ import UserNotifications
     didReceive response: UNNotificationResponse,
     withCompletionHandler completionHandler: @escaping () -> Void
   ) {
-    completionHandler()
+    // Forward taps to the Flutter plugins (firebase_messaging,
+    // flutter_local_notifications); without this no tap reaches Dart.
+    super.userNotificationCenter(center, didReceive: response, withCompletionHandler: completionHandler)
   }
 
   override func application(

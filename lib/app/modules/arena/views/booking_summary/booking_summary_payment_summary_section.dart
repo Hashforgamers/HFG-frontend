@@ -16,6 +16,7 @@ class BookingSummaryPaymentSummarySection extends StatelessWidget {
   final String remainingAmountLabel;
   final bool hasSlots;
   final bool hasCartItems;
+  final bool payAtCafe;
 
   const BookingSummaryPaymentSummarySection({
     super.key,
@@ -31,6 +32,7 @@ class BookingSummaryPaymentSummarySection extends StatelessWidget {
     this.remainingAmountLabel = 'Remaining to Pay Online',
     required this.hasSlots,
     required this.hasCartItems,
+    this.payAtCafe = false,
   });
 
   static const Color _wallet = Color(0xFF42D7FF);
@@ -66,7 +68,11 @@ class BookingSummaryPaymentSummarySection extends StatelessWidget {
           accentColor: _wallet,
         ),
       _SummaryLine(
-        hasWalletFlow ? remainingAmountLabel : 'Payable Now',
+        hasWalletFlow
+            ? remainingAmountLabel
+            : payAtCafe
+            ? 'Pay at Café'
+            : 'Payable Now',
         dueNow,
         emphasized: true,
       ),
@@ -132,7 +138,7 @@ class BookingSummaryPaymentSummarySection extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Amount to pay now',
+                  payAtCafe ? 'Pay at the café' : 'Amount to pay now',
                   style: GoogleFonts.inter(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
@@ -151,7 +157,9 @@ class BookingSummaryPaymentSummarySection extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  hasWalletFlow
+                  payAtCafe
+                      ? 'Nothing to pay now. Pay at the counter when you arrive.'
+                      : hasWalletFlow
                       ? 'Wallet is used first; the remaining amount is shown above.'
                       : 'Final amount charged for this booking.',
                   style: BookingText.muted(context),
@@ -170,8 +178,10 @@ class BookingSummaryPaymentSummarySection extends StatelessWidget {
             ...savingsApplied.map(_buildSummaryLine),
           ],
           const SizedBox(height: 10),
+          // Numbered by what is shown, so it never skips from 1 to 3.
           _sectionLabel(
-            hasWalletFlow ? '3 · How you will pay' : '2 · Final payment',
+            '${savingsApplied.isEmpty ? 2 : 3} · '
+            '${hasWalletFlow ? 'How you will pay' : 'Final payment'}',
           ),
           const SizedBox(height: 10),
           ...howYouPay.map(_buildSummaryLine),
@@ -193,14 +203,16 @@ class BookingSummaryPaymentSummarySection extends StatelessWidget {
                     BookingColors.textPrimary,
                   ),
                 ),
-                Container(width: 1, height: 34, color: BookingColors.border),
-                Expanded(
-                  child: _miniMetric(
-                    'You Save',
-                    '${Money.symbol}${savings.toStringAsFixed(2)}',
-                    BookingColors.success,
+                if (savings > 0) ...[
+                  Container(width: 1, height: 34, color: BookingColors.border),
+                  Expanded(
+                    child: _miniMetric(
+                      'You Save',
+                      '${Money.symbol}${savings.toStringAsFixed(2)}',
+                      BookingColors.success,
+                    ),
                   ),
-                ),
+                ],
                 if (walletAppliedAmount > 0) ...[
                   Container(width: 1, height: 34, color: BookingColors.border),
                   Expanded(

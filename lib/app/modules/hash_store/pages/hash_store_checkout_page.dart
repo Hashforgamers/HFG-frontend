@@ -62,6 +62,8 @@ class _HashStoreCheckoutPageState extends State<HashStoreCheckoutPage> {
   bool _paid = false;
   bool _shippingSelected = false;
   bool _sellerPaid = false;
+  // Accepted delivery quote: delivery and platform fee as separate rows.
+  Map<String, dynamic>? _quote;
   bool _placing = false;
   String? _checkoutError;
   StoreStates? _states;
@@ -185,10 +187,14 @@ class _HashStoreCheckoutPageState extends State<HashStoreCheckoutPage> {
     });
     try {
       final cart = await _store.selectShipping(_cart['id'] as String, id);
+      final quote = (await _store.deliveryPolicy(
+        cart['id'] as String,
+      ))['quote'];
       if (!mounted) return;
       context.read<HashStoreCartCubit>().replace(cart);
       setState(() {
         _cart = cart;
+        _quote = quote is Map ? Map<String, dynamic>.from(quote) : null;
         _optionId = id;
         _shippingSelected = true;
       });
@@ -219,9 +225,13 @@ class _HashStoreCheckoutPageState extends State<HashStoreCheckoutPage> {
       if (!_paid) {
         final previousTotal = _cart['total'];
         final cart = await _store.selectShipping(id, _optionId!);
+        final quote = (await _store.deliveryPolicy(id))['quote'];
         cubit.replace(cart);
         if (!mounted) return;
-        setState(() => _cart = cart);
+        setState(() {
+          _cart = cart;
+          _quote = quote is Map ? Map<String, dynamic>.from(quote) : null;
+        });
         if (cart['total'] != previousTotal) {
           _checkoutError =
               'Your delivery total changed. Review the updated total and tap Place order to accept.';
@@ -566,16 +576,9 @@ class _HashStoreCheckoutPageState extends State<HashStoreCheckoutPage> {
                                     title: _sellerPaid
                                         ? 'Delivery paid by seller'
                                         : '${o['name'] ?? 'Delivery'}',
-                                    trailing: () {
-                                      final amount =
-                                          o['amount'] ??
-                                          (o['calculated_price']
-                                              as Map?)?['calculated_amount'];
-                                      return _sellerPaid ||
-                                              storeNum(amount) == 0
-                                          ? '₹0'
-                                          : storeMoney(amount);
-                                    }(),
+                                    trailing: storeMoney(
+                                      storeNum(o['delivery_paise']) / 100,
+                                    ),
                                     selected: _optionId == o['id'],
                                     onTap: () =>
                                         _selectOption(o['id'] as String),
@@ -635,7 +638,10 @@ class _HashStoreCheckoutPageState extends State<HashStoreCheckoutPage> {
                     const SizedBox(height: 16),
                     StoreSection(
                       title: 'Summary',
-                      child: StoreTotals(cart: _cart),
+                      child: StoreTotals(
+                        cart: _cart,
+                        quote: _shippingSelected ? _quote : null,
+                      ),
                     ),
                   ],
                 ],
@@ -665,7 +671,10 @@ class _HashStoreCheckoutPageState extends State<HashStoreCheckoutPage> {
         textInputAction: key == 'phone'
             ? TextInputAction.done
             : TextInputAction.next,
-        onTapOutside: (_) => FocusScope.of(context).unfocus(),
+        // No onTapOutside: it fired when tapping the next box and bounced the
+        // keyboard. Dismiss is via Done, drag or the phone field's submit.
+        // Keep the focused box clear of the keyboard's Done bar (48) too.
+        scrollPadding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
         onFieldSubmitted: (_) {
           if (key == 'phone') FocusScope.of(context).unfocus();
         },

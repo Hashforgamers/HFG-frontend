@@ -517,6 +517,11 @@ class DeepLinkService extends GetxController {
         }),
       );
     }
+    // Return to the Home already at the root instead of stacking a fresh one.
+    if (route == AppRoutes.HOME && !replaceStack) {
+      Get.until((r) => r.isFirst || r.settings.name == AppRoutes.HOME);
+      return;
+    }
     final arguments = <String, dynamic>{
       'id': destination.id,
       'match_id': destination.secondaryId,

@@ -37,6 +37,49 @@ num storeNum(Object? v) => v is num ? v : num.tryParse('$v') ?? 0;
 /// Medusa 2 amounts are major units, so INR rupees.
 String storeMoney(Object? amount) => Money.format(storeNum(amount));
 
+/// Card price from the server's automatic-offer `pricing` preview, else the
+/// base listing price. [was] is struck through when [off] > 0. `pricing: null`
+/// means no INR price, so nothing is shown rather than an invented one.
+({num? price, num was, int off, num save}) storeCardPrice(Map product) {
+  if (product.containsKey('pricing')) {
+    final p = product['pricing'];
+    if (p is! Map) return (price: null, was: 0, off: 0, save: 0);
+    final save = storeNum(p['discount_amount']);
+    final price = storeNum(p['calculated_amount']);
+    if (save > 0) {
+      final off = storeNum(p['discount_percent']).round();
+      return (
+        price: price,
+        was: storeNum(p['original_amount']),
+        off: off,
+        save: save,
+      );
+    }
+    return _mrp(product, price);
+  }
+  return _mrp(product, storeNum(product['price_inr']));
+}
+
+// Only a real seller-set MRP is shown struck through; never invented.
+({num? price, num was, int off, num save}) _mrp(Map product, num price) {
+  final mrp = storeNum(product['compare_at_price_inr']);
+  return mrp > price && price > 0
+      ? (
+          price: price,
+          was: mrp,
+          off: ((mrp - price) / mrp * 100).round(),
+          save: mrp - price,
+        )
+      : (price: price, was: 0, off: 0, save: 0);
+}
+
+/// Opt-in coupon codes for a product (`requires_code` offers). Each previews
+/// that offer alone, so never sum their discounts.
+List<Map> storeCouponOffers(Map product) => (product['offers'] as List? ?? [])
+    .whereType<Map>()
+    .where((o) => o['requires_code'] == true && o['code'] is String)
+    .toList();
+
 /// Size-specific tracking: large text tightens, small text opens up a
 /// touch for legibility, body sits near zero.
 double storeTracking(double size) => size >= 28
@@ -742,7 +785,35 @@ class StoreQtyStepper extends StatelessWidget {
 /// Server totals for a cart or order. Never computed on the client.
 class StoreTotals extends StatelessWidget {
   final Map<String, dynamic> cart;
-  const StoreTotals({super.key, required this.cart});
+
+  /// Accepted `/store/hash/carts/{id}/delivery` quote, when known.
+  final Map<String, dynamic>? quote;
+  const StoreTotals({super.key, required this.cart, this.quote});
+
+  /// (delivery, platform fee) in paise. Native `shipping_total` holds both,
+  /// so it is split from the quote or the order's shipping-method data and
+  /// never labelled as courier charges alone. Null when no split is known.
+  (int, int)? _split() {
+    final q = quote;
+    if (q != null &&
+        q['amount_paise'] is int &&
+        q['platform_fee_minor'] is int) {
+      return (q['amount_paise'] as int, q['platform_fee_minor'] as int);
+    }
+    var delivery = 0, fee = 0;
+    final methods = (cart['shipping_methods'] as List? ?? []).whereType<Map>();
+    for (final m in methods) {
+      final d = m['data'];
+      if (d is! Map ||
+          d['hash_customer_shipping_paise'] is! int ||
+          d['hash_platform_fee_paise'] is! int) {
+        return null;
+      }
+      delivery += d['hash_customer_shipping_paise'] as int;
+      fee += d['hash_platform_fee_paise'] as int;
+    }
+    return methods.isEmpty ? null : (delivery, fee);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -775,7 +846,15 @@ class StoreTotals extends StatelessWidget {
       child: Column(
         children: [
           row('Subtotal', cart['item_subtotal'] ?? cart['subtotal']),
-          if (hasShipping) row('Delivery', cart['shipping_total']),
+          if (hasShipping)
+            ...switch (_split()) {
+              null => [row('Delivery', cart['shipping_total'])],
+              (final delivery, final fee) => [
+                row('Delivery', delivery / 100),
+                if (fee > 0)
+                  row('Hash platform fee (GST inclusive)', fee / 100),
+              ],
+            },
           if (storeNum(cart['tax_total']) > 0) row('Tax', cart['tax_total']),
           if (storeNum(cart['discount_total']) > 0)
             row('Discount', -storeNum(cart['discount_total'])),

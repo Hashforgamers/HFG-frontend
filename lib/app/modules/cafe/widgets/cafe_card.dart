@@ -272,9 +272,19 @@ class _CafeCardState extends State<CafeCard> {
                       children: [
                         _netIcon(CafeCard._padIcon, 14),
                         const SizedBox(width: 5),
-                        Text(
-                          'Consoles',
-                          style: _text(12, _secondary, weight: FontWeight.w500),
+                        // Gives way first on narrow cards; the icons stay.
+                        Flexible(
+                          child: Text(
+                            'Consoles',
+                            maxLines: 1,
+                            overflow: TextOverflow.clip,
+                            softWrap: false,
+                            style: _text(
+                              12,
+                              _secondary,
+                              weight: FontWeight.w500,
+                            ),
+                          ),
                         ),
                         const SizedBox(width: 8),
                         for (final icon in CafeCard._platforms) ...[

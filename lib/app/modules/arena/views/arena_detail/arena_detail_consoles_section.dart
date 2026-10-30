@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/home/widgets/home_design.dart';
+import 'package:hash/core/localization/app_region.dart';
 import 'package:hash/utils/widgets/home_section_title.dart';
 import 'package:hash/utils/widgets/loader.dart';
 
@@ -37,6 +38,7 @@ class ArenaDetailConsolesSection extends StatelessWidget {
             );
           }
           var types = _consoleTypes();
+          final prices = _lowestPrices();
           if (types.isEmpty) {
             types = const [
               {'key': 'pc', 'label': 'PC'},
@@ -45,29 +47,75 @@ class ArenaDetailConsolesSection extends StatelessWidget {
               {'key': 'vr_headset', 'label': 'VR'},
             ];
           }
-          return LayoutBuilder(
-            builder: (context, constraints) {
-              const gap = 12.0;
-              final width = (constraints.maxWidth - gap) / 2;
-              return Wrap(
-                spacing: gap,
-                runSpacing: gap,
-                children: [
-                  for (final t in types)
-                    SizedBox(
-                      width: width,
-                      child: _consoleTile(
-                        t['label'] ?? '',
-                        consoleType: t['key'] ?? '',
-                      ),
+          // One grouped list instead of a grid of separate cards.
+          return Container(
+            decoration: BoxDecoration(
+              color: HomeTokens.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: HomeTokens.hairline),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              children: [
+                for (var i = 0; i < types.length; i++) ...[
+                  if (i > 0)
+                    const Divider(
+                      height: 1,
+                      thickness: 0.5,
+                      indent: 60,
+                      color: HomeTokens.hairline,
                     ),
+                  _consoleRow(
+                    types[i]['label'] ?? '',
+                    consoleType: types[i]['key'] ?? '',
+                    fromPrice: prices[types[i]['key']],
+                  ),
                 ],
-              );
-            },
+              ],
+            ),
           );
         }),
       ],
     );
+  }
+
+  /// Cheapest slot price per console type, so each tile can say "from ₹X".
+  Map<String, double> _lowestPrices() {
+    double? price(dynamic v) {
+      final d = v is num ? v.toDouble() : double.tryParse('${v ?? ''}');
+      return d != null && d > 0 ? d : null;
+    }
+
+    final out = <String, double>{};
+    void put(String rawType, double? price) {
+      final key = _normalizeConsoleType(rawType);
+      if (key.isEmpty || price == null) return;
+      final cur = out[key];
+      if (cur == null || price < cur) out[key] = price;
+    }
+
+    for (final g in games) {
+      if (g is! Map) continue;
+      final gamePrice = price(
+        g['single_slot_price'] ?? g['avg_price'] ?? g['price_per_hour'],
+      );
+      final consoles = g['consoles'];
+      if (consoles is List && consoles.isNotEmpty) {
+        for (final c in consoles) {
+          if (c is! Map) continue;
+          put(
+            '${c['console_display_name'] ?? c['console_slug'] ?? c['console_type'] ?? c['type'] ?? ''}',
+            price(c['price_per_hour']) ?? gamePrice,
+          );
+        }
+      } else {
+        put(
+          '${g['console_display_name'] ?? g['console_slug'] ?? g['console_type'] ?? g['type'] ?? g['game_platform'] ?? ''}',
+          gamePrice,
+        );
+      }
+    }
+    return out;
   }
 
   List<Map<String, String>> _consoleTypes() {
@@ -148,62 +196,84 @@ class ArenaDetailConsolesSection extends StatelessWidget {
     return types;
   }
 
-  Widget _consoleTile(String label, {required String consoleType}) {
+  Widget _consoleRow(
+    String label, {
+    required String consoleType,
+    double? fromPrice,
+  }) {
     final fallbackIcon = _getConsoleFallbackIcon(label);
     final imageUrl = _getConsoleImage(label);
-    return HomeCard(
-      padding: const EdgeInsets.fromLTRB(12, 12, 10, 12),
-      onTap: onConsoleTap == null ? null : () => onConsoleTap!(consoleType),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            padding: const EdgeInsets.all(9),
-            decoration: BoxDecoration(
-              color: HomeTokens.green.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(13),
-              border: Border.all(
-                color: HomeTokens.green.withValues(alpha: 0.22),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onConsoleTap == null ? null : () => onConsoleTap!(consoleType),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 10, 12),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 28,
+                height: 28,
+                child: imageUrl.isEmpty
+                    ? _iconBadge(fallbackIcon, _badgeColor(label))
+                    : Image.network(
+                        imageUrl,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, _, _) =>
+                            _iconBadge(fallbackIcon, _badgeColor(label)),
+                      ),
               ),
-            ),
-            child: imageUrl.isEmpty
-                ? Icon(fallbackIcon, color: HomeTokens.green, size: 22)
-                : Image.network(
-                    imageUrl,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, _, _) =>
-                        Icon(fallbackIcon, color: HomeTokens.green, size: 22),
-                  ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(
                     color: HomeTokens.textPrimary,
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text('Book now', style: HomeTokens.eyebrow(HomeTokens.green)),
-              ],
-            ),
+              ),
+              if (fromPrice != null)
+                Text(
+                  'from ${Money.symbol}${fromPrice.toStringAsFixed(0)}',
+                  style: HomeTokens.body(HomeTokens.textSecondary, size: 13),
+                ),
+              const SizedBox(width: 4),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: HomeTokens.textTertiary,
+                size: 20,
+              ),
+            ],
           ),
-          const Icon(
-            Icons.chevron_right_rounded,
-            color: HomeTokens.textTertiary,
-            size: 20,
-          ),
-        ],
+        ),
       ),
     );
+  }
+
+  /// Setups without a brand logo get a filled round badge in the same
+  /// style as the PC / Xbox / PlayStation logos.
+  Widget _iconBadge(IconData icon, Color color) => Container(
+    decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+    alignment: Alignment.center,
+    child: Icon(icon, color: Colors.white, size: 16),
+  );
+
+  Color _badgeColor(String consoleName) {
+    final lower = consoleName.toLowerCase();
+    if (lower.contains('racing') || lower.contains('rig')) {
+      return const Color(0xFFE5533D);
+    }
+    if (lower.contains('room')) return const Color(0xFF0F9D8A);
+    if (lower.contains('vr')) return const Color(0xFF7B4DDB);
+    if (lower.contains('arcade')) return const Color(0xFFE8A23A);
+    if (lower.contains('switch') || lower.contains('nintendo')) {
+      return const Color(0xFFE60012);
+    }
+    return const Color(0xFF3A3F4A);
   }
 
   bool _truthy(dynamic value) {
@@ -343,22 +413,22 @@ class ArenaDetailConsolesSection extends StatelessWidget {
       return Icons.sports_esports_outlined;
     }
     if (lower.contains('arcade')) {
-      return Icons.videogame_asset_outlined;
+      return Icons.videogame_asset_rounded;
     }
     if (lower.contains('racing') || lower.contains('rig')) {
-      return Icons.sports_motorsports_outlined;
+      return Icons.sports_motorsports_rounded;
     }
     if (lower.contains('simulator')) {
-      return Icons.rocket_launch_outlined;
+      return Icons.rocket_launch_rounded;
     }
     if (lower.contains('private') && lower.contains('room')) {
-      return Icons.meeting_room_outlined;
+      return Icons.meeting_room_rounded;
     }
     if (lower.contains('vip') && lower.contains('room')) {
-      return Icons.workspace_premium_outlined;
+      return Icons.workspace_premium_rounded;
     }
     if (lower.contains('bootcamp') && lower.contains('room')) {
-      return Icons.groups_2_outlined;
+      return Icons.groups_2_rounded;
     }
     return Icons.desktop_windows_rounded;
   }

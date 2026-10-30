@@ -1,3 +1,4 @@
+import 'package:hash/app/modules/payment/razorpay_branding.dart';
 import 'package:flutter/material.dart';
 import 'package:hash/core/utils/app_snackbar.dart';
 import 'package:get/get.dart';
@@ -83,15 +84,16 @@ class _VendorPassesWidgetState extends State<VendorPassesWidget> {
       if (email.isNotEmpty) {
         prefill['email'] = email;
       }
+      final userName = _userController.user.value.name?.trim() ?? '';
+      if (userName.isNotEmpty) prefill['name'] = userName;
       _razorpay.open({
         'key': ApiEndpoints.razorpayKeyWallet,
         'amount': (amount * 100).toInt(),
-        'name': _userController.user.value.name?.trim().isNotEmpty == true
-            ? _userController.user.value.name
-            : 'HashForGamers',
+        'name': razorpayMerchantName,
         'description': 'Purchase Pass - ${pass.name ?? 'Game Pass'}',
         'order_id': orderId,
         if (prefill.isNotEmpty) 'prefill': prefill,
+        'theme': razorpayTheme,
       });
     } catch (e) {
       _endPayment();

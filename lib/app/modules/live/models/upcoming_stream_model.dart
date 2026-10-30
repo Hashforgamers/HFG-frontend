@@ -23,7 +23,9 @@ class UpcomingStreamModel {
     required this.joinedUserIds,
   });
 
-  factory UpcomingStreamModel.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
+  factory UpcomingStreamModel.fromDoc(
+    DocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
     final data = doc.data() ?? {};
     DateTime parse(dynamic value) {
       if (value is Timestamp) return value.toDate();

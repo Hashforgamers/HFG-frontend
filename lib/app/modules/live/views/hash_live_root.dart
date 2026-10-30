@@ -4,6 +4,7 @@ import 'package:hash/app/modules/live/utils/live_time.dart';
 import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -136,7 +137,7 @@ class _HashLiveRootState extends State<HashLiveRoot> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
-            color: const Color(0xCC10151D),
+            color: LiveUi.surface.withValues(alpha: 0.9),
             borderRadius: BorderRadius.circular(22),
             boxShadow: [
               BoxShadow(color: color.withValues(alpha: 0.40), blurRadius: 14),
@@ -172,7 +173,7 @@ class _HashLiveRootState extends State<HashLiveRoot> {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF1A1F28), Color(0xFF0B0D11)],
+          colors: [LiveUi.surfaceSoft, LiveUi.bg],
         ),
         border: Border.all(color: ringSoft, width: 1.8),
         boxShadow: [
@@ -244,22 +245,37 @@ class _DiscoverTabState extends State<_DiscoverTab> {
   late final _upcoming = _service.watchUpcomingStreams();
   late final _recent = _service.watchRecentStreams();
 
+  /// Empty means all games.
+  String _game = '';
+
+  List<T> _byGame<T>(List<T> items, String Function(T) gameOf) =>
+      _game.isEmpty ? items : items.where((e) => gameOf(e) == _game).toList();
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<LiveStreamModel>>(
       stream: _live,
       builder: (context, liveSnap) {
-        final streams = liveSnap.data ?? const <LiveStreamModel>[];
+        final streams = _byGame(
+          liveSnap.data ?? const <LiveStreamModel>[],
+          (s) => s.game,
+        );
         final loadingLive = liveSnap.connectionState == ConnectionState.waiting;
         return StreamBuilder<List<UpcomingStreamModel>>(
           stream: _upcoming,
           builder: (context, upSnap) {
-            final upcoming = upSnap.data ?? const <UpcomingStreamModel>[];
+            final upcoming = _byGame(
+              upSnap.data ?? const <UpcomingStreamModel>[],
+              (s) => s.game,
+            );
             final loadingUp = upSnap.connectionState == ConnectionState.waiting;
             return StreamBuilder<List<LiveStreamModel>>(
               stream: _recent,
               builder: (context, recentSnap) {
-                final recent = recentSnap.data ?? const <LiveStreamModel>[];
+                final recent = _byGame(
+                  recentSnap.data ?? const <LiveStreamModel>[],
+                  (s) => s.game,
+                );
                 final quiet = !loadingLive && streams.isEmpty;
                 // When nobody is live, the soonest scheduled stream becomes
                 // the hero so the page still has something to look forward to.
@@ -274,6 +290,24 @@ class _DiscoverTabState extends State<_DiscoverTab> {
                   padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
                   physics: const BouncingScrollPhysics(),
                   children: [
+                    SizedBox(
+                      height: 36,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        clipBehavior: Clip.none,
+                        children: [
+                          for (final game in ['', ..._controller.games]) ...[
+                            _GameChip(
+                              label: game.isEmpty ? 'All' : game,
+                              selected: _game == game,
+                              onTap: () => setState(() => _game = game),
+                            ),
+                            const SizedBox(width: 8),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 18),
                     if (loadingLive)
                       const _LiveLoading(height: 270)
                     else if (streams.isNotEmpty) ...[
@@ -506,28 +540,108 @@ class _GoLiveTab extends StatelessWidget {
     final controller = Get.find<HashLiveController>();
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       children: [
         Text('Go live', style: LiveUi.heading(24)),
         const SizedBox(height: 4),
         Text(
-          'Set it up once, then start or schedule.',
+          'Stream on YouTube, then share it with the Hash crowd.',
           style: GoogleFonts.inter(
             color: LiveUi.textSecondary,
             fontSize: 13,
             height: 1.35,
           ),
         ),
-        const SizedBox(height: 18),
-        const SizedBox(height: 14),
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: LiveUi.cardDecoration(radius: 14),
+        const SizedBox(height: 16),
+        const _GoLiveSteps(),
+        const SizedBox(height: 16),
+        LiveCard(
+          accent: true,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const LiveEyebrow('Quick schedule', color: LiveUi.textTertiary),
+              const LiveEyebrow('Stream details'),
+              const SizedBox(height: 14),
+              _label('Title'),
+              const SizedBox(height: 6),
+              TextField(
+                controller: controller.titleController,
+                maxLength: 80,
+                textCapitalization: TextCapitalization.sentences,
+                style: const TextStyle(color: Colors.white),
+                decoration: LiveUi.input(
+                  hint: 'e.g. Ranked grind to Immortal',
+                ).copyWith(counterStyle: LiveUi.body),
+              ),
+              const SizedBox(height: 6),
+              _label('Game'),
               const SizedBox(height: 8),
+              Obx(
+                () => Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final game in controller.games)
+                      _GameChip(
+                        label: game,
+                        selected: controller.selectedGame.value == game,
+                        onTap: () => controller.setGame(game),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              _label('YouTube live link'),
+              const SizedBox(height: 6),
+              const _YoutubeLinkField(),
+              const SizedBox(height: 6),
+              Obx(
+                () => SwitchListTile(
+                  value: controller.isStreamingFromCafe.value,
+                  activeThumbColor: LiveUi.accentSoft,
+                  title: Text(
+                    'Streaming from a café',
+                    style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
+                  ),
+                  subtitle: Text(
+                    'Shows a café badge on your stream',
+                    style: LiveUi.body,
+                  ),
+                  onChanged: controller.setStreamingFromCafe,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        Obx(
+          () => LiveCta(
+            label: 'Start Live Now',
+            icon: Icons.sensors_rounded,
+            busy: controller.isSubmitting.value,
+            onTap: () async {
+              final streamId = await controller.startLive();
+              if (streamId == null || streamId.isEmpty) return;
+              Get.to(() => LiveStreamScreen(streamId: streamId));
+            },
+          ),
+        ),
+        const SizedBox(height: 24),
+        LiveCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const LiveEyebrow(
+                'Schedule for later',
+                color: LiveUi.textTertiary,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Followers get a heads-up before you start.',
+                style: LiveUi.body,
+              ),
+              const SizedBox(height: 12),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
@@ -569,163 +683,89 @@ class _GoLiveTab extends StatelessWidget {
                   ),
                 ],
               ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 14),
-        _label('Title'),
-        const SizedBox(height: 6),
-        TextField(
-          controller: controller.titleController,
-          style: const TextStyle(color: Colors.white),
-          decoration: LiveUi.input(hint: 'Enter stream title'),
-        ),
-        const SizedBox(height: 12),
-        _label('Game'),
-        const SizedBox(height: 6),
-        Obx(
-          () => DropdownButtonFormField<String>(
-            initialValue: controller.selectedGame.value.isEmpty
-                ? null
-                : controller.selectedGame.value,
-            dropdownColor: LiveUi.surfaceSoft,
-            style: const TextStyle(color: Colors.white),
-            decoration: LiveUi.input(),
-            items: controller.games
-                .map((game) => DropdownMenuItem(value: game, child: Text(game)))
-                .toList(),
-            onChanged: (value) => controller.setGame(value ?? ''),
-          ),
-        ),
-        const SizedBox(height: 12),
-        _label('YouTube live link'),
-        const SizedBox(height: 6),
-        TextField(
-          controller: controller.youtubeController,
-          style: const TextStyle(color: Colors.white),
-          decoration: LiveUi.input(hint: 'Paste YouTube URL'),
-        ),
-        const SizedBox(height: 12),
-        Obx(
-          () => SwitchListTile(
-            value: controller.isStreamingFromCafe.value,
-            activeThumbColor: LiveUi.accentSoft,
-            title: Text(
-              'Streaming from Café',
-              style: GoogleFonts.inter(color: Colors.white),
-            ),
-            onChanged: controller.setStreamingFromCafe,
-            contentPadding: EdgeInsets.zero,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Obx(
-          () => ListTile(
-            tileColor: const Color(0x33242934),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            title: Text(
-              controller.scheduledAt.value == null
-                  ? 'Select schedule time'
-                  : DateFormat(
-                      'EEE, d MMM • hh:mm a',
-                    ).format(controller.scheduledAt.value!),
-              style: GoogleFonts.inter(color: Colors.white),
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (controller.scheduledAt.value != null)
-                  IconButton(
-                    onPressed: () => controller.scheduledAt.value = null,
-                    icon: const Icon(
-                      Icons.close,
-                      color: Colors.white54,
-                      size: 18,
-                    ),
-                    splashRadius: 16,
+              const SizedBox(height: 12),
+              Obx(
+                () => ListTile(
+                  tileColor: LiveUi.surfaceSoft,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                const Icon(Icons.schedule, color: Colors.white70),
-              ],
-            ),
-            onTap: () async {
-              final now = DateTime.now();
-              final date = await showDatePicker(
-                context: context,
-                firstDate: now,
-                lastDate: now.add(const Duration(days: 365)),
-                initialDate: now,
-              );
-              if (date == null) return;
-              if (!context.mounted) return;
-              final time = await showTimePicker(
-                context: context,
-                initialTime: TimeOfDay.fromDateTime(
-                  now.add(const Duration(hours: 1)),
+                  title: Text(
+                    controller.scheduledAt.value == null
+                        ? 'Pick a date and time'
+                        : DateFormat(
+                            'EEE, d MMM • hh:mm a',
+                          ).format(controller.scheduledAt.value!),
+                    style: GoogleFonts.inter(color: Colors.white),
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (controller.scheduledAt.value != null)
+                        IconButton(
+                          onPressed: () => controller.scheduledAt.value = null,
+                          tooltip: 'Clear time',
+                          icon: const Icon(
+                            Icons.close,
+                            color: Colors.white54,
+                            size: 18,
+                          ),
+                          splashRadius: 16,
+                        ),
+                      const Icon(Icons.schedule, color: Colors.white70),
+                    ],
+                  ),
+                  onTap: () async {
+                    final now = DateTime.now();
+                    final date = await showDatePicker(
+                      context: context,
+                      firstDate: now,
+                      lastDate: now.add(const Duration(days: 365)),
+                      initialDate: now,
+                    );
+                    if (date == null) return;
+                    if (!context.mounted) return;
+                    final time = await showTimePicker(
+                      context: context,
+                      initialTime: TimeOfDay.fromDateTime(
+                        now.add(const Duration(hours: 1)),
+                      ),
+                    );
+                    if (time == null) return;
+                    controller.scheduledAt.value = DateTime(
+                      date.year,
+                      date.month,
+                      date.day,
+                      time.hour,
+                      time.minute,
+                    );
+                  },
                 ),
-              );
-              if (time == null) return;
-              controller.scheduledAt.value = DateTime(
-                date.year,
-                date.month,
-                date.day,
-                time.hour,
-                time.minute,
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 18),
-        Obx(
-          () => ElevatedButton(
-            onPressed: controller.isSubmitting.value
-                ? null
-                : () async {
-                    final streamId = await controller.startLive();
-                    if (streamId == null || streamId.isEmpty) return;
-                    Get.to(() => LiveStreamScreen(streamId: streamId));
-                  },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: LiveUi.accent,
-              foregroundColor: Colors.white,
-              minimumSize: const Size.fromHeight(52),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
               ),
-            ),
-            child: controller.isSubmitting.value
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
+              const SizedBox(height: 12),
+              Obx(
+                () => OutlinedButton.icon(
+                  onPressed: controller.isSubmitting.value
+                      ? null
+                      : () async {
+                          final id = await controller.scheduleStream();
+                          if (id == null || id.isEmpty) return;
+                          controller.scheduledAt.value = null;
+                          controller.setTab(0);
+                        },
+                  icon: const Icon(Icons.event_available_rounded, size: 18),
+                  label: const Text('Schedule Stream'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: LiveUi.stroke),
+                    minimumSize: const Size.fromHeight(48),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
                     ),
-                  )
-                : const Text('Start Live Now'),
-          ),
-        ),
-        const SizedBox(height: 10),
-        Obx(
-          () => ElevatedButton(
-            onPressed: controller.isSubmitting.value
-                ? null
-                : () async {
-                    final id = await controller.scheduleStream();
-                    if (id == null || id.isEmpty) return;
-                    controller.scheduledAt.value = null;
-                    controller.setTab(0);
-                  },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: LiveUi.surfaceSoft,
-              foregroundColor: Colors.white,
-              minimumSize: const Size.fromHeight(52),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
               ),
-            ),
-            child: const Text('Schedule Stream'),
+            ],
           ),
         ),
       ],
@@ -750,7 +790,7 @@ class _GoLiveTab extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
         decoration: BoxDecoration(
-          color: const Color(0x33242934),
+          color: LiveUi.surfaceSoft,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Text(
@@ -758,6 +798,219 @@ class _GoLiveTab extends StatelessWidget {
           style: GoogleFonts.inter(color: Colors.white70, fontSize: 12),
         ),
       ),
+    );
+  }
+}
+
+/// Pill used for picking or filtering by game.
+class _GameChip extends StatelessWidget {
+  const _GameChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            gradient: selected ? LiveUi.liveGradient : null,
+            color: selected ? null : LiveUi.surfaceSoft,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: selected ? Colors.transparent : LiveUi.stroke,
+            ),
+          ),
+          child: Text(
+            label,
+            style: GoogleFonts.inter(
+              color: selected ? Colors.white : LiveUi.textSecondary,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Three-step explainer so hosts know Hash Live only takes YouTube streams.
+class _GoLiveSteps extends StatelessWidget {
+  const _GoLiveSteps();
+
+  @override
+  Widget build(BuildContext context) {
+    const steps = [
+      (Icons.videocam_rounded, 'Go live on YouTube'),
+      (Icons.link_rounded, 'Copy the live link'),
+      (Icons.content_paste_rounded, 'Paste it here'),
+    ];
+    return Row(
+      children: [
+        for (var i = 0; i < steps.length; i++) ...[
+          if (i > 0) const SizedBox(width: 8),
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+              decoration: BoxDecoration(
+                color: LiveUi.surface,
+                borderRadius: BorderRadius.circular(LiveUi.radiusSm),
+                border: Border.all(color: LiveUi.hairline),
+              ),
+              child: Column(
+                children: [
+                  Icon(steps[i].$1, color: LiveUi.accentSoft, size: 20),
+                  const SizedBox(height: 6),
+                  Text(
+                    '${i + 1}. ${steps[i].$2}',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.inter(
+                      color: LiveUi.textSecondary,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      height: 1.25,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Link input that checks the link as you type and previews the stream, so a
+/// bad link is caught before "Start Live" rather than after.
+class _YoutubeLinkField extends StatelessWidget {
+  const _YoutubeLinkField();
+
+  @override
+  Widget build(BuildContext context) {
+    final textController = Get.find<HashLiveController>().youtubeController;
+    return ValueListenableBuilder<TextEditingValue>(
+      valueListenable: textController,
+      builder: (context, value, _) {
+        final text = value.text.trim();
+        final thumb = LiveYoutubeUtils.thumbnailUrl(text);
+        final invalid = text.isNotEmpty && thumb == null;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: textController,
+              keyboardType: TextInputType.url,
+              autocorrect: false,
+              style: const TextStyle(color: Colors.white),
+              decoration: LiveUi.input(hint: 'youtube.com/live/… or youtu.be/…')
+                  .copyWith(
+                    prefixIcon: const Icon(
+                      Icons.smart_display_rounded,
+                      color: Color(0xFFFF0033),
+                    ),
+                    suffixIcon: text.isEmpty
+                        ? IconButton(
+                            tooltip: 'Paste link',
+                            icon: const Icon(
+                              Icons.content_paste_rounded,
+                              color: Colors.white70,
+                            ),
+                            onPressed: () async {
+                              final data = await Clipboard.getData(
+                                Clipboard.kTextPlain,
+                              );
+                              final pasted = data?.text?.trim() ?? '';
+                              if (pasted.isNotEmpty) {
+                                textController.text = pasted;
+                              }
+                            },
+                          )
+                        : IconButton(
+                            tooltip: 'Clear link',
+                            icon: const Icon(
+                              Icons.close,
+                              color: Colors.white54,
+                            ),
+                            onPressed: textController.clear,
+                          ),
+                    errorText: invalid
+                        ? 'Only YouTube live links are allowed'
+                        : null,
+                    errorStyle: GoogleFonts.inter(
+                      color: LiveUi.accentSoft,
+                      fontSize: 12,
+                    ),
+                  ),
+            ),
+            if (thumb != null) ...[
+              const SizedBox(height: 10),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(LiveUi.radiusSm),
+                child: Stack(
+                  children: [
+                    AspectRatio(
+                      aspectRatio: 16 / 9,
+                      child: CachedNetworkImage(
+                        imageUrl: thumb,
+                        fit: BoxFit.cover,
+                        errorWidget: (_, _, _) =>
+                            const ColoredBox(color: LiveUi.surfaceSoft),
+                      ),
+                    ),
+                    Positioned(
+                      left: 8,
+                      bottom: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.7),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.check_circle_rounded,
+                              color: Color(0xFF3DDC84),
+                              size: 14,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'YouTube link looks good',
+                              style: GoogleFonts.inter(
+                                color: Colors.white,
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        );
+      },
     );
   }
 }
@@ -1324,7 +1577,7 @@ class _HostUpcomingEditableCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   ListTile(
-                    tileColor: const Color(0x33242934),
+                    tileColor: LiveUi.surfaceSoft,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),

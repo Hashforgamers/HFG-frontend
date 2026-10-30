@@ -69,7 +69,10 @@ class BookingSummaryPaymentMethodSection extends StatelessWidget {
                     '${Money.symbol}${(wallet.availableBalance / 100).toStringAsFixed(2)}',
           icon: Icons.storefront_rounded,
           isSelected: selectedPayment.value == 'cafe_wallet',
-          onTap: () => onSelectPayment('cafe_wallet'),
+          // An empty cafe wallet can't pay for anything.
+          onTap: wallet != null && wallet.availableBalance <= 0
+              ? null
+              : () => onSelectPayment('cafe_wallet'),
         ),
       if (methods.hasPass)
         BookingSummaryPaymentOptionChip(

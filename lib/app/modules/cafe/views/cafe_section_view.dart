@@ -1,3 +1,4 @@
+import 'package:hash/app/modules/arena/views/arena_detail/arena_detail_info_section.dart';
 import 'package:hash/app/modules/cafe/widgets/cafe_card.dart';
 import 'package:hash/core/utils/app_snackbar.dart';
 import 'dart:async';
@@ -119,8 +120,13 @@ class _CafeSectionState extends State<CafeSection> {
   void initState() {
     super.initState();
     if (!_hasFetchedCafes) {
-      widget._cafeController.fetchCybercafes().then((_) {
-        _triggerNearbyPlacesFetch(force: true);
+      // After the first frame: a fresh cache fills the Rx list synchronously,
+      // which rebuilds Obx widgets mid-build ("setState during build").
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        widget._cafeController.fetchCybercafes().then((_) {
+          _triggerNearbyPlacesFetch(force: true);
+        });
       });
       _hasFetchedCafes = true;
     }
@@ -685,7 +691,7 @@ class _CafeSectionState extends State<CafeSection> {
     return _haversineKm(_userLat!, _userLng!, lat, lng);
   }
 
-  Widget _comingSoonNearYouBanner() {
+  Widget _comingSoonNearYouBanner(double nearestKm) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(2, 0, 2, 8),
       child: Row(
@@ -694,7 +700,7 @@ class _CafeSectionState extends State<CafeSection> {
           const SizedBox(width: 6),
           Expanded(
             child: Text(
-              'HASH cafes are coming soon near you',
+              'No HASH cafe near you yet · nearest is ${nearestKm.round()} km away',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.inter(
@@ -895,11 +901,14 @@ class _CafeSectionState extends State<CafeSection> {
                 final vicinity =
                     place['vicinity']?.toString() ?? 'Address unavailable';
                 final isLiking = _likingCafeIds.contains(cafeId);
+                final itemWidth = _nearbyOffHashCafes.length > 1
+                    ? cardWidth * 0.85
+                    : cardWidth;
 
                 return BounceTap(
                   onTap: () => _openNearbyPlaceInMaps(place),
                   child: Container(
-                    width: cardWidth,
+                    width: itemWidth,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(20),
                       color: const Color(0xff0E0E0E),
@@ -911,7 +920,7 @@ class _CafeSectionState extends State<CafeSection> {
                           child: CachedNetworkImage(
                             imageUrl: imageUrl,
                             fit: BoxFit.cover,
-                            width: cardWidth,
+                            width: itemWidth,
                             height: 246,
                             placeholder: (_, __) => Container(
                               color: const Color(0xff1a1a1a),
@@ -1727,7 +1736,7 @@ class _CafeSectionState extends State<CafeSection> {
                   const SizedBox(height: 10),
                 ],
                 if (!showCommunity && hasInternalCafes) ...[
-                  if (showComingSoon) _comingSoonNearYouBanner(),
+                  if (showComingSoon) _comingSoonNearYouBanner(nearestKm),
                   SizedBox(
                     height: 216,
                     width: MediaQuery.of(context).size.width,
@@ -1846,7 +1855,7 @@ class _CafeSectionState extends State<CafeSection> {
                               address:
                                   cafe['location']?['address'] ??
                                   'Address not available',
-                              openingHours: '9 AM - 12 AM',
+                              openingHours: cafeHoursFromApi(cafe),
                               availableGames: availableGames,
                               amenities: cafe["amenities"] ?? [''],
                               phone:
@@ -1863,7 +1872,10 @@ class _CafeSectionState extends State<CafeSection> {
                         }
 
                         return CafeCard(
-                          width: cardWidth,
+                          // Peek the next card when there is one to swipe to.
+                          width: sortedCafes.length > 1
+                              ? cardWidth * 0.85
+                              : cardWidth,
                           name: toStartCase(
                             cafe['cafe_name']?.toString() ?? 'Unknown Cafe',
                           ),

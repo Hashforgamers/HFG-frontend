@@ -1,60 +1,50 @@
+/// Hash Live only plays YouTube streams, so every link is checked against an
+/// exact host list and a strict video-id shape. Anything else (other sites,
+/// channel pages, shorts, look-alike domains) is rejected.
 class LiveYoutubeUtils {
+  static const _hosts = {
+    'youtube.com',
+    'www.youtube.com',
+    'm.youtube.com',
+    'youtu.be',
+  };
+  static final _idPattern = RegExp(r'^[A-Za-z0-9_-]{11}$');
+
+  /// Accepts youtube.com/live/ID, youtube.com/watch?v=ID and youtu.be/ID.
   static String? extractVideoId(String input) {
     final raw = input.trim();
-    if (raw.isEmpty) return null;
+    if (raw.isEmpty || raw.contains(RegExp(r'\s'))) return null;
 
-    final normalized = raw.startsWith('http://') || raw.startsWith('https://')
-        ? raw
-        : 'https://$raw';
-    final uri = Uri.tryParse(normalized);
-    if (uri == null) return null;
-
+    final uri = Uri.tryParse(raw.contains('://') ? raw : 'https://$raw');
+    if (uri == null || (uri.scheme != 'https' && uri.scheme != 'http')) {
+      return null;
+    }
     final host = uri.host.toLowerCase();
+    if (!_hosts.contains(host)) return null;
+
     final segments = uri.pathSegments.where((e) => e.isNotEmpty).toList();
-
-    if (host.contains('youtu.be')) {
-      if (segments.isNotEmpty && segments.first.length >= 6) {
-        return _sanitize(segments.first);
-      }
+    String? id;
+    if (host == 'youtu.be') {
+      if (segments.length == 1) id = segments.first;
+    } else if (segments.length == 1 && segments.first == 'watch') {
+      id = uri.queryParameters['v'];
+    } else if (segments.length == 2 && segments.first == 'live') {
+      id = segments[1];
     }
-
-    if (host.contains('youtube.com')) {
-      final queryId = uri.queryParameters['v'];
-      if (queryId != null && queryId.isNotEmpty) return _sanitize(queryId);
-
-      final liveIndex = segments.indexOf('live');
-      if (liveIndex != -1 && liveIndex + 1 < segments.length) {
-        return _sanitize(segments[liveIndex + 1]);
-      }
-
-      final embedIndex = segments.indexOf('embed');
-      if (embedIndex != -1 && embedIndex + 1 < segments.length) {
-        return _sanitize(segments[embedIndex + 1]);
-      }
-
-      final shortsIndex = segments.indexOf('shorts');
-      if (shortsIndex != -1 && shortsIndex + 1 < segments.length) {
-        return _sanitize(segments[shortsIndex + 1]);
-      }
-    }
-
-    final regex = RegExp(r'([0-9A-Za-z_-]{11})');
-    final match = regex.firstMatch(raw);
-    if (match != null) return _sanitize(match.group(1)!);
-
-    return null;
+    return id != null && _idPattern.hasMatch(id) ? id : null;
   }
 
   static bool isSupportedUrl(String input) => extractVideoId(input) != null;
 
-  static String? thumbnailUrl(String input) {
+  /// The one link shape we store, so tracking params and junk never persist.
+  static String? canonicalUrl(String input) {
     final id = extractVideoId(input);
-    if (id == null || id.isEmpty) return null;
-    return 'https://img.youtube.com/vi/$id/hqdefault.jpg';
+    return id == null ? null : 'https://www.youtube.com/live/$id';
   }
 
-  static String _sanitize(String value) {
-    final cleaned = value.split('?').first.split('&').first.trim();
-    return cleaned;
+  static String? thumbnailUrl(String input) {
+    final id = extractVideoId(input);
+    if (id == null) return null;
+    return 'https://img.youtube.com/vi/$id/hqdefault.jpg';
   }
 }

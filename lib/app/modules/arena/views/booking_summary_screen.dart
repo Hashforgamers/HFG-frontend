@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:hash/app/modules/arena/views/menu_view.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/arena/controllers/booking_controller.dart';
@@ -104,6 +105,10 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen>
   final funnelNotificationService = locator<FunnelNotificationService>();
   final squadMissionsService = locator<SquadMissionsService>();
   final ChatService _chatService = Get.find<ChatService>();
+
+  /// Food is picked here now (it used to be a pop-up before slots).
+  late List<Map<String, dynamic>> _cartItems = List.of(widget.cartItems);
+  bool _hasFoodMenu = false;
   final _remoteRepo = locator<RemoteRepoInterface>();
   final _networkProvider = locator<NetworkProvider>();
   // 'wallet', 'cafe_wallet', 'gateway', 'pay_at_cafe', 'none' (game pass),
@@ -161,6 +166,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     unawaited(_loadPaymentMethods());
+    unawaited(_checkFoodMenu());
     // Dashboard switches should show up without reopening checkout.
     _methodsPoll = Timer.periodic(
       const Duration(seconds: 30),
@@ -924,7 +930,10 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen>
     return walletBalance >= totalPrice ? totalPrice : walletBalance;
   }
 
+  /// Wallet shortfall to top up online. Only the wallet method has one; with
+  /// UPI or pay-at-cafe this used to show the wallet gap as "pay now".
   double _remainingGatewayAmountFor(double totalPrice) {
+    if (_selectedPayment.value != 'wallet') return 0;
     return _walletTopUpAmountFor(totalPrice).toDouble();
   }
 
@@ -980,6 +989,8 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen>
       timeText: _bookingTimeLabel(),
       email:
           userController.user.value.contact?.electronicAddress?.emailId ?? '',
+      cafeName: widget.selectedCafeName,
+      consoleText: widget.consoleType.toUpperCase(),
     );
   }
 
@@ -1270,25 +1281,6 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen>
                           currentIndex: 1,
                         ),
                       ),
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.event_seat_rounded,
-                            size: 16,
-                            color: BookingColors.textSecondary,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '${widget.selectedSlots.length} slot(s) selected',
-                            style: GoogleFonts.inter(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: BookingColors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
 
                       BookingSummarySlotsList(
                         selectedSlots: widget.selectedSlots,
@@ -1304,7 +1296,21 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen>
                         cartItems: validatedCartItems,
                         summaryText: cartSummary,
                       ),
-                      // : _buildMealButton(),
+                      if (_hasFoodMenu)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 12),
+                          child: SizedBox(
+                            width: double.infinity,
+                            child: BookingSecondaryButton(
+                              label: validatedCartItems.isEmpty
+                                  ? 'Add food & drinks'
+                                  : 'Edit food & drinks',
+                              icon: Icons.fastfood_rounded,
+                              height: 46,
+                              onPressed: _openFoodMenu,
+                            ),
+                          ),
+                        ),
                       const SizedBox(height: 1),
                       Obx(
                         () => BookingSummaryUserSection(
@@ -1381,6 +1387,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen>
                               : 'Remaining to Pay Online',
                           hasSlots: widget.selectedSlots.isNotEmpty,
                           hasCartItems: validatedCartItems.isNotEmpty,
+                          payAtCafe: _selectedPayment.value == 'pay_at_cafe',
                         );
                       }),
 
@@ -1575,7 +1582,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen>
 
     // Check if cart items have valid data
     final validatedItems = _getValidatedCartItems();
-    if (validatedItems.length != widget.cartItems.length) {
+    if (validatedItems.length != _cartItems.length) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -1776,8 +1783,34 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen>
     }
   }
 
+  Future<void> _checkFoodMenu() async {
+    try {
+      final menu = await _remoteRepo.getFoodMenu(
+        vendorId: widget.vendorId.toString(),
+      );
+      final has = menu.categories.any((c) => c.menus?.isNotEmpty ?? false);
+      if (mounted && has) setState(() => _hasFoodMenu = true);
+    } catch (_) {
+      // No menu: the add-food row simply stays hidden.
+    }
+  }
+
+  void _openFoodMenu() {
+    Get.to(
+      () => MenuViewPage(
+        vendorId: widget.vendorId.toString(),
+        email:
+            userController.user.value.contact?.electronicAddress?.emailId ?? '',
+        continueLabel: 'Add to booking',
+        onContinue: (items) {
+          if (mounted) setState(() => _cartItems = List.of(items));
+        },
+      ),
+    );
+  }
+
   String _getCartItemsSummary() {
-    if (widget.cartItems.isEmpty) return '';
+    if (_cartItems.isEmpty) return '';
 
     int totalItems = _getValidatedCartItems().fold(0, (sum, item) {
       int quantity = (item['qty'] ?? 1) as int;
@@ -1790,7 +1823,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen>
   }
 
   List<Map<String, dynamic>> _getValidatedCartItems() {
-    return widget.cartItems.where((item) {
+    return _cartItems.where((item) {
       // Filter out items with invalid data
       if (item['name'] == null || item['name'].toString().isEmpty) {
         return false;
@@ -2271,6 +2304,9 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen>
         Get.off(
           () => PaymentSuccessScreen(
             isBookingCreatedOnly: true,
+            bookingId: bookingIds.join(', #'),
+            cafeName: widget.selectedCafeName,
+            consoleText: widget.consoleType.toUpperCase(),
             dateText: _formattedBookDate,
             timeText: _bookingTimeLabel(),
             totalText: _formattedTotalText(totalPrice),
@@ -2625,10 +2661,15 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen>
       await Get.off(
         () => PaymentSuccessScreen(
           method: paymentMode,
+          bookingId: bookingIds.join(', #'),
+          cafeName: widget.selectedCafeName,
+          consoleText: widget.consoleType.toUpperCase(),
           dateText: _formattedBookDate,
-          timeText: "",
+          timeText: _bookingTimeLabel(),
           totalText: totalPrice.toString(),
-          email: "",
+          email:
+              userController.user.value.contact?.electronicAddress?.emailId ??
+              '',
           onViewInvoice: () {
             Get.offAllNamed('/home', arguments: {'tabIndex': 3});
           },

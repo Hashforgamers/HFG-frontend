@@ -74,13 +74,10 @@ class ArenaDetailQuickActions extends StatelessWidget {
       );
     }
 
-    return Row(
-      children: [
-        for (var i = 0; i < actions.length; i++) ...[
-          if (i > 0) const SizedBox(width: 10),
-          Expanded(child: _ActionTile(action: actions[i])),
-        ],
-      ],
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [for (final a in actions) _ActionTile(action: a)],
     );
   }
 }
@@ -103,30 +100,28 @@ class _ActionTile extends StatelessWidget {
     return Semantics(
       button: true,
       label: action.label,
+      excludeSemantics: true,
       child: Material(
-        color: HomeTokens.surface,
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.transparent,
+        shape: const StadiumBorder(
+          side: BorderSide(color: HomeTokens.hairline),
+        ),
         child: InkWell(
           onTap: action.onTap,
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: HomeTokens.hairline),
-            ),
-            child: Column(
+          customBorder: const StadiumBorder(),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(action.icon, color: HomeTokens.green, size: 22),
-                const SizedBox(height: 6),
+                Icon(action.icon, color: HomeTokens.green, size: 17),
+                const SizedBox(width: 6),
                 Text(
                   action.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(
-                    color: HomeTokens.textSecondary,
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w700,
+                    color: HomeTokens.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],

@@ -91,8 +91,8 @@ class _SquadMissionsCardState extends State<SquadMissionsCard>
             ? 0
             : data.currentStreak - 1;
         final encouragement = data.currentStreak >= 5
-            ? "You're unstoppable, keep the fire alive!"
-            : "You're doing really great, stay on fire!";
+            ? "you're unstoppable"
+            : 'keep it going';
 
         final done = data.missions
             .where((m) => m.claimed || m.progress >= m.target)
@@ -106,7 +106,7 @@ class _SquadMissionsCardState extends State<SquadMissionsCard>
             padding: const EdgeInsets.all(HomeFrostCard.rim),
             decoration: ShapeDecoration(
               shape: const ContinuousRectangleBorder(
-                borderRadius: BorderRadius.all(Radius.circular(48)),
+                borderRadius: BorderRadius.all(Radius.circular(44)),
               ),
               gradient: HomeTokens.brandRim(0.7),
             ),
@@ -114,51 +114,28 @@ class _SquadMissionsCardState extends State<SquadMissionsCard>
               clipBehavior: Clip.antiAlias,
               decoration: const ShapeDecoration(
                 shape: ContinuousRectangleBorder(
-                  borderRadius: BorderRadius.all(Radius.circular(46)),
+                  borderRadius: BorderRadius.all(Radius.circular(42)),
                 ),
                 gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Color(0xFF242427), Color(0xFF161618)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF28201A), Color(0xFF161618)],
                 ),
-                shadows: [
-                  BoxShadow(
-                    color: Color(0x66000000),
-                    blurRadius: 28,
-                    offset: Offset(0, 12),
-                  ),
-                ],
               ),
               child: Stack(
                 children: [
                   Positioned(
-                    bottom: -110,
-                    right: -80,
+                    top: -70,
+                    left: -50,
                     child: IgnorePointer(
                       child: Container(
-                        width: 240,
-                        height: 240,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: RadialGradient(
-                            colors: [Color(0x2600DC00), Color(0x0000DC00)],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    top: -90,
-                    left: -60,
-                    child: IgnorePointer(
-                      child: Container(
-                        width: 240,
-                        height: 240,
+                        width: 180,
+                        height: 180,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           gradient: RadialGradient(
                             colors: [
-                              _Sys.orange.withValues(alpha: 0.2),
+                              _Sys.orange.withValues(alpha: 0.18),
                               _Sys.orange.withValues(alpha: 0),
                             ],
                           ),
@@ -167,32 +144,10 @@ class _SquadMissionsCardState extends State<SquadMissionsCard>
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+                    padding: const EdgeInsets.all(14),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Row(
-                          children: [
-                            Text(
-                              'WEEKLY STREAK',
-                              style: _text(
-                                12,
-                                _Sys.secondary,
-                                weight: FontWeight.w600,
-                              ).copyWith(letterSpacing: 0.6),
-                            ),
-                            const Spacer(),
-                            Text(
-                              'Best ${data.bestStreak}',
-                              style: _text(
-                                13,
-                                _Sys.secondary,
-                                weight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
                         Row(
                           children: [
                             AnimatedBuilder(
@@ -202,12 +157,12 @@ class _SquadMissionsCardState extends State<SquadMissionsCard>
                                 child: child,
                               ),
                               child: Container(
-                                width: 52,
-                                height: 52,
+                                width: 44,
+                                height: 44,
                                 decoration: ShapeDecoration(
                                   shape: const ContinuousRectangleBorder(
                                     borderRadius: BorderRadius.all(
-                                      Radius.circular(26),
+                                      Radius.circular(22),
                                     ),
                                   ),
                                   gradient: LinearGradient(
@@ -215,62 +170,54 @@ class _SquadMissionsCardState extends State<SquadMissionsCard>
                                     end: Alignment.bottomRight,
                                     colors: [
                                       _Sys.orange.withValues(alpha: 0.4),
-                                      _Sys.orange.withValues(alpha: 0.14),
+                                      _Sys.orange.withValues(alpha: 0.12),
                                     ],
                                   ),
                                 ),
                                 child: const Icon(
                                   Icons.local_fire_department_rounded,
                                   color: _Sys.orange,
-                                  size: 30,
+                                  size: 26,
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 14),
+                            const SizedBox(width: 12),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Row(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Text(
-                                        '${data.currentStreak}',
-                                        style: _text(
-                                          30,
-                                          Colors.white,
-                                          weight: FontWeight.w800,
-                                        ).copyWith(height: 1),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Padding(
-                                        padding: const EdgeInsets.only(
-                                          bottom: 3,
-                                        ),
-                                        child: Text(
-                                          data.currentStreak == 1
-                                              ? 'Day Streak'
-                                              : 'Days Streak',
-                                          style: _text(
-                                            17,
-                                            Colors.white,
-                                            weight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
                                   Text(
-                                    encouragement,
-                                    style: _text(14, _Sys.secondary),
+                                    data.currentStreak == 1
+                                        ? '1-day streak'
+                                        : '${data.currentStreak}-day streak',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: _text(
+                                      17,
+                                      Colors.white,
+                                      weight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Best ${data.bestStreak} · $encouragement',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: _text(12.5, _Sys.secondary),
                                   ),
                                 ],
                               ),
                             ),
+                            const SizedBox(width: 8),
+                            _missionsChip(
+                              done: done,
+                              total: total,
+                              onTap: () =>
+                                  _showMissionsSheet(context, data.missions),
+                            ),
                           ],
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 12),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: List.generate(dayLabels.length, (index) {
@@ -284,53 +231,6 @@ class _SquadMissionsCardState extends State<SquadMissionsCard>
                             );
                           }),
                         ),
-                        const SizedBox(height: 16),
-                        Container(height: 0.5, color: _Sys.separator),
-                        GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTap: () =>
-                              _showMissionsSheet(context, data.missions),
-                          child: Padding(
-                            padding: const EdgeInsets.only(top: 12),
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.flag_rounded,
-                                  size: 18,
-                                  color: _Sys.orange,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Weekly missions',
-                                  style: _text(
-                                    15,
-                                    Colors.white,
-                                    weight: FontWeight.w500,
-                                  ),
-                                ),
-                                const Spacer(),
-                                Text(
-                                  '$done of $total',
-                                  style: _text(15, _Sys.secondary),
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'See Details',
-                                  style: _text(
-                                    15,
-                                    _Sys.orange,
-                                    weight: FontWeight.w600,
-                                  ),
-                                ),
-                                const Icon(
-                                  Icons.chevron_right_rounded,
-                                  size: 20,
-                                  color: _Sys.orange,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
                       ],
                     ),
                   ),
@@ -343,6 +243,52 @@ class _SquadMissionsCardState extends State<SquadMissionsCard>
     );
   }
 
+  /// Weekly missions progress; opens the missions sheet.
+  Widget _missionsChip({
+    required int done,
+    required int total,
+    required VoidCallback onTap,
+  }) => Semantics(
+    button: true,
+    label: 'Weekly missions, $done of $total done',
+    excludeSemantics: true,
+    child: GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(10, 6, 4, 6),
+        decoration: ShapeDecoration(
+          shape: const ContinuousRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(22)),
+          ),
+          color: _Sys.orange.withValues(alpha: 0.14),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '$done/$total',
+                  style: _text(15, _Sys.orange, weight: FontWeight.w800),
+                ),
+                Text(
+                  'Missions',
+                  style: _text(10.5, _Sys.secondary, weight: FontWeight.w500),
+                ),
+              ],
+            ),
+            const Icon(
+              Icons.chevron_right_rounded,
+              size: 18,
+              color: _Sys.orange,
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+
   TextStyle _text(double size, Color color, {FontWeight? weight}) =>
       GoogleFonts.inter(
         color: color,
@@ -352,7 +298,7 @@ class _SquadMissionsCardState extends State<SquadMissionsCard>
         height: 1.25,
       );
 
-  /// Apple Fitness–style day ring.
+  /// Day dot: the day's letter until it is lit, then a check or flame.
   Widget _dayNode({
     required String label,
     required bool checked,
@@ -360,46 +306,45 @@ class _SquadMissionsCardState extends State<SquadMissionsCard>
     required bool today,
   }) {
     final lit = checked || fire;
-    return Column(
-      children: [
-        Container(
-          width: 34,
-          height: 34,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: lit ? _Sys.orange : _Sys.fill,
-            border: today && !lit
-                ? Border.all(color: _Sys.orange, width: 1.5)
-                : null,
-            boxShadow: lit
-                ? [
-                    BoxShadow(
-                      color: _Sys.orange.withValues(alpha: 0.35),
-                      blurRadius: 10,
-                    ),
-                  ]
-                : null,
-          ),
-          child: lit
-              ? Icon(
-                  fire
-                      ? Icons.local_fire_department_rounded
-                      : Icons.check_rounded,
-                  color: Colors.black,
-                  size: 18,
-                )
+    return Semantics(
+      label: '$label${lit ? ', done' : ''}',
+      excludeSemantics: true,
+      child: Container(
+        width: 34,
+        height: 34,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: lit ? _Sys.orange : _Sys.fill,
+          border: today && !lit
+              ? Border.all(color: _Sys.orange, width: 1.5)
+              : null,
+          boxShadow: lit
+              ? [
+                  BoxShadow(
+                    color: _Sys.orange.withValues(alpha: 0.35),
+                    blurRadius: 10,
+                  ),
+                ]
               : null,
         ),
-        const SizedBox(height: 6),
-        Text(
-          label.substring(0, 1),
-          style: _text(
-            12,
-            today ? _Sys.orange : _Sys.secondary,
-            weight: today ? FontWeight.w700 : FontWeight.w500,
-          ),
-        ),
-      ],
+        child: lit
+            ? Icon(
+                fire
+                    ? Icons.local_fire_department_rounded
+                    : Icons.check_rounded,
+                color: Colors.black,
+                size: 18,
+              )
+            : Text(
+                label.substring(0, 1),
+                style: _text(
+                  12,
+                  today ? _Sys.orange : _Sys.secondary,
+                  weight: today ? FontWeight.w700 : FontWeight.w500,
+                ),
+              ),
+      ),
     );
   }
 
@@ -601,5 +546,4 @@ class _Sys {
   static const orange = Color(0xFFFF9F0A);
   static const secondary = Color(0x99EBEBF5);
   static const fill = Color(0x29787880);
-  static const separator = Color(0x33FFFFFF);
 }

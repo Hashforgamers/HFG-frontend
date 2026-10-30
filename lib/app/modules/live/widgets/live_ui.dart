@@ -13,13 +13,21 @@ import 'package:google_fonts/google_fonts.dart';
 /// missing-glyph boxes.
 class LiveUi {
   // ── Palette ───────────────────────────────────────────────────────────────
-  static const Color bg = Color(0xFF0C0E13);
-  static const Color surface = Color(0xFF15171C);
-  static const Color surfaceSoft = Color(0xFF20232A);
-  static const Color stroke = Color(0xFF292D35);
-  static const Color accent = Color(0xFFFF3D4D);
-  static const Color accentSoft = Color(0xFFFF6673);
-  static const Color softText = Color(0xFF989EAA);
+  static const Color bg = Color(0xFF07070A);
+  static const Color surface = Color(0xFF111116);
+  static const Color surfaceSoft = Color(0xFF1C1C24);
+  static const Color stroke = Color(0xFF26262F);
+  static const Color accent = Color(0xFFFF2D55);
+  static const Color accentSoft = Color(0xFFFF5C7A);
+  static const Color accentAlt = Color(0xFFFF2E93);
+  static const Color softText = Color(0xFF9A9AA8);
+
+  /// Red-to-pink broadcast gradient: CTAs, LIVE badges, the Go Live button.
+  static const LinearGradient liveGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [accent, accentAlt],
+  );
 
   static const Color hairline = Color(0x1AFFFFFF);
   static const Color textPrimary = Colors.white;
@@ -70,7 +78,7 @@ class LiveUi {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF1B1E24), Color(0xFF14161B)],
+          colors: [Color(0xFF16161D), Color(0xFF0F0F14)],
         ),
         borderRadius: BorderRadius.circular(radius),
         border: Border.all(color: stroke),
@@ -87,7 +95,7 @@ class LiveUi {
     gradient: LinearGradient(
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
-      colors: [Color(0xFF111318), Color(0xFF090A0D)],
+      colors: [Color(0xFF0D0B12), bg],
     ),
   );
 
@@ -95,15 +103,15 @@ class LiveUi {
     hintText: hint,
     hintStyle: const TextStyle(color: Color(0xFF9EA5B5), fontSize: 13),
     filled: true,
-    fillColor: const Color(0xFF242934),
+    fillColor: surfaceSoft,
     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
     border: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: const BorderSide(color: Color(0xFF363C48)),
+      borderSide: const BorderSide(color: stroke),
     ),
     enabledBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: const BorderSide(color: Color(0xFF363C48)),
+      borderSide: const BorderSide(color: stroke),
     ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
@@ -289,13 +297,7 @@ class LiveCta extends StatelessWidget {
         child: DecoratedBox(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            gradient: active
-                ? const LinearGradient(
-                    colors: [LiveUi.accentSoft, LiveUi.accent],
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                  )
-                : null,
+            gradient: active ? LiveUi.liveGradient : null,
             color: active ? null : Colors.white.withValues(alpha: 0.07),
             boxShadow: active
                 ? [
@@ -329,7 +331,9 @@ class LiveCta extends StatelessWidget {
                             Icon(
                               icon,
                               size: 19,
-                              color: active ? Colors.white : LiveUi.textTertiary,
+                              color: active
+                                  ? Colors.white
+                                  : LiveUi.textTertiary,
                             ),
                             const SizedBox(width: 8),
                           ],
@@ -392,7 +396,7 @@ class _LivePillState extends State<LivePill>
         height: h,
         padding: EdgeInsets.symmetric(horizontal: widget.compact ? 7 : 9),
         decoration: BoxDecoration(
-          color: LiveUi.accent,
+          gradient: LiveUi.liveGradient,
           borderRadius: BorderRadius.circular(999),
           boxShadow: [
             BoxShadow(
@@ -411,9 +415,7 @@ class _LivePillState extends State<LivePill>
                 height: 6,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withValues(
-                    alpha: 0.45 + 0.55 * _c.value,
-                  ),
+                  color: Colors.white.withValues(alpha: 0.45 + 0.55 * _c.value),
                 ),
               ),
             ),
@@ -469,11 +471,7 @@ class LiveEmptyState extends StatelessWidget {
             child: Icon(icon, color: LiveUi.accentSoft, size: 22),
           ),
           const SizedBox(height: 12),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: LiveUi.heading(15),
-          ),
+          Text(title, textAlign: TextAlign.center, style: LiveUi.heading(15)),
           if (body != null) ...[
             const SizedBox(height: 5),
             Text(

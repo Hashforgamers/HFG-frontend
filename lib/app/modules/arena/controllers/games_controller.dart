@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'dart:convert';
 import 'package:hash/core/utils/app_snackbar.dart';
 
@@ -240,7 +241,17 @@ class CafeGamesController extends GetxController {
       );
       debugPrint('passes loaded: ${passes.length}');
     } catch (e) {
-      if (_passesCache.containsKey(vendorId)) {
+      if (e is DioException && e.response?.statusCode == 403) {
+        // 403 = the cafe's plan doesn't include passes: cache "none" instead
+        // of re-requesting and logging an error on every visit.
+        const none = VendorPassesResponse();
+        vendorPassesResponse.value = none;
+        passes.clear();
+        _passesCache[vendorId] = _VendorPassesCacheEntry(
+          response: none,
+          cachedAt: DateTime.now(),
+        );
+      } else if (_passesCache.containsKey(vendorId)) {
         _restorePassesFromCache(vendorId);
       } else {
         // Avoid overlay errors if view not mounted

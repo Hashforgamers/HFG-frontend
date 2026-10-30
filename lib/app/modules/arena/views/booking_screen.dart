@@ -28,6 +28,9 @@ class BookingScreen extends StatefulWidget {
   final int requiredConsoleCount;
   final List<ChatUserModel> selectedSquadMembers;
 
+  /// Offers a switch to a squad booking from the app bar; null hides it.
+  final Future<void> Function()? onSquadTap;
+
   const BookingScreen({
     super.key,
     required this.email,
@@ -39,6 +42,7 @@ class BookingScreen extends StatefulWidget {
     this.isSquadBooking = false,
     this.requiredConsoleCount = 1,
     this.selectedSquadMembers = const <ChatUserModel>[],
+    this.onSquadTap,
   });
 
   @override
@@ -224,6 +228,24 @@ class _BookingScreenState extends State<BookingScreen> {
     return BookingScaffold(
       title: widget.title,
       subtitle: widget.isSquadBooking ? 'Squad booking' : 'Select your slots',
+      actions: [
+        if (widget.onSquadTap != null)
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: TextButton.icon(
+              onPressed: widget.onSquadTap,
+              icon: const Icon(Icons.group_add_rounded, size: 18),
+              label: const Text('Squad'),
+              style: TextButton.styleFrom(
+                foregroundColor: BookingColors.accentBright,
+                textStyle: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+      ],
       titleWidget: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -561,7 +583,7 @@ class _BookingScreenState extends State<BookingScreen> {
   String formatTime(String rawTime) {
     try {
       final DateTime parsedTime = DateFormat('HH:mm:ss').parse(rawTime);
-      return DateFormat('HH:mm').format(parsedTime);
+      return DateFormat('h:mm a').format(parsedTime);
     } catch (e) {
       return rawTime;
     }
@@ -617,9 +639,9 @@ class _BookingScreenState extends State<BookingScreen> {
     );
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 8),
       child: BookingCard(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
         color: isSelectable ? BookingColors.surface : BookingColors.bgElevated,
         highlight: hasSelectionHere,
         child: Column(
@@ -627,26 +649,6 @@ class _BookingScreenState extends State<BookingScreen> {
           children: [
             Row(
               children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color:
-                        (isSelectable
-                                ? BookingColors.accent
-                                : BookingColors.textMuted)
-                            .withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(11),
-                  ),
-                  child: Icon(
-                    Icons.schedule_rounded,
-                    size: 19,
-                    color: isSelectable
-                        ? BookingColors.accentBright
-                        : BookingColors.textMuted,
-                  ),
-                ),
-                const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     '${formatTime(slot['start_time'])} – ${formatTime(slot['end_time'])}',
@@ -654,7 +656,7 @@ class _BookingScreenState extends State<BookingScreen> {
                       color: isTimeAvailable
                           ? BookingColors.textPrimary
                           : BookingColors.textMuted,
-                      fontSize: 16,
+                      fontSize: 15,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -677,7 +679,7 @@ class _BookingScreenState extends State<BookingScreen> {
               ],
             ),
             if (isSelectable) ...[
-              const SizedBox(height: 14),
+              const SizedBox(height: 10),
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
@@ -836,8 +838,9 @@ class _BookingScreenState extends State<BookingScreen> {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 220),
             curve: Curves.easeOut,
-            margin: const EdgeInsets.only(right: 10),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+            margin: const EdgeInsets.only(right: 8),
+            constraints: const BoxConstraints(minWidth: 64),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
             decoration: BoxDecoration(
               gradient: isSelected ? BookingColors.accentGradient : null,
               color: isSelected ? null : BookingColors.surfaceHigh,
@@ -857,17 +860,12 @@ class _BookingScreenState extends State<BookingScreen> {
                     ]
                   : null,
             ),
+            // Selection shows by colour alone so the chip never changes width
+            // and pushes its neighbours.
+            alignment: Alignment.center,
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (isSelected) ...[
-                  const Icon(
-                    Icons.check_circle_rounded,
-                    size: 15,
-                    color: BookingColors.textOnAccent,
-                  ),
-                  const SizedBox(width: 6),
-                ],
                 Text(
                   getConsoleLabel(pcIndex - 1),
                   style: GoogleFonts.inter(
