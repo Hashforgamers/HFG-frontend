@@ -35,6 +35,18 @@
         "dev"
       ],
       "port": 5183
+    },
+    {
+      "name": "odd-one-out",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "games/odd_one_out", "run", "dev"],
+      "port": 5185
+    },
+    {
+      "name": "hash-arcade",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "games/hash_arcade", "run", "dev"],
+      "port": 5186
     }
   ]
 }

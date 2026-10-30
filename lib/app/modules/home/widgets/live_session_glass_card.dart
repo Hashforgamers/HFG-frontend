@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:hash/app/modules/home/widgets/home_design.dart';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -113,21 +114,26 @@ class _LiveSessionGlassCardState extends State<LiveSessionGlassCard>
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(24),
                   child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                    // same frosted green-to-pink glass as the bottom nav bar
+                    filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
                     child: Container(
                       padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
-                            const Color(0xFF050506).withValues(alpha: 0.98),
-                            const Color(0xFF0B0C10).withValues(alpha: 0.97),
+                            Color.alphaBlend(
+                              HomeTokens.green.withValues(alpha: 0.16),
+                              Colors.black.withValues(alpha: 0.55),
+                            ),
+                            Color.alphaBlend(
+                              HomeTokens.pink.withValues(alpha: 0.16),
+                              Colors.black.withValues(alpha: 0.55),
+                            ),
                           ],
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
                         ),
                         borderRadius: BorderRadius.circular(24),
                         border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.10),
+                          color: Colors.white.withValues(alpha: 0.08),
                           width: 1,
                         ),
                         boxShadow: [
@@ -140,42 +146,6 @@ class _LiveSessionGlassCardState extends State<LiveSessionGlassCard>
                       ),
                       child: Stack(
                         children: [
-                          Positioned(
-                            top: -44,
-                            right: -42,
-                            child: Container(
-                              width: 120,
-                              height: 120,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                gradient: RadialGradient(
-                                  colors: [
-                                    _brandGreen.withValues(alpha: 0.18),
-                                    Colors.transparent,
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                          Positioned(
-                            bottom: -78,
-                            left: -52,
-                            child: Container(
-                              width: 144,
-                              height: 144,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                gradient: RadialGradient(
-                                  colors: [
-                                    const Color(
-                                      0xFF7D43FF,
-                                    ).withValues(alpha: 0.24),
-                                    Colors.transparent,
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [

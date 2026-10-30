@@ -64,6 +64,8 @@ class _HashStoreCheckoutPageState extends State<HashStoreCheckoutPage> {
   bool _sellerPaid = false;
   bool _placing = false;
   String? _checkoutError;
+  StoreStates? _states;
+  bool _statesFailed = false;
 
   bool get _ready => _options != null;
 
@@ -76,6 +78,7 @@ class _HashStoreCheckoutPageState extends State<HashStoreCheckoutPage> {
     final address = _cart['shipping_address'];
     if (address is Map) _fill(Map<String, dynamic>.from(address));
     _f['email']!.text = '${_cart['email'] ?? _store.profileEmail ?? ''}';
+    _loadStates();
     _store
         .savedAddresses()
         .then((a) {
@@ -100,10 +103,38 @@ class _HashStoreCheckoutPageState extends State<HashStoreCheckoutPage> {
     }
   }
 
+  // shortcut: the only checkout region is India, so there is no country
+  // picker. Add one (from the region's countries) when another market opens.
+  Future<void> _loadStates() async {
+    if (_statesFailed) setState(() => _statesFailed = false);
+    try {
+      final states = await _store.states('in');
+      if (mounted) setState(() => _states = states);
+    } catch (_) {
+      if (mounted) setState(() => _statesFailed = true);
+    }
+  }
+
+  /// The listed state name for [value] (by name or short code), or null so
+  /// an unknown saved state is picked again rather than silently replaced.
+  String? _matchState(String value) {
+    final v = value.trim().toLowerCase();
+    if (v.isEmpty) return null;
+    for (final s in _states?.list ?? const <({String code, String name})>[]) {
+      if (s.name.toLowerCase() == v || s.code.toLowerCase() == v) {
+        return s.name;
+      }
+    }
+    return null;
+  }
+
   Map<String, dynamic> get _address => {
     for (final e in _f.entries)
       if (e.key != 'email' && e.value.text.trim().isNotEmpty)
         e.key: e.value.text.trim(),
+    'province': _states?.required == false
+        ? ''
+        : _matchState(_f['province']!.text) ?? '',
     'country_code': 'in',
   };
 
@@ -343,7 +374,7 @@ class _HashStoreCheckoutPageState extends State<HashStoreCheckoutPage> {
                     label: 'Continue to delivery',
                     icon: Icons.arrow_forward_rounded,
                     loading: _saving,
-                    onTap: _saveAddress,
+                    onTap: _states == null ? null : _saveAddress,
                   ),
           ],
         ),
@@ -434,7 +465,7 @@ class _HashStoreCheckoutPageState extends State<HashStoreCheckoutPage> {
                             children: [
                               Expanded(child: _field('city', 'City')),
                               const SizedBox(width: 10),
-                              Expanded(child: _field('province', 'State')),
+                              Expanded(child: _stateField()),
                             ],
                           ),
                           Row(
@@ -625,10 +656,6 @@ class _HashStoreCheckoutPageState extends State<HashStoreCheckoutPage> {
     List<TextInputFormatter>? formatters,
     String? Function(String)? validator,
   }) {
-    OutlineInputBorder border(Color c) => OutlineInputBorder(
-      borderRadius: BorderRadius.circular(16),
-      borderSide: BorderSide(color: c),
-    );
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: TextFormField(
@@ -653,26 +680,89 @@ class _HashStoreCheckoutPageState extends State<HashStoreCheckoutPage> {
           if (text.isEmpty) return required ? 'Required' : null;
           return validator?.call(text);
         },
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: storeBody(color: StoreColors.muted),
-          floatingLabelStyle: storeBody(color: StoreColors.greenSoft),
-          prefixIcon: icon == null
-              ? null
-              : Icon(icon, size: 20, color: StoreColors.faint),
-          filled: true,
-          fillColor: StoreColors.surface,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 16,
-          ),
-          enabledBorder: border(StoreColors.border),
-          focusedBorder: border(StoreColors.green),
-          errorBorder: border(StoreColors.danger),
-          focusedErrorBorder: border(StoreColors.danger),
-          errorStyle: storeBody(size: 11, color: StoreColors.danger),
+        decoration: _decoration(label, icon: icon),
+      ),
+    );
+  }
+
+  /// A fixed list, so a state from another country or a typo cannot be sent.
+  Widget _stateField() {
+    final states = _states;
+    if (states != null && !states.required) return const SizedBox.shrink();
+    final text = _f['province']!.text;
+    final selected = _matchState(text);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: DropdownButtonFormField<String>(
+        // Rebuilt when a saved address fills a different state.
+        key: ValueKey('state-$selected-${states != null}'),
+        initialValue: selected,
+        isExpanded: true,
+        menuMaxHeight: 360,
+        dropdownColor: StoreColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        style: storeBody(size: 15),
+        iconEnabledColor: StoreColors.muted,
+        hint: Text(
+          _statesFailed
+              ? 'Could not load'
+              : states == null
+              ? 'Loading…'
+              : 'Select',
+          style: storeBody(color: StoreColors.faint),
+        ),
+        items: [
+          for (final s
+              in states?.list ?? const <({String code, String name})>[])
+            DropdownMenuItem(
+              value: s.name,
+              child: Text(s.name, overflow: TextOverflow.ellipsis),
+            ),
+        ],
+        onChanged: states == null
+            ? null
+            : (v) => setState(() {
+                _f['province']!.text = v ?? '';
+                // Editing after the address step invalidates the shown options.
+                if (_ready) _options = null;
+              }),
+        validator: (v) => v == null
+            ? (text.trim().isEmpty ? 'Required' : 'Pick your state again')
+            : null,
+        decoration: _decoration('State').copyWith(
+          suffixIcon: _statesFailed
+              ? IconButton(
+                  tooltip: 'Retry loading states',
+                  icon: const Icon(Icons.refresh_rounded, size: 20),
+                  color: StoreColors.greenSoft,
+                  onPressed: _loadStates,
+                )
+              : null,
         ),
       ),
+    );
+  }
+
+  InputDecoration _decoration(String label, {IconData? icon}) {
+    OutlineInputBorder border(Color c) => OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: BorderSide(color: c),
+    );
+    return InputDecoration(
+      labelText: label,
+      labelStyle: storeBody(color: StoreColors.muted),
+      floatingLabelStyle: storeBody(color: StoreColors.greenSoft),
+      prefixIcon: icon == null
+          ? null
+          : Icon(icon, size: 20, color: StoreColors.faint),
+      filled: true,
+      fillColor: StoreColors.surface,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      enabledBorder: border(StoreColors.border),
+      focusedBorder: border(StoreColors.green),
+      errorBorder: border(StoreColors.danger),
+      focusedErrorBorder: border(StoreColors.danger),
+      errorStyle: storeBody(size: 11, color: StoreColors.danger),
     );
   }
 }

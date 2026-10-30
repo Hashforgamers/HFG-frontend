@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/app/modules/home/widgets/home_design.dart';
 import 'package:hash/core/utils/haptics.dart';
 import 'package:lottie/lottie.dart';
 
@@ -78,125 +79,135 @@ class _CafeCardState extends State<CafeCard> {
         scale: _pressed ? 0.97 : 1,
         duration: const Duration(milliseconds: 140),
         curve: Curves.easeOut,
+        // brand-gradient rim (as on the home frost cards) around the photo card
         child: Container(
           width: widget.width,
-          clipBehavior: Clip.antiAlias,
-          decoration: const ShapeDecoration(
-            shape: ContinuousRectangleBorder(
+          padding: const EdgeInsets.all(HomeFrostCard.rim),
+          decoration: ShapeDecoration(
+            shape: const ContinuousRectangleBorder(
               borderRadius: BorderRadius.all(Radius.circular(44)),
-              side: BorderSide(color: Color(0x5900DC00), width: 0.8),
             ),
-            color: Color(0xFF1C1C1E),
+            gradient: HomeTokens.brandRim(0.7),
             shadows: [
-              BoxShadow(
+              const BoxShadow(
                 color: Color(0x59000000),
                 blurRadius: 18,
                 offset: Offset(0, 8),
               ),
               BoxShadow(
-                color: Color(0x2E00DC00),
+                color: HomeTokens.pink.withValues(alpha: 0.18),
                 blurRadius: 14,
                 spreadRadius: -2,
               ),
             ],
           ),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              CachedNetworkImage(
-                imageUrl: widget.imageUrl,
-                fit: BoxFit.cover,
-                memCacheWidth: (widget.width * 2.5).round(),
-                placeholder: (_, _) =>
-                    const ColoredBox(color: Color(0xFF2C2C2E)),
-                errorWidget: (_, _, _) => const ColoredBox(
-                  color: Color(0xFF2C2C2E),
-                  child: Center(
-                    child: Icon(
-                      Icons.storefront_rounded,
-                      color: Colors.white38,
-                      size: 48,
-                    ),
-                  ),
-                ),
+          child: ClipPath(
+            clipper: const ShapeBorderClipper(
+              shape: ContinuousRectangleBorder(
+                borderRadius: BorderRadius.all(Radius.circular(42)),
               ),
-              // Scrims so text stays legible on bright photos.
-              const DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Color(0x66000000),
-                      Color(0x00000000),
-                      Color(0x00000000),
-                      Color(0xB3000000),
-                    ],
-                    stops: [0, 0.3, 0.5, 1],
-                  ),
-                ),
-              ),
-              Positioned(
-                top: 12,
-                left: 12,
-                right: 12,
-                child: Row(
-                  children: [
-                    _glassPill(
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 7,
-                            height: 7,
-                            decoration: BoxDecoration(
-                              color: widget.isOpen ? _green : _red,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            widget.isOpen ? 'Open' : 'Closed',
-                            style: _text(
-                              12,
-                              Colors.white,
-                              weight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Spacer(),
-                    if (widget.fillingFast)
-                      _glassPill(
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            SizedBox(
-                              width: 14,
-                              height: 14,
-                              child: Lottie.asset(
-                                'assets/fire.json',
-                                fit: BoxFit.contain,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Filling Fast',
-                              style: _text(
-                                12,
-                                const Color(0xFFFFD60A),
-                                weight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
+            ),
+            child: ColoredBox(
+              color: const Color(0xFF1C1C1E),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  CachedNetworkImage(
+                    imageUrl: widget.imageUrl,
+                    fit: BoxFit.cover,
+                    memCacheWidth: (widget.width * 2.5).round(),
+                    placeholder: (_, _) =>
+                        const ColoredBox(color: Color(0xFF2C2C2E)),
+                    errorWidget: (_, _, _) => const ColoredBox(
+                      color: Color(0xFF2C2C2E),
+                      child: Center(
+                        child: Icon(
+                          Icons.storefront_rounded,
+                          color: Colors.white38,
+                          size: 48,
                         ),
                       ),
-                  ],
-                ),
+                    ),
+                  ),
+                  // Scrims so text stays legible on bright photos.
+                  const DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Color(0x66000000),
+                          Color(0x00000000),
+                          Color(0x00000000),
+                          Color(0xB3000000),
+                        ],
+                        stops: [0, 0.3, 0.5, 1],
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 12,
+                    left: 12,
+                    right: 12,
+                    child: Row(
+                      children: [
+                        _glassPill(
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 7,
+                                height: 7,
+                                decoration: BoxDecoration(
+                                  color: widget.isOpen ? _green : _red,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                widget.isOpen ? 'Open' : 'Closed',
+                                style: _text(
+                                  12,
+                                  Colors.white,
+                                  weight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Spacer(),
+                        if (widget.fillingFast)
+                          _glassPill(
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: Lottie.asset(
+                                    'assets/fire.json',
+                                    fit: BoxFit.contain,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Filling Fast',
+                                  style: _text(
+                                    12,
+                                    const Color(0xFFFFD60A),
+                                    weight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  Positioned(left: 0, right: 0, bottom: 0, child: _infoBar()),
+                ],
               ),
-              Positioned(left: 0, right: 0, bottom: 0, child: _infoBar()),
-            ],
+            ),
           ),
         ),
       ),
@@ -210,7 +221,16 @@ class _CafeCardState extends State<CafeCard> {
         child: Container(
           padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
           decoration: BoxDecoration(
-            color: const Color(0xFF1C1C1E).withValues(alpha: 0.55),
+            // frost over the photo, with a faint green hint
+            gradient: LinearGradient(
+              colors: [
+                Color.alphaBlend(
+                  HomeTokens.green.withValues(alpha: 0.10),
+                  const Color(0xFF1C1C1E).withValues(alpha: 0.6),
+                ),
+                const Color(0xFF1C1C1E).withValues(alpha: 0.6),
+              ],
+            ),
             border: const Border(
               top: BorderSide(color: Color(0x1FFFFFFF), width: 0.5),
             ),
@@ -280,22 +300,7 @@ class _CafeCardState extends State<CafeCard> {
                 ),
               ),
               const SizedBox(width: 10),
-              GestureDetector(
-                onTap: _open,
-                child: Container(
-                  height: 34,
-                  padding: const EdgeInsets.symmetric(horizontal: 18),
-                  alignment: Alignment.center,
-                  decoration: const ShapeDecoration(
-                    shape: StadiumBorder(),
-                    color: _green,
-                  ),
-                  child: Text(
-                    'Book Now',
-                    style: _text(14, Colors.black, weight: FontWeight.w700),
-                  ),
-                ),
-              ),
+              HomeBrandButton(label: 'Book Now', onTap: _open),
             ],
           ),
         ),

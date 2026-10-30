@@ -1,9 +1,12 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 /// Shared design tokens for the home screen.
 ///
-/// Green stays the product accent. Gold is reserved for currency, rewards and
+/// The pink-to-orange brand gradient is the home accent; green is kept as a
+/// hint (live dots, subtle tints). Gold is reserved for currency, rewards and
 /// streaks, so a gold element anywhere on the page reads as "this is worth
 /// something" rather than as decoration.
 abstract final class HomeTokens {
@@ -12,13 +15,24 @@ abstract final class HomeTokens {
   static const Color gold = Color(0xFFF4C342);
   static const Color goldLight = Color(0xFFFFE08A);
 
-  /// hashforgamers.com "BOOK. WIN." palette, for brand and compete moments
-  /// (section accents, tournaments, hosting). Actions stay green, money gold.
+  /// hashforgamers.com "BOOK. WIN." palette: the home accent and primary actions.
   static const Color pink = Color(0xFFFF3E8E);
   static const Color coral = Color(0xFFFF6F61);
   static const Color orange = Color(0xFFFF9A3D);
   static const LinearGradient brandGradient = LinearGradient(
     colors: [pink, coral, orange],
+  );
+
+  /// Card rim: the brand gradient, faded so it frames rather than shouts.
+  static LinearGradient brandRim([double alpha = 0.55]) => LinearGradient(
+    colors: [for (final c in brandGradient.colors) c.withValues(alpha: alpha)],
+  );
+
+  /// Frosted pane laid over an 18px backdrop blur (chat button, Hash Hub).
+  static const LinearGradient frost = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0x14FFFFFF), Color(0x59000000)],
   );
 
   static const Color ink = Color(0xFF0B0D12);
@@ -53,7 +67,7 @@ abstract final class HomeTokens {
 
 /// Small letterspaced label that sits above a heading.
 class HomeEyebrow extends StatelessWidget {
-  const HomeEyebrow(this.label, {this.color = HomeTokens.green, super.key});
+  const HomeEyebrow(this.label, {this.color = HomeTokens.coral, super.key});
 
   final String label;
   final Color color;
@@ -255,6 +269,102 @@ class HomeIconAction extends StatelessWidget {
                 child: Icon(icon, color: Colors.white, size: 20),
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The home card surface: a thin brand-gradient rim around frosted glass, the
+/// same build as the chat button and the Hash Hub / Hash Live cards.
+class HomeFrostCard extends StatelessWidget {
+  const HomeFrostCard({
+    super.key,
+    required this.child,
+    this.radius = HomeTokens.radius,
+    this.padding = EdgeInsets.zero,
+    this.rimAlpha = 0.55,
+  });
+
+  final Widget child;
+  final double radius;
+  final EdgeInsetsGeometry padding;
+  final double rimAlpha;
+
+  static const double rim = 1.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: HomeTokens.brandRim(rimAlpha),
+        borderRadius: BorderRadius.circular(radius),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x59000000),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(rim),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(radius - rim),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+            child: DecoratedBox(
+              decoration: const BoxDecoration(gradient: HomeTokens.frost),
+              child: Padding(padding: padding, child: child),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Primary action pill in the brand gradient.
+class HomeBrandButton extends StatelessWidget {
+  const HomeBrandButton({
+    super.key,
+    required this.label,
+    required this.onTap,
+    this.height = 34,
+    this.fontSize = 14,
+  });
+
+  final String label;
+  final VoidCallback? onTap;
+  final double height;
+  final double fontSize;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: height,
+        padding: EdgeInsets.symmetric(horizontal: height * 0.53),
+        alignment: Alignment.center,
+        decoration: ShapeDecoration(
+          shape: const StadiumBorder(),
+          gradient: HomeTokens.brandGradient,
+          shadows: [
+            BoxShadow(
+              color: HomeTokens.pink.withValues(alpha: 0.35),
+              blurRadius: 12,
+              spreadRadius: -4,
+            ),
+          ],
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            color: Colors.white,
+            fontSize: fontSize,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ),

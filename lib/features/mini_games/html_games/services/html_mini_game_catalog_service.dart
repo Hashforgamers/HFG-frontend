@@ -3,7 +3,12 @@ import '../models/html_mini_game.dart';
 class HtmlMiniGameCatalogService {
   const HtmlMiniGameCatalogService();
 
-  static const supportedGameIds = <String>['super_over', 'hash_rush'];
+  static const supportedGameIds = <String>[
+    'super_over',
+    'hash_rush',
+    'odd_one_out',
+    'hash_arcade',
+  ];
 
   // Every entry must call the `gameScore` bridge itself — a third-party page
   // that can't (like the old "Racing Limits" CrazyGames embed) never scores or
@@ -28,6 +33,28 @@ class HtmlMiniGameCatalogService {
       description: 'Fire · multiply your army · crush the boss',
       // career score = per-level bests (30 × 20,000) + best endless run (capped at 200,000)
       maxScore: 800000,
+      landscape: false,
+    ),
+    HtmlMiniGame(
+      gameId: 'odd_one_out',
+      name: 'Hash: Odd One Out',
+      thumbnail: 'assets/mini_game_icons/odd_one_out.png',
+      // React + Tailwind, built from games/odd_one_out, fully bundled.
+      gameUrl: 'assets/html_games/odd_one_out/index.html',
+      description: 'One different · find it fast',
+      // no hard ceiling (time refills on every hit); this only stops garbage payloads
+      maxScore: 1000000,
+      landscape: false,
+    ),
+    HtmlMiniGame(
+      gameId: 'hash_arcade',
+      name: 'Hash Arcade',
+      thumbnail: 'assets/mini_game_icons/hash_arcade.png',
+      // React arcade of quick brain games, built from games/hash_arcade.
+      gameUrl: 'assets/html_games/hash_arcade/index.html',
+      description: 'Brain, reflex & puzzle games',
+      // career score = each game's best normalised to 0–1000, × 60 games
+      maxScore: 60000,
       landscape: false,
     ),
   ];

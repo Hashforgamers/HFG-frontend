@@ -27,24 +27,17 @@ class _CatalogBody extends StatefulWidget {
   State<_CatalogBody> createState() => _CatalogBodyState();
 }
 
-// shortcut: the catalog has no category field, so chips match product
-// titles. Switch to a server category once /store/hash/products sends one.
-const _categories = <(String, IconData, String?)>[
-  ('All', Icons.sports_esports_rounded, null),
-  (
-    'Accessories',
-    Icons.headphones_rounded,
-    r'headset|headphone|earphone|mouse ?pad|controller|cable|stand',
-  ),
-  ('Keyboards', Icons.keyboard_alt_outlined, r'keyboard'),
-  ('Mouse', Icons.mouse_outlined, r'\bmouse\b(?! ?pad)|\bmice\b'),
-  ('Monitors', Icons.desktop_windows_outlined, r'monitor|display'),
-  ('Chairs', Icons.chair_outlined, r'chair'),
-];
+// The backend sends no icons; unknown handles get the generic one.
+const _categoryIcons = <String, IconData>{
+  'accessories': Icons.headphones_rounded,
+  'keyboards': Icons.keyboard_alt_outlined,
+  'mouse': Icons.mouse_outlined,
+  'monitors': Icons.desktop_windows_outlined,
+  'chairs': Icons.chair_outlined,
+};
 
 class _CatalogBodyState extends State<_CatalogBody> {
   String _query = '';
-  int _category = 0;
 
   String? get vendorName => widget.vendorName;
 
@@ -52,20 +45,14 @@ class _CatalogBodyState extends State<_CatalogBody> {
   // Move to server search once /store/hash/products supports it.
   List<Map<String, dynamic>> _filter(List<Map<String, dynamic>> products) {
     final q = _query.trim().toLowerCase();
-    final pattern = _categories[_category].$3;
-    final category = pattern == null
-        ? null
-        : RegExp(pattern, caseSensitive: false);
+    if (q.isEmpty) return products;
     return products
         .where(
-          (p) =>
-              (category == null || category.hasMatch('${p['title'] ?? ''}')) &&
-              (q.isEmpty ||
-                  [
-                    p['title'],
-                    p['vendor_name'],
-                    p['description'],
-                  ].any((v) => '${v ?? ''}'.toLowerCase().contains(q))),
+          (p) => [
+            p['title'],
+            p['vendor_name'],
+            p['description'],
+          ].any((v) => '${v ?? ''}'.toLowerCase().contains(q)),
         )
         .toList();
   }
@@ -78,10 +65,28 @@ class _CatalogBodyState extends State<_CatalogBody> {
       body: BlocBuilder<HashStoreHomeCubit, HashStoreHomeState>(
         builder: (context, state) {
           final products = _filter(state.products);
+          final chips = [
+            (id: null, name: 'All', icon: Icons.sports_esports_rounded),
+            for (final c in state.categories)
+              (
+                id: c['id'] as String?,
+                name: '${c['name'] ?? ''}',
+                icon: _categoryIcons[c['handle']] ?? Icons.category_outlined,
+              ),
+          ];
+          final categoryName = chips
+              .firstWhere(
+                (c) => c.id == state.categoryId,
+                orElse: () => chips.first,
+              )
+              .name;
           return RefreshIndicator(
             color: StoreColors.green,
             backgroundColor: StoreColors.surface,
-            onRefresh: () => cubit.fetchProducts(vendorId: state.vendorId),
+            onRefresh: () => cubit.fetchProducts(
+              vendorId: state.vendorId,
+              categoryId: state.categoryId,
+            ),
             child: CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(
                 parent: BouncingScrollPhysics(),
@@ -140,13 +145,19 @@ class _CatalogBodyState extends State<_CatalogBody> {
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: _categories.length,
+                      itemCount: chips.length,
                       separatorBuilder: (_, _) => const SizedBox(width: 6),
                       itemBuilder: (_, i) => _CategoryChip(
-                        label: _categories[i].$1,
-                        icon: _categories[i].$2,
-                        selected: i == _category,
-                        onTap: () => setState(() => _category = i),
+                        label: chips[i].name,
+                        icon: chips[i].icon,
+                        selected: chips[i].id == state.categoryId,
+                        onTap: () {
+                          if (chips[i].id == state.categoryId) return;
+                          cubit.fetchProducts(
+                            vendorId: state.vendorId,
+                            categoryId: chips[i].id,
+                          );
+                        },
                       ),
                     ),
                   ),
@@ -175,8 +186,18 @@ class _CatalogBodyState extends State<_CatalogBody> {
                       title: 'Could not load the shop',
                       body: state.error,
                       actionLabel: 'Try again',
-                      onAction: () =>
-                          cubit.fetchProducts(vendorId: state.vendorId),
+                      onAction: () => cubit.fetchProducts(
+                        vendorId: state.vendorId,
+                        categoryId: state.categoryId,
+                      ),
+                    ),
+                  )
+                else if (state.products.isEmpty && state.categoryId != null)
+                  SliverToBoxAdapter(
+                    child: StoreMessage(
+                      icon: Icons.category_outlined,
+                      title: 'Nothing in $categoryName yet',
+                      body: 'Try another category or check back soon.',
                     ),
                   )
                 else if (state.products.isEmpty)
@@ -191,9 +212,7 @@ class _CatalogBodyState extends State<_CatalogBody> {
                   SliverToBoxAdapter(
                     child: StoreMessage(
                       icon: Icons.search_off_rounded,
-                      title: _query.trim().isEmpty
-                          ? 'Nothing in ${_categories[_category].$1} yet'
-                          : 'No matches for “${_query.trim()}”',
+                      title: 'No matches for “${_query.trim()}”',
                       body: 'Try another category, name or brand.',
                     ),
                   )
@@ -208,7 +227,7 @@ class _CatalogBodyState extends State<_CatalogBody> {
                           ),
                           Builder(
                             builder: (_) {
-                              final n = _query.trim().isEmpty && _category == 0
+                              final n = _query.trim().isEmpty
                                   ? state.count
                                   : products.length;
                               return Text(

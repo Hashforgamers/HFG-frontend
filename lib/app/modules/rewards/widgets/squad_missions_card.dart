@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hash/app/modules/home/widgets/home_design.dart';
 import 'package:hash/core/utils/app_snackbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -100,228 +101,241 @@ class _SquadMissionsCardState extends State<SquadMissionsCard>
 
         return Padding(
           padding: const EdgeInsets.only(bottom: 12),
+          // brand-gradient rim, as on the other home cards
           child: Container(
-            clipBehavior: Clip.antiAlias,
-            decoration: const ShapeDecoration(
-              shape: ContinuousRectangleBorder(
+            padding: const EdgeInsets.all(HomeFrostCard.rim),
+            decoration: ShapeDecoration(
+              shape: const ContinuousRectangleBorder(
                 borderRadius: BorderRadius.all(Radius.circular(48)),
-                side: BorderSide(color: Color(0x5900DC00), width: 0.8),
               ),
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Color(0xFF242427), Color(0xFF161618)],
-              ),
-              shadows: [
-                BoxShadow(
-                  color: Color(0x66000000),
-                  blurRadius: 28,
-                  offset: Offset(0, 12),
-                ),
-              ],
+              gradient: HomeTokens.brandRim(0.7),
             ),
-            child: Stack(
-              children: [
-                Positioned(
-                  bottom: -110,
-                  right: -80,
-                  child: IgnorePointer(
-                    child: Container(
-                      width: 240,
-                      height: 240,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: RadialGradient(
-                          colors: [Color(0x2600DC00), Color(0x0000DC00)],
+            child: Container(
+              clipBehavior: Clip.antiAlias,
+              decoration: const ShapeDecoration(
+                shape: ContinuousRectangleBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(46)),
+                ),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFF242427), Color(0xFF161618)],
+                ),
+                shadows: [
+                  BoxShadow(
+                    color: Color(0x66000000),
+                    blurRadius: 28,
+                    offset: Offset(0, 12),
+                  ),
+                ],
+              ),
+              child: Stack(
+                children: [
+                  Positioned(
+                    bottom: -110,
+                    right: -80,
+                    child: IgnorePointer(
+                      child: Container(
+                        width: 240,
+                        height: 240,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: RadialGradient(
+                            colors: [Color(0x2600DC00), Color(0x0000DC00)],
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-                Positioned(
-                  top: -90,
-                  left: -60,
-                  child: IgnorePointer(
-                    child: Container(
-                      width: 240,
-                      height: 240,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: RadialGradient(
-                          colors: [
-                            _Sys.orange.withValues(alpha: 0.2),
-                            _Sys.orange.withValues(alpha: 0),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            'WEEKLY STREAK',
-                            style: _text(
-                              12,
-                              _Sys.secondary,
-                              weight: FontWeight.w600,
-                            ).copyWith(letterSpacing: 0.6),
-                          ),
-                          const Spacer(),
-                          Text(
-                            'Best ${data.bestStreak}',
-                            style: _text(
-                              13,
-                              _Sys.secondary,
-                              weight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          AnimatedBuilder(
-                            animation: _pulseController,
-                            builder: (_, child) => Transform.scale(
-                              scale: _pulseScale.value,
-                              child: child,
-                            ),
-                            child: Container(
-                              width: 52,
-                              height: 52,
-                              decoration: ShapeDecoration(
-                                shape: const ContinuousRectangleBorder(
-                                  borderRadius: BorderRadius.all(
-                                    Radius.circular(26),
-                                  ),
-                                ),
-                                gradient: LinearGradient(
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                  colors: [
-                                    _Sys.orange.withValues(alpha: 0.4),
-                                    _Sys.orange.withValues(alpha: 0.14),
-                                  ],
-                                ),
-                              ),
-                              child: const Icon(
-                                Icons.local_fire_department_rounded,
-                                color: _Sys.orange,
-                                size: 30,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    Text(
-                                      '${data.currentStreak}',
-                                      style: _text(
-                                        30,
-                                        Colors.white,
-                                        weight: FontWeight.w800,
-                                      ).copyWith(height: 1),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Padding(
-                                      padding: const EdgeInsets.only(bottom: 3),
-                                      child: Text(
-                                        data.currentStreak == 1
-                                            ? 'Day Streak'
-                                            : 'Days Streak',
-                                        style: _text(
-                                          17,
-                                          Colors.white,
-                                          weight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  encouragement,
-                                  style: _text(14, _Sys.secondary),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: List.generate(dayLabels.length, (index) {
-                          final distance = todayIndex - index;
-                          return _dayNode(
-                            label: dayLabels[index],
-                            checked: distance > 0 && distance <= checkedCount,
-                            fire: index == todayIndex && data.currentStreak > 0,
-                            today: index == todayIndex,
-                          );
-                        }),
-                      ),
-                      const SizedBox(height: 16),
-                      Container(height: 0.5, color: _Sys.separator),
-                      GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () => _showMissionsSheet(context, data.missions),
-                        child: Padding(
-                          padding: const EdgeInsets.only(top: 12),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.flag_rounded,
-                                size: 18,
-                                color: _Sys.orange,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Weekly missions',
-                                style: _text(
-                                  15,
-                                  Colors.white,
-                                  weight: FontWeight.w500,
-                                ),
-                              ),
-                              const Spacer(),
-                              Text(
-                                '$done of $total',
-                                style: _text(15, _Sys.secondary),
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                'See Details',
-                                style: _text(
-                                  15,
-                                  _Sys.orange,
-                                  weight: FontWeight.w600,
-                                ),
-                              ),
-                              const Icon(
-                                Icons.chevron_right_rounded,
-                                size: 20,
-                                color: _Sys.orange,
-                              ),
+                  Positioned(
+                    top: -90,
+                    left: -60,
+                    child: IgnorePointer(
+                      child: Container(
+                        width: 240,
+                        height: 240,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: RadialGradient(
+                            colors: [
+                              _Sys.orange.withValues(alpha: 0.2),
+                              _Sys.orange.withValues(alpha: 0),
                             ],
                           ),
                         ),
                       ),
-                    ],
+                    ),
                   ),
-                ),
-              ],
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              'WEEKLY STREAK',
+                              style: _text(
+                                12,
+                                _Sys.secondary,
+                                weight: FontWeight.w600,
+                              ).copyWith(letterSpacing: 0.6),
+                            ),
+                            const Spacer(),
+                            Text(
+                              'Best ${data.bestStreak}',
+                              style: _text(
+                                13,
+                                _Sys.secondary,
+                                weight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            AnimatedBuilder(
+                              animation: _pulseController,
+                              builder: (_, child) => Transform.scale(
+                                scale: _pulseScale.value,
+                                child: child,
+                              ),
+                              child: Container(
+                                width: 52,
+                                height: 52,
+                                decoration: ShapeDecoration(
+                                  shape: const ContinuousRectangleBorder(
+                                    borderRadius: BorderRadius.all(
+                                      Radius.circular(26),
+                                    ),
+                                  ),
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      _Sys.orange.withValues(alpha: 0.4),
+                                      _Sys.orange.withValues(alpha: 0.14),
+                                    ],
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.local_fire_department_rounded,
+                                  color: _Sys.orange,
+                                  size: 30,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text(
+                                        '${data.currentStreak}',
+                                        style: _text(
+                                          30,
+                                          Colors.white,
+                                          weight: FontWeight.w800,
+                                        ).copyWith(height: 1),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: 3,
+                                        ),
+                                        child: Text(
+                                          data.currentStreak == 1
+                                              ? 'Day Streak'
+                                              : 'Days Streak',
+                                          style: _text(
+                                            17,
+                                            Colors.white,
+                                            weight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    encouragement,
+                                    style: _text(14, _Sys.secondary),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: List.generate(dayLabels.length, (index) {
+                            final distance = todayIndex - index;
+                            return _dayNode(
+                              label: dayLabels[index],
+                              checked: distance > 0 && distance <= checkedCount,
+                              fire:
+                                  index == todayIndex && data.currentStreak > 0,
+                              today: index == todayIndex,
+                            );
+                          }),
+                        ),
+                        const SizedBox(height: 16),
+                        Container(height: 0.5, color: _Sys.separator),
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () =>
+                              _showMissionsSheet(context, data.missions),
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 12),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.flag_rounded,
+                                  size: 18,
+                                  color: _Sys.orange,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Weekly missions',
+                                  style: _text(
+                                    15,
+                                    Colors.white,
+                                    weight: FontWeight.w500,
+                                  ),
+                                ),
+                                const Spacer(),
+                                Text(
+                                  '$done of $total',
+                                  style: _text(15, _Sys.secondary),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'See Details',
+                                  style: _text(
+                                    15,
+                                    _Sys.orange,
+                                    weight: FontWeight.w600,
+                                  ),
+                                ),
+                                const Icon(
+                                  Icons.chevron_right_rounded,
+                                  size: 20,
+                                  color: _Sys.orange,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         );

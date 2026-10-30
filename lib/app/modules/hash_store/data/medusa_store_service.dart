@@ -301,6 +301,9 @@ class MedusaStoreService {
     String path, {
     Map<String, dynamic>? query,
   }) async {
+    if (_requestOverride != null) {
+      return _requestOverride('GET', path, null, query);
+    }
     try {
       final res = await _dio.get(path, queryParameters: query);
       return Map<String, dynamic>.from(res.data as Map);
@@ -319,14 +322,45 @@ class MedusaStoreService {
     int offset = 0,
     int limit = 20,
     String? vendorId,
+    String? categoryId,
   }) => _public(
     '/store/hash/products',
     query: {
       'limit': limit,
       'offset': offset,
       if (vendorId != null) 'vendor_id': vendorId,
+      if (categoryId != null) 'category_id': categoryId,
     },
   );
+
+  /// Active shop categories in display order: `{id, name, handle, ...}`.
+  Future<List<Map<String, dynamic>>> categories() async {
+    final data = await _public('/store/hash/categories');
+    return (data['categories'] as List? ?? [])
+        .map((c) => Map<String, dynamic>.from(c as Map))
+        .toList();
+  }
+
+  final _states = <String, Future<StoreStates>>{};
+
+  /// States/provinces for [countryCode], kept for the app session. Addresses
+  /// store the `name`; `code` only helps match older addresses.
+  Future<StoreStates> states(String countryCode) => _states[countryCode] ??=
+      _public('/hash-store/locations', query: {'country_code': countryCode})
+          .then(
+            (data) => (
+              required: data['state_required'] != false,
+              list: [
+                for (final s in data['states'] as List? ?? [])
+                  if (s is Map && s['name'] != null)
+                    (code: '${s['code'] ?? ''}', name: '${s['name']}'),
+              ],
+            ),
+          )
+          .catchError((Object e) {
+            _states.remove(countryCode); // let Retry fetch again
+            throw e;
+          });
 
   /// One catalog row by product id, or null when it is not listed.
   // shortcut: the catalog has no single-product route, so this pages through
@@ -866,3 +900,8 @@ class StoreException implements Exception {
 class VendorMismatch implements Exception {
   const VendorMismatch();
 }
+
+typedef StoreStates = ({
+  bool required,
+  List<({String code, String name})> list,
+});

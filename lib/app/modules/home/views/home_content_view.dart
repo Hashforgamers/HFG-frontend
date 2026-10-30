@@ -916,6 +916,7 @@ class _HomeContentViewState extends State<HomeContentView>
           brand: true,
           actionLabel: 'Host program',
           onAction: () => Get.toNamed(AppRoutes.HOST_ONBOARDING),
+          accentColor: HomeTokens.coral,
         ),
         const SizedBox(height: 12),
         HomeHostCard(onTap: () => Get.toNamed(AppRoutes.HOST_ONBOARDING)),

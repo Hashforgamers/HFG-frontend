@@ -413,6 +413,20 @@ _GamePalette _paletteForGame(String gameId) {
         accent: Color(0xFF3FD5FF),
         shadow: Color(0xFF1546A8),
       );
+    case 'hash_arcade':
+      return const _GamePalette(
+        primary: Color(0xFF2EC5FF),
+        secondary: Color(0xFF07090C),
+        accent: Color(0xFF39FF88),
+        shadow: Color(0xFF145E7A),
+      );
+    case 'odd_one_out':
+      return const _GamePalette(
+        primary: Color(0xFF1FB86A),
+        secondary: Color(0xFF07090C),
+        accent: Color(0xFF39FF88),
+        shadow: Color(0xFF0E6B3D),
+      );
     case 'super_over':
       return const _GamePalette(
         primary: Color(0xFFF97316),

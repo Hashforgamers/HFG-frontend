@@ -423,42 +423,46 @@ class _HomeViewState extends State<HomeView> {
               );
             }),
           ),
-          Obx(() {
-            if (controller.isShopOpen.value ||
-                controller.selectedIndex.value != 0) {
-              return const SizedBox.shrink();
-            }
-            return Positioned(
-              left: 0,
-              right: 0,
-              bottom: 12,
-              child: IgnorePointer(
-                ignoring: false,
-                child: AnimatedSlide(
-                  duration: const Duration(milliseconds: 380),
-                  curve: Curves.elasticOut,
-                  offset: _isHomeScrolling
-                      ? const Offset(0, 0.52)
-                      : Offset.zero,
-                  child: LiveSessionGlassCard(
-                    controller: _sessionProgressController,
-                    forceVisible: false,
-                    unreadCount: chatService.unreadRoomCount.value,
-                    onChatTap: _openChatInbox,
-                    onOrderFoodTap:
-                        (_sessionProgressController
-                                .currentBooking
-                                .value
-                                ?.vendorId
-                                .isNotEmpty ??
-                            false)
-                        ? _openLiveSessionFoodOrder
-                        : null,
+          // extendBody runs the body under the nav bar; the Scaffold reports
+          // the bar's height as bottom padding, so the card sits above it
+          Builder(
+            builder: (bodyContext) => Obx(() {
+              if (controller.isShopOpen.value ||
+                  controller.selectedIndex.value != 0) {
+                return const SizedBox.shrink();
+              }
+              return Positioned(
+                left: 0,
+                right: 0,
+                bottom: 12 + MediaQuery.paddingOf(bodyContext).bottom,
+                child: IgnorePointer(
+                  ignoring: false,
+                  child: AnimatedSlide(
+                    duration: const Duration(milliseconds: 380),
+                    curve: Curves.elasticOut,
+                    offset: _isHomeScrolling
+                        ? const Offset(0, 0.52)
+                        : Offset.zero,
+                    child: LiveSessionGlassCard(
+                      controller: _sessionProgressController,
+                      forceVisible: false,
+                      unreadCount: chatService.unreadRoomCount.value,
+                      onChatTap: _openChatInbox,
+                      onOrderFoodTap:
+                          (_sessionProgressController
+                                  .currentBooking
+                                  .value
+                                  ?.vendorId
+                                  .isNotEmpty ??
+                              false)
+                          ? _openLiveSessionFoodOrder
+                          : null,
+                    ),
                   ),
                 ),
-              ),
-            );
-          }),
+              );
+            }),
+          ),
         ],
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,

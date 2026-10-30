@@ -189,6 +189,14 @@ void main() {
       };
       final service = MedusaStoreService.forTesting((m, p, d, q) async {
         if (p.endsWith('/addresses')) return {'addresses': []};
+        if (p == '/hash-store/locations') {
+          return {
+            'state_required': true,
+            'states': [
+              {'code': 'MH', 'name': 'Maharashtra'},
+            ],
+          };
+        }
         if (p.endsWith('/delivery')) return {'payer': 'customer'};
         if (p == '/store/shipping-options') {
           return {

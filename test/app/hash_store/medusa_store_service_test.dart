@@ -45,4 +45,33 @@ void main() {
     expect(e.statusCode, 429);
     expect(e.isTimeout, isFalse);
   });
+
+  test('catalog sends the category; states are cached and retried', () async {
+    final calls = <String>[];
+    var fail = true;
+    final service = MedusaStoreService.forTesting((m, p, d, q) async {
+      calls.add('$p ${q ?? {}}');
+      if (p == '/hash-store/locations') {
+        if (fail) throw const StoreException('offline');
+        return {
+          'state_required': true,
+          'states': [
+            {'code': 'MH', 'name': 'Maharashtra'},
+            {'code': 'X'},
+          ],
+        };
+      }
+      return {'products': [], 'count': 0};
+    });
+    await service.catalog(categoryId: 'pcat_1');
+    expect(calls.single, contains('category_id: pcat_1'));
+
+    await expectLater(service.states('in'), throwsA(isA<StoreException>()));
+    fail = false;
+    final states = await service.states('in');
+    await service.states('in');
+    expect(states.required, isTrue);
+    expect(states.list.map((s) => s.name), ['Maharashtra']);
+    expect(calls.where((c) => c.startsWith('/hash-store')).length, 2);
+  });
 }

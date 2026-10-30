@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:hash/app/modules/home/widgets/home_design.dart';
 import 'package:get/get.dart';
 import 'package:hash/features/mini_games/arrow_escape/arrow_escape_screen.dart';
 import 'package:hash/features/mini_games/pacman/HomePage.dart';
@@ -22,6 +23,7 @@ import 'package:hash/utils/widgets/game_button.dart';
 import 'package:hash/utils/widgets/game_panel.dart';
 import 'flappy_birds/Layouts/Pages/page_start_screen.dart';
 import 'wordly/wordly_screen.dart';
+import 'all_games_screen.dart';
 import 'mini_game_card.dart';
 import '../../../../features/mini_games/fruit_ninja/fruit_ninja_screen.dart';
 import 'models/minigame_model.dart';
@@ -183,9 +185,18 @@ class _MiniGamesSectionState extends State<MiniGamesSection> {
               const Spacer(),
               GestureDetector(
                 onTap: () => _showLeaderboard(context, _scoreService),
-                child: GameBadge(
-                  label: '🏆 Leaderboard · ${_scoreService.totalScore}',
+                // trophy + total only, so "See all" fits beside it on phones
+                child: GameBadge(label: '🏆 ${_scoreService.totalScore}'),
+              ),
+              const SizedBox(width: 4),
+              TextButton(
+                onPressed: _openAllGames,
+                style: TextButton.styleFrom(
+                  foregroundColor: HomeTokens.coral,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: const Size(44, 44),
                 ),
+                child: const Text('See all'),
               ),
             ],
           ),
@@ -202,7 +213,13 @@ class _MiniGamesSectionState extends State<MiniGamesSection> {
             // Row order: the newest games lead (newest first), then everything
             // else in catalogue order (natives, then HTML games), with the
             // games pinned to the end last.
-            const newestFirst = ['hash_rush', 'arrow_escape', 'super_over'];
+            const newestFirst = [
+              'hash_arcade',
+              'odd_one_out',
+              'hash_rush',
+              'arrow_escape',
+              'super_over',
+            ];
             const pinnedLast = ['road_rumble'];
             String idAt(int slot) => slot < games.length
                 ? (games[slot].id ?? '')
@@ -257,6 +274,18 @@ class _MiniGamesSectionState extends State<MiniGamesSection> {
         ),
       ],
     );
+  }
+
+  Future<void> _openAllGames() async {
+    await Get.to(
+      () => AllGamesScreen(
+        games: _games,
+        htmlGames: _htmlGames,
+        scoreService: _scoreService,
+        onOpenHtml: _openHtmlGame,
+      ),
+    );
+    await _loadScores();
   }
 
   void _openHtmlGame(HtmlMiniGame game) {

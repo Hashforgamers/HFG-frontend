@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/app/modules/home/widgets/home_design.dart';
 import 'package:hash/core/utils/haptics.dart';
 
 /// Tournament host-program card: hero artwork (headline baked in), a native
@@ -18,8 +19,6 @@ class _HomeHostCardState extends State<HomeHostCard> {
   static const _heroAspect = 1388 / 583;
   static const _surface = Color(0xFF121216);
   static const _separator = Color(0x26FFFFFF);
-  static const _green = Color(0xFF30D158);
-  static const _greenDeep = Color(0xFF1E9E3E);
 
   bool _down = false;
 
@@ -43,15 +42,15 @@ class _HomeHostCardState extends State<HomeHostCard> {
 
   @override
   Widget build(BuildContext context) {
+    // brand-gradient rim, as on the other home cards
     return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: const ShapeDecoration(
-        shape: ContinuousRectangleBorder(
+      padding: const EdgeInsets.all(HomeFrostCard.rim),
+      decoration: ShapeDecoration(
+        shape: const ContinuousRectangleBorder(
           borderRadius: BorderRadius.all(Radius.circular(48)),
-          side: BorderSide(color: Color(0x59FF6F61), width: 0.8),
         ),
-        color: _surface,
-        shadows: [
+        gradient: HomeTokens.brandRim(0.7),
+        shadows: const [
           BoxShadow(
             color: Color(0x66000000),
             blurRadius: 28,
@@ -59,51 +58,61 @@ class _HomeHostCardState extends State<HomeHostCard> {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          GestureDetector(
-            onTap: _open,
-            child: AspectRatio(
-              aspectRatio: _heroAspect,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Image.asset(
-                    _heroAsset,
-                    fit: BoxFit.cover,
-                    filterQuality: FilterQuality.medium,
-                    errorBuilder: (_, _, _) => const DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [Color(0xFF3A1F5C), Color(0xFFB24A8F)],
+      child: ClipPath(
+        clipper: const ShapeBorderClipper(
+          shape: ContinuousRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(46)),
+          ),
+        ),
+        child: ColoredBox(
+          color: _surface,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              GestureDetector(
+                onTap: _open,
+                child: AspectRatio(
+                  aspectRatio: _heroAspect,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Image.asset(
+                        _heroAsset,
+                        fit: BoxFit.cover,
+                        filterQuality: FilterQuality.medium,
+                        errorBuilder: (_, _, _) => const DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [Color(0xFF3A1F5C), Color(0xFFB24A8F)],
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-                  // Blend the art into the card surface below it.
-                  const DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [Color(0x00121216), Color(0xFF121216)],
-                        stops: [0.93, 1],
+                      // Blend the art into the card surface below it.
+                      const DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [Color(0x00121216), Color(0xFF121216)],
+                            stops: [0.93, 1],
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [_features(), const SizedBox(height: 8), _cta()],
+                ),
+              ),
+            ],
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [_features(), const SizedBox(height: 8), _cta()],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -228,15 +237,10 @@ class _HomeHostCardState extends State<HomeHostCard> {
                 width: 1,
               ),
             ),
-            gradient: const LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Color(0xFF5CE07A), _green, _greenDeep],
-              stops: [0, 0.5, 1],
-            ),
+            gradient: HomeTokens.brandGradient,
             shadows: [
               BoxShadow(
-                color: _green.withValues(alpha: 0.45),
+                color: HomeTokens.pink.withValues(alpha: 0.45),
                 blurRadius: 18,
                 spreadRadius: -4,
                 offset: const Offset(0, 6),

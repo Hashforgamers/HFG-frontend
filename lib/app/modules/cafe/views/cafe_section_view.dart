@@ -8,6 +8,7 @@ import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:hash/app/modules/home/widgets/home_design.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -725,7 +726,7 @@ class _CafeSectionState extends State<CafeSection> {
       required bool enabled,
       required VoidCallback onTap,
     }) {
-      final color = selected ? const Color(0xFF00DC00) : Colors.white54;
+      final color = selected ? HomeTokens.coral : Colors.white54;
       return Expanded(
         child: GestureDetector(
           onTap: enabled ? onTap : null,
@@ -735,7 +736,7 @@ class _CafeSectionState extends State<CafeSection> {
             padding: const EdgeInsets.symmetric(vertical: 9),
             decoration: BoxDecoration(
               color: selected
-                  ? const Color(0xFF00DC00).withValues(alpha: 0.10)
+                  ? HomeTokens.coral.withValues(alpha: 0.12)
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(10),
             ),
@@ -1669,6 +1670,7 @@ class _CafeSectionState extends State<CafeSection> {
             brand: true,
             actionLabel: 'Add yours',
             onAction: _openCafeOnboarding,
+            accentColor: HomeTokens.coral,
           ),
           const SizedBox(height: 12),
           Obx(() {

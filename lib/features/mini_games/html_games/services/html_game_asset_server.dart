@@ -49,13 +49,14 @@ class HtmlGameAssetServer {
 
   /// Base URL of the running server (starts it on first use).
   Future<Uri> start() => _starting ??= _bind().catchError((Object e) {
-        _starting = null;
-        throw e;
-      });
+    _starting = null;
+    throw e;
+  });
 
   /// Absolute URL for a bundled asset path such as
   /// `assets/html_games/super_over/index.html`.
-  Future<Uri> urlFor(String assetPath) async => (await start()).resolve(assetPath);
+  Future<Uri> urlFor(String assetPath) async =>
+      (await start()).resolve(assetPath);
 
   Future<Uri> _bind() async {
     HttpServer server;
@@ -86,10 +87,20 @@ class HtmlGameAssetServer {
       final data = await rootBundle.load(path);
       final ext = path.split('.').last.toLowerCase();
       response.headers
-        ..set(HttpHeaders.contentTypeHeader, _types[ext] ?? 'application/octet-stream')
-        ..set(HttpHeaders.cacheControlHeader, 'max-age=3600')
+        ..set(
+          HttpHeaders.contentTypeHeader,
+          _types[ext] ?? 'application/octet-stream',
+        )
+        // pages are rechecked every load so an app update shows at once; their
+        // scripts can cache because games that update often hash their names
+        ..set(
+          HttpHeaders.cacheControlHeader,
+          ext == 'html' ? 'no-cache' : 'max-age=3600',
+        )
         ..set('Access-Control-Allow-Origin', '*');
-      response.add(data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes));
+      response.add(
+        data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
+      );
     } catch (_) {
       response.statusCode = HttpStatus.notFound;
     } finally {

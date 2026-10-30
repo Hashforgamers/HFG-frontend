@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/app/modules/home/widgets/home_design.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
 import 'package:hash/utils/widgets/bounce_tap_widget.dart';
 
@@ -17,14 +18,16 @@ class HomeGamePassCard extends StatelessWidget {
         margin: const EdgeInsets.symmetric(vertical: 12),
         height: 200,
         width: double.infinity,
+        // brand-gradient rim, as on the other home cards
+        padding: const EdgeInsets.all(HomeFrostCard.rim),
         decoration: BoxDecoration(
-          border: Border.all(color: const Color(0xff00DC00), width: 1),
+          gradient: HomeTokens.brandRim(0.7),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Stack(
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(20 - HomeFrostCard.rim),
               child: CachedNetworkImage(
                 imageUrl:
                     'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075177/gamepassbg_jkkq7b.png',
@@ -61,12 +64,21 @@ class HomeGamePassCard extends StatelessWidget {
                             fontWeight: FontWeight.w800,
                           ),
                         ),
-                        TextSpan(
-                          text: 'Hash Pass',
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFF00DC00),
-                            fontSize: 20,
-                            fontWeight: FontWeight.w900,
+                        WidgetSpan(
+                          alignment: PlaceholderAlignment.baseline,
+                          baseline: TextBaseline.alphabetic,
+                          child: ShaderMask(
+                            blendMode: BlendMode.srcIn,
+                            shaderCallback:
+                                HomeTokens.brandGradient.createShader,
+                            child: Text(
+                              'Hash Pass',
+                              style: GoogleFonts.inter(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
                           ),
                         ),
                       ],
@@ -78,25 +90,11 @@ class HomeGamePassCard extends StatelessWidget {
                     style: GoogleFonts.inter(color: Colors.white, fontSize: 10),
                   ),
                   const SizedBox(height: 32),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 6,
-                      horizontal: 14,
-                    ),
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: const Color(0xff00DC00),
-                        width: 1.5,
-                      ),
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                    child: Text(
-                      'Buy Now',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: Colors.white,
-                      ),
-                    ),
+                  HomeBrandButton(
+                    label: 'Buy Now',
+                    onTap: onTap,
+                    height: 30,
+                    fontSize: 12,
                   ),
                 ],
               ),

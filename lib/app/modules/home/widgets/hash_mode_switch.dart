@@ -1,8 +1,10 @@
 import 'package:hash/app/modules/hash_store/widgets/neon_switch.dart';
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/app/modules/home/widgets/home_design.dart';
 import 'package:hash/core/utils/haptics.dart';
 import 'package:just_audio/just_audio.dart';
 
@@ -103,7 +105,8 @@ class _HashModeSwitchState extends State<HashModeSwitch> {
           borderRadius: BorderRadius.all(Radius.circular(34)),
           side: BorderSide(color: Color(0x2600DC00), width: 0.8),
         ),
-        color: Color(0xFF0E0F10),
+        // see-through so the cards' frost picks up the header behind it
+        color: Color(0x330E0F10),
       ),
       child: NeonSwitchFx(
         index: _selected,
@@ -129,30 +132,19 @@ class _HashModeSwitchState extends State<HashModeSwitch> {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
+          // Same build as the home chat button: a brand-gradient rim around
+          // a frosted pane. The selected card adds its accent tint and glow.
           AnimatedContainer(
             duration: const Duration(milliseconds: 220),
             curve: Curves.easeOutCubic,
-            height: 46,
-            padding: const EdgeInsets.symmetric(horizontal: 10),
+            padding: const EdgeInsets.all(_rim),
             decoration: ShapeDecoration(
-              shape: ContinuousRectangleBorder(
-                borderRadius: const BorderRadius.all(Radius.circular(30)),
-                side: BorderSide(
-                  color: on
-                      ? o.accent.withValues(alpha: 0.9)
-                      : const Color(0x1FFFFFFF),
-                  width: on ? 1.2 : 0.6,
-                ),
-              ),
+              shape: _shape(30),
               gradient: LinearGradient(
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-                colors: on
-                    ? [
-                        o.accent.withValues(alpha: 0.55),
-                        o.accent.withValues(alpha: 0.18),
-                      ]
-                    : const [Color(0xFF1A1B1D), Color(0xFF141517)],
+                colors: [
+                  for (final c in HomeTokens.brandGradient.colors)
+                    c.withValues(alpha: on ? 0.85 : 0.4),
+                ],
               ),
               shadows: on
                   ? [
@@ -164,71 +156,103 @@ class _HashModeSwitchState extends State<HashModeSwitch> {
                     ]
                   : const [],
             ),
-            child: Stack(
-              children: [
-                // Faint watermark art on the right.
-                Positioned(
-                  right: -14,
-                  top: -8,
-                  bottom: -8,
-                  child: Icon(
-                    o.icon,
-                    size: 50,
-                    color: Colors.white.withValues(alpha: on ? 0.08 : 0.03),
-                  ),
-                ),
-                Row(
-                  children: [
-                    NeonFlip(
-                      slot: i,
-                      child: Icon(
-                        o.icon,
-                        size: 22,
-                        color: on ? Colors.white : o.accent,
-                      ),
+            child: ClipPath(
+              clipper: ShapeBorderClipper(shape: _shape(28)),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOutCubic,
+                  height: 46 - _rim * 2,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        on
+                            ? o.accent.withValues(alpha: 0.32)
+                            : Colors.white.withValues(alpha: 0.08),
+                        Colors.black.withValues(alpha: 0.35),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                  ),
+                  child: Stack(
+                    children: [
+                      // Faint watermark art on the right.
+                      Positioned(
+                        right: -14,
+                        top: -8,
+                        bottom: -8,
+                        child: Icon(
+                          o.icon,
+                          size: 50,
+                          color: Colors.white.withValues(
+                            alpha: on ? 0.08 : 0.03,
+                          ),
+                        ),
+                      ),
+                      Row(
                         children: [
-                          Text(
-                            o.title,
-                            maxLines: 1,
-                            style: GoogleFonts.inter(
-                              color: Colors.white,
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: -0.3,
+                          NeonFlip(
+                            slot: i,
+                            child: Icon(
+                              o.icon,
+                              size: 22,
+                              color: on ? Colors.white : o.accent,
                             ),
                           ),
-                          const SizedBox(height: 1),
-                          FittedBox(
-                            fit: BoxFit.scaleDown,
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              o.subtitle,
-                              maxLines: 1,
-                              style: GoogleFonts.inter(
-                                color: on
-                                    ? Colors.white.withValues(alpha: 0.82)
-                                    : const Color(0x99EBEBF5),
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.w500,
-                              ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  o.title,
+                                  maxLines: 1,
+                                  style: GoogleFonts.inter(
+                                    color: Colors.white,
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: -0.3,
+                                  ),
+                                ),
+                                const SizedBox(height: 1),
+                                FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    o.subtitle,
+                                    maxLines: 1,
+                                    style: GoogleFonts.inter(
+                                      color: on
+                                          ? Colors.white.withValues(alpha: 0.82)
+                                          : const Color(0x99EBEBF5),
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ],
+              ),
             ),
           ),
         ],
       ),
     );
   }
+
+  static const _rim = 1.0; // same rim as the chat button
+  static ContinuousRectangleBorder _shape(double r) =>
+      ContinuousRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(r)),
+      );
 }

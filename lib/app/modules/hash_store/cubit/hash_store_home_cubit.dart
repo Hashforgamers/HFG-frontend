@@ -12,38 +12,67 @@ class HashStoreHomeCubit extends Cubit<HashStoreHomeState>
   final _store = MedusaStoreService.instance;
   static const _pageSize = 20;
 
-  Future<void> fetchProducts({String? vendorId}) async {
+  // Bumped per filter change so a slow earlier response cannot win.
+  int _request = 0;
+
+  Future<void> fetchProducts({String? vendorId, String? categoryId}) async {
+    final request = ++_request;
+    final base = state;
     emit(
       HashStoreHomeState(
         vendorId: vendorId,
-        vendors: state.vendors,
+        categoryId: categoryId,
+        vendors: base.vendors,
+        categories: base.categories,
         loading: true,
       ),
     );
+    if (base.categories.isEmpty) _loadCategories();
     try {
-      final data = await _store.catalog(limit: _pageSize, vendorId: vendorId);
+      final data = await _store.catalog(
+        limit: _pageSize,
+        vendorId: vendorId,
+        categoryId: categoryId,
+      );
+      if (request != _request) return;
       final products = _rows(data);
       emit(
         HashStoreHomeState(
           products: products,
           count: (data['count'] as num?)?.toInt() ?? products.length,
           vendorId: vendorId,
-          vendors: vendorId == null ? _vendorsOf(products) : state.vendors,
+          categoryId: categoryId,
+          vendors: vendorId == null && categoryId == null
+              ? _vendorsOf(products)
+              : state.vendors,
+          categories: state.categories,
         ),
       );
     } catch (e) {
+      if (request != _request) return;
       emit(
         HashStoreHomeState(
           vendorId: vendorId,
+          categoryId: categoryId,
           vendors: state.vendors,
+          categories: state.categories,
           error: e.toString(),
         ),
       );
     }
   }
 
+  /// Without categories the shop still works; only "All" is shown.
+  Future<void> _loadCategories() async {
+    try {
+      final categories = await _store.categories();
+      emit(_copy(state, categories: categories));
+    } catch (_) {}
+  }
+
   Future<void> loadMore() async {
     if (state.loading || state.loadingMore || !state.hasMore) return;
+    final request = _request;
     final base = state;
     emit(_copy(base, loadingMore: true));
     try {
@@ -51,30 +80,41 @@ class HashStoreHomeCubit extends Cubit<HashStoreHomeState>
         offset: base.products.length,
         limit: _pageSize,
         vendorId: base.vendorId,
+        categoryId: base.categoryId,
       );
+      if (request != _request) return;
       final products = [...base.products, ..._rows(data)];
       emit(
         HashStoreHomeState(
           products: products,
           count: (data['count'] as num?)?.toInt() ?? base.count,
           vendorId: base.vendorId,
-          vendors: base.vendorId == null ? _vendorsOf(products) : base.vendors,
+          categoryId: base.categoryId,
+          vendors: base.vendorId == null && base.categoryId == null
+              ? _vendorsOf(products)
+              : base.vendors,
+          categories: state.categories,
         ),
       );
     } catch (_) {
       // Keep what is on screen; the next scroll retries.
-      emit(_copy(base));
+      if (request == _request) emit(_copy(state));
     }
   }
 
   static HashStoreHomeState _copy(
     HashStoreHomeState s, {
     bool loadingMore = false,
+    List<Map<String, dynamic>>? categories,
   }) => HashStoreHomeState(
     products: s.products,
     count: s.count,
     vendorId: s.vendorId,
+    categoryId: s.categoryId,
     vendors: s.vendors,
+    categories: categories ?? s.categories,
+    loading: s.loading,
+    error: s.error,
     loadingMore: loadingMore,
   );
 

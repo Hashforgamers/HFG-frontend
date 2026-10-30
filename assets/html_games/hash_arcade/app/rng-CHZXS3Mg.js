@@ -1,0 +1,1 @@
+const r=(s,t,o)=>t+Math.floor(s()*(o-t+1)),c=(s,t)=>t[Math.floor(s()*t.length)];function l(s,t){const o=[...t];for(let a=o.length-1;a>0;a--){const n=Math.floor(s()*(a+1));[o[a],o[n]]=[o[n],o[a]]}return o}const e=(s,t,o)=>l(s,Array.from({length:t},(a,n)=>n)).slice(0,o);export{e as a,r as i,c as p,l as s};

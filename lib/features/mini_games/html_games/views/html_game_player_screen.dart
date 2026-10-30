@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/features/mini_games/html_games/models/html_mini_game.dart';
 import 'package:hash/features/mini_games/html_games/services/html_game_score_bridge_service.dart';
@@ -73,10 +74,20 @@ class _HtmlGamePlayerScreenState extends State<HtmlGamePlayerScreen> {
   }
 
   bool _leaving = false;
+  InAppWebViewController? _web;
 
   /// Back (button or system gesture) asks first, so a stray swipe doesn't end a match.
   Future<void> _confirmLeave() async {
     if (_leaving) return;
+    // games with their own screens (Hash Arcade) step back inside the page first;
+    // window.hashBack returns true when it handled the back press
+    try {
+      final handled = await _web?.evaluateJavascript(
+        source: 'window.hashBack ? window.hashBack() : false',
+      );
+      if (handled == true) return;
+    } catch (_) {}
+    if (!mounted) return;
     final leave = await showDialog<bool>(
       context: context,
       barrierColor: Colors.black54,
@@ -141,6 +152,7 @@ class _HtmlGamePlayerScreenState extends State<HtmlGamePlayerScreen> {
               child: GameWebView(
                 game: widget.game,
                 scoreBridgeService: _scoreBridge,
+                onCreated: (c) => _web = c,
               ),
             ),
             // compact back button: the game draws its own title, so just the arrow

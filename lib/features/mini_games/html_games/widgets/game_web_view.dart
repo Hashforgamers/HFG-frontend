@@ -25,10 +25,14 @@ class GameWebView extends StatefulWidget {
     super.key,
     required this.game,
     required this.scoreBridgeService,
+    this.onCreated,
   });
 
   final HtmlMiniGame game;
   final HtmlGameScoreBridgeService scoreBridgeService;
+
+  /// Hands the controller to the host screen, e.g. to route its back button into the page.
+  final ValueChanged<InAppWebViewController>? onCreated;
 
   @override
   State<GameWebView> createState() => _GameWebViewState();
@@ -314,7 +318,11 @@ class _GameWebViewState extends State<GameWebView> {
         if (text.isEmpty && files.isEmpty) return {'ok': false};
         unawaited(
           SharePlus.instance.share(
-            ShareParams(sharePositionOrigin: shareOriginRect(), text: text, files: files.isEmpty ? null : files),
+            ShareParams(
+              sharePositionOrigin: shareOriginRect(),
+              text: text,
+              files: files.isEmpty ? null : files,
+            ),
           ),
         );
         return {'ok': true};
@@ -346,7 +354,8 @@ class _GameWebViewState extends State<GameWebView> {
           await file.writeAsBytes(base64Decode(video), flush: true);
           unawaited(
             SharePlus.instance.share(
-              ShareParams(sharePositionOrigin: shareOriginRect(), 
+              ShareParams(
+                sharePositionOrigin: shareOriginRect(),
                 text: payload['text']?.toString(),
                 files: [XFile(file.path, mimeType: mime)],
               ),
@@ -394,6 +403,7 @@ class _GameWebViewState extends State<GameWebView> {
             ),
             onWebViewCreated: (controller) {
               _controller = controller;
+              widget.onCreated?.call(controller);
               _registerScoreHandler(controller);
               _registerHapticHandler(controller);
               _registerCoinContinueHandler(controller);
