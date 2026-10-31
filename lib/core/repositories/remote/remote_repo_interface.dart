@@ -1,9 +1,12 @@
+import 'package:hash/app/modules/game_pass/model/vendor_passes_response.dart';
 import 'package:hash/core/repositories/model/booking_model.dart';
 import 'package:hash/core/repositories/model/capture_payment_model.dart';
 import 'package:hash/core/repositories/model/create_voucher_response.dart';
 import 'package:hash/core/repositories/model/extra_services_model.dart';
+import 'package:hash/core/repositories/model/event_team_members_response.dart';
 import 'package:hash/core/repositories/model/get_food_menu_model.dart';
 import 'package:hash/core/repositories/model/get_pass_model.dart';
+import 'package:hash/core/repositories/model/hash_coin_spend.dart';
 import 'package:hash/core/repositories/model/get_voucher_model.dart';
 import 'package:hash/core/repositories/model/purchase_pass_model.dart';
 import 'package:hash/core/repositories/model/transaction_history_model.dart';
@@ -16,6 +19,8 @@ abstract class RemoteRepoInterface {
   Future<void> saveJwtToPreferences(String jwt);
   Future<String?> getJwtFromPreferences();
   Future<Map<String, dynamic>> signUp(Map<String, dynamic> userData);
+  Future<Map<String, dynamic>> getRegisteredPhoneStatus();
+  Future<Map<String, dynamic>> updateRegisteredPhone({required String phone});
 
   // Booking related methods
   Future<List<Map<String, dynamic>>> fetchSlots({
@@ -34,6 +39,11 @@ abstract class RemoteRepoInterface {
 
   // Vendor related methods
   Future<List<Map<String, dynamic>>> fetchCybercafes();
+  Future<List<Map<String, dynamic>>> fetchNearbyPlayers({
+    required double latitude,
+    required double longitude,
+    double radiusKm = 10,
+  });
   Future<Map<String, dynamic>> fetchVendorGames(int vendorId);
 
   // News related methods
@@ -49,6 +59,17 @@ abstract class RemoteRepoInterface {
     bool isGamePass = false,
     List<ExtraServiceItem>? extraServices,
     String? userPassId,
+    Map<String, dynamic>? squadDetails,
+    int? suggestedExtraControllerQty,
+  });
+
+  Future<Map<String, dynamic>> fetchBookingPricingEstimate({
+    required int vendorId,
+    required int gameId,
+    required String consoleType,
+    required bool squadEnabled,
+    required int playerCount,
+    int? suggestedExtraControllerQty,
   });
 
   // Address related methods
@@ -78,9 +99,10 @@ abstract class RemoteRepoInterface {
   Future<Map<String, dynamic>> fetchWallet({required String userId});
   Future<Map<String, dynamic>> addFunds({
     required String userId,
-    required int amount,
+    required num amount,
     required String paymentId,
   });
+
   Future<void> claimDropCrateBonus({required String userId, int amount});
 
   Future<Map<String, dynamic>> validateFunds(String paymentLinkId);
@@ -90,6 +112,28 @@ abstract class RemoteRepoInterface {
   Future<List<GetVoucherModel>> getVoucher({required String userId});
 
   Future<int> getHashCoin();
+  Future<int> addHashCoins({
+    required int amount,
+    String? source,
+    String? referenceId,
+  });
+
+  /// Debits [amount] HashCoins and returns the new balance. Throws a
+  /// [HashCoinSpendException] when the server refuses (not enough coins,
+  /// already owned, not sold...).
+  ///
+  /// [itemId] names a permanent catalogue item (Ludo skins, cosmetics); leave
+  /// it out for consumables and for Hash Rush. Retrying with the same
+  /// [referenceId] and payload is safe: the server debits once.
+  Future<int> spendHashCoins({
+    required int amount,
+    required String source,
+    required String referenceId,
+    String? itemId,
+  });
+
+  /// The permanent items this player has bought with HashCoins.
+  Future<List<HashCoinPurchase>> getHashCoinPurchases();
 
   Future<CreateVoucherResponse> createOffer({required int discountPercentage});
 
@@ -106,6 +150,35 @@ abstract class RemoteRepoInterface {
   });
 
   Future<String> releaseBooking({required BookingModel bookings});
+
+  Future<Map<String, dynamic>> createCafeReview({
+    required int vendorId,
+    required int bookingId,
+    required int rating,
+    String? title,
+    String? comment,
+    bool? isAnonymous,
+  });
+
+  Future<Map<String, dynamic>> updateCafeReview({
+    required int reviewId,
+    int? rating,
+    String? title,
+    String? comment,
+    bool? isAnonymous,
+  });
+
+  Future<List<Map<String, dynamic>>> fetchVendorReviews({
+    required int vendorId,
+    int limit = 20,
+    int offset = 0,
+    int? rating,
+    String sort = 'recent',
+  });
+
+  Future<Map<String, dynamic>> fetchVendorReviewsSummary({
+    required int vendorId,
+  });
 
   Future<List<GetPassModel>> getGamePass({
     required String userId,
@@ -127,8 +200,110 @@ abstract class RemoteRepoInterface {
 
   Future<void> capturePayment({
     required CapturePaymentModel capturePaymentModel,
+    int? bookingId,
+    int? vendorId,
+    int? gameId,
+  });
+  Future<String> createRazorpayOrder({
+    required int amountInPaisa,
+    String? receiptPrefix,
+  });
+  Future<Map<String, dynamic>> addMealsToBooking({
+    required String bookingId,
+    required List<Map<String, dynamic>> meals,
+    bool settleOnRelease = true,
+    String? modeOfPayment,
   });
 
   Future<void> saveUIDToPreferences(String uid);
   Future<String> getUIDFromPreferences();
+
+  Future<VendorPassesResponse> getAllAvailablePasses({
+    required String vendorId,
+    bool includeInactive = false,
+  });
+  Future<String> makePurchasePassPayment({
+    required PurchasePassModel purchasePassModel,
+  });
+
+  Future<List<Map<String, dynamic>>> fetchPublicEvents();
+  Future<Map<String, dynamic>> fetchEventById({required String eventId});
+  Future<Map<String, dynamic>> fetchEventLeaderboard({
+    required String eventId,
+    String stage = 'auto',
+  });
+  Future<Map<String, dynamic>> fetchGamerProfile({required int userId});
+  Future<Map<String, dynamic>> createEventTeam({
+    required String eventId,
+    required int userId,
+    required String teamName,
+    required bool isIndividual,
+  });
+  Future<Map<String, dynamic>> joinEventTeam({
+    required String eventId,
+    required String teamId,
+    required int userId,
+  });
+  Future<Map<String, dynamic>> leaveEventTeam({
+    required String eventId,
+    required String teamId,
+    required int userId,
+  });
+  Future<Map<String, dynamic>> registerEventTeam({
+    required String eventId,
+    required int userId,
+    required String teamId,
+  });
+  Future<EventTeamMembersResponse> fetchEventTeamMembers({
+    required String eventId,
+    required String teamId,
+  });
+  Future<List<Map<String, dynamic>>> fetchUserTeams({required int userId});
+  Future<Map<String, List<Map<String, dynamic>>>> fetchJoinedTournaments({
+    required int userId,
+  });
+  Future<Map<String, dynamic>> updateEventTeam({
+    required String eventId,
+    required String teamId,
+    required String teamName,
+  });
+  Future<Map<String, dynamic>> addEventTeamMember({
+    required String eventId,
+    required String teamId,
+    required int userId,
+  });
+  Future<Map<String, dynamic>> forceRemoveEventTeamMember({
+    required String eventId,
+    required String teamId,
+    required int actingUserId,
+    required int targetUserId,
+  });
+  Future<Map<String, dynamic>> inviteUserToEventTeam({
+    required String eventId,
+    required String teamId,
+    required int inviterUserId,
+    required int invitedUserId,
+  });
+  Future<Map<String, dynamic>> respondToEventTeamInvite({
+    required String eventId,
+    required String teamId,
+    required String inviteId,
+    required int userId,
+    required String action,
+  });
+  Future<Map<String, dynamic>> fetchUserNotifications({
+    int limit = 50,
+    bool unreadOnly = false,
+  });
+  Future<Map<String, dynamic>> markNotificationAsRead({
+    required String notificationId,
+  });
+}
+
+/// A credit the server refused for a reason retrying won't fix (401/403).
+class WelcomeCrateRejected implements Exception {
+  const WelcomeCrateRejected(this.message);
+  final String message;
+  @override
+  String toString() => message;
 }

@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-    <string>Hash</string>
+	<string>$(APP_DISPLAY_NAME)</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -29,11 +29,11 @@
 			<string>hash</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
+				<string>fb1755915261664066</string>
 				<string>hash</string>
+				<string>hashforgamers</string>
 				<string>com.googleusercontent.apps.376797794992-ikpq7h5o7flrhgmm53otlf1sm973489h</string>
 			</array>
-			<key>FirebaseAppDelegateProxyEnabled</key>
-			<true/>
 			<key>SignInWithApple</key>
 			<true/>
 		</dict>
@@ -52,8 +52,20 @@
 	</array>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>FacebookAdvertiserIDCollectionEnabled</key>
+	<true/>
+	<key>FacebookAppID</key>
+	<string>1755915261664066</string>
+	<key>FacebookAutoLogAppEventsEnabled</key>
+	<true/>
 	<key>FacebookClientToken</key>
 	<string>ef176e72dcf69f0d3f9d791237249300</string>
+	<key>FacebookDisplayName</key>
+	<string>Hash</string>
+	<key>FirebaseAppDelegateProxyEnabled</key>
+	<true/>
+	<key>FlutterDeepLinkingEnabled</key>
+	<false/>
 	<key>GMSApiKey</key>
 	<string>AIzaSyDjaI5XOoq4r0AbJVfDSz9tiQqLGBC_yNU</string>
 	<key>LSApplicationQueriesSchemes</key>
@@ -68,8 +80,15 @@
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 	</dict>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_dartobservatory._tcp</string>
+		<string>_flutter._tcp</string>
+	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>Hash for Gamers needs camera access to scan café QR codes and allow photo/video capture.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Hash for Gamers needs access to the local network to communicate with nearby devices during development and debugging.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Hash for Gamers may access your location in the background to keep café results and directions accurate if you return shortly after switching apps.</string>
 	<key>NSLocationTemporaryUsageDescriptionDictionary</key>
@@ -88,7 +107,7 @@
 	<key>NSUserAuthenticationUsageDescription</key>
 	<string>Sign in to your account securely using Apple.</string>
 	<key>NSUserTrackingUsageDescription</key>
-	<string>This identifier will be used to sign in.</string>
+	<string>We use this data to measure campaign performance and show you more relevant gaming offers.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UIBackgroundModes</key>
@@ -103,6 +122,8 @@
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:hash/core/utils/haptics.dart';
 
 class BounceTap extends StatefulWidget {
   final Widget child;
@@ -15,7 +15,7 @@ class _BounceTapState extends State<BounceTap> {
   double _scale = 1.0;
 
   void _shrink() {
-    HapticFeedback.lightImpact();
+    Haptics.selection();
     setState(() => _scale = 0.95);
   }
 
@@ -29,8 +29,9 @@ class _BounceTapState extends State<BounceTap> {
       onTap: widget.onTap,
       onTapDown: (_) => _shrink(),
       onTapUp: (_) => _reset(),
+      // a drag cancels the tap, which resets the bounce; no pan handler here,
+      // since one would win the gesture arena and block scrolling over the tile
       onTapCancel: _reset,
-      onPanEnd: (_) => _reset(), // ensures bounce back after drag + lift
       behavior: HitTestBehavior.translucent,
       child: AnimatedScale(
         scale: _scale,

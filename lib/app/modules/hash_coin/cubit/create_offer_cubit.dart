@@ -1,11 +1,13 @@
 import 'package:equatable/equatable.dart';
+import 'package:hash/core/utils/safe_emit.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 
 part 'create_offer_state.dart';
 
-class CreateOfferCubit extends Cubit<CreateOfferState> {
+class CreateOfferCubit extends Cubit<CreateOfferState>
+    with SafeEmit<CreateOfferState> {
   CreateOfferCubit() : super(CreateOfferInitial());
 
   final remoteRepo = locator<RemoteRepoInterface>();
@@ -25,4 +27,7 @@ class CreateOfferCubit extends Cubit<CreateOfferState> {
       emit(CreateOfferFailure(message: e.toString()));
     }
   }
+
+  /// Reports a failure detected before the request was sent.
+  void fail(String message) => emit(CreateOfferFailure(message: message));
 }

@@ -120,15 +120,15 @@ class TeamSection extends StatelessWidget {
   Color _getRandomColor() {
     final random = Random();
     final colors = [
-      Colors.red[800],
-      Colors.blue[800],
-      Colors.green[800],
-      Colors.purple[800],
-      Colors.orange[800],
-      Colors.cyan[800],
-      Colors.amber[800],
+      Colors.red.shade800,
+      Colors.blue.shade800,
+      const Color(0xff00DC00),
+      Colors.purple.shade800,
+      Colors.orange.shade800,
+      Colors.cyan.shade800,
+      Colors.amber.shade800,
     ];
-    return colors[random.nextInt(colors.length)]!;
+    return colors[random.nextInt(colors.length)];
   }
 }
 

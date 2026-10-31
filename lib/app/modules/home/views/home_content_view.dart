@@ -1,7 +1,11 @@
-import 'dart:ui';
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:hash/app/modules/live/widgets/live_now_strip.dart';
+import 'package:hash/features/mini_games/score/mini_game_score_service.dart';
+import 'package:hash/features/mini_games/score/mini_game_leaderboard_service.dart';
+import 'package:hash/features/mini_games/score/mini_game_leaderboard_page.dart';
+import 'package:hash/features/mini_games/score/leader_marquee.dart';
+import 'package:hash/app/modules/home/widgets/home_design.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:hash/config/feature_flags.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -12,26 +16,36 @@ import 'package:hash/app/modules/fcm/cubit/fcm_cubit.dart';
 import 'package:hash/app/modules/game/views/game_section_view.dart';
 import 'package:hash/app/modules/game_pass/view/game_pass_view.dart';
 import 'package:hash/app/modules/hash_coin/cubit/hash_coin_cubit.dart';
+import 'package:hash/app/modules/home/widgets/home_sign_off_card.dart';
+import 'package:hash/app/modules/home/widgets/home_game_pass_card.dart';
+import 'package:hash/app/modules/home/widgets/optimized_app_bar.dart';
+import 'package:hash/app/modules/home/controllers/home_controller.dart';
+import 'package:hash/app/modules/tournaments_section/cubit/tournament_home_cubit.dart';
+import 'package:hash/app/modules/tournaments_section/models/tournament_model.dart';
+import 'package:hash/app/modules/tournaments_section/pages/tournaments_details_view.dart';
 import 'package:hash/app/modules/login/controllers/login_controller.dart';
 import 'package:hash/app/modules/news/news_section_view.dart';
 import 'package:hash/app/modules/refferal/views/referral_view_with_controller.dart';
-import 'package:hash/app/modules/rewards/reward_section_view.dart';
+import 'package:hash/app/modules/rewards/widgets/squad_missions_card.dart';
+import 'package:hash/app/routes/app_routes.dart';
 import 'package:hash/app/modules/shorts/views/viral_shots_view.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
-import 'package:hash/utils/widgets/glow_neon_loader.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:shimmer/shimmer.dart';
+import 'package:hash/features/mini_games/mini_game_section.dart';
+import 'package:hash/features/mini_games/ludo/online/ludo_presence_widgets.dart';
 import 'package:hash/app/modules/wallet/controllers/wallet_controller.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/app/modules/home/widgets/refer_friend_modal.dart';
+import 'package:hash/app/data/models/user_model.dart';
+import 'package:hash/utils/encrypt_util.dart';
+import 'package:hash/utils/widgets/home_section_title.dart';
 
-import '../../../../features/mini_games/fruit_ninja/fruit_ninja_screen.dart';
-import '../../../../features/mini_games/mini_game_section.dart';
-import '../../../../utils/widgets/bounce_tap_widget.dart';
-import '../../arena/views/payment_success.dart';
-import '../../support/support_screen.dart';
+import 'package:hash/core/utils/app_logger.dart';
+import 'package:hash/app/modules/home/widgets/home_host_card.dart';
+import 'package:hash/app/modules/home/widgets/home_mumbai_surfer_banner.dart';
+import 'package:hash/features/rewards/daily_rewards_card.dart';
 
 class HomeContentView extends StatefulWidget {
   const HomeContentView({super.key});
@@ -46,7 +60,9 @@ class _HomeContentViewState extends State<HomeContentView>
   late final BookingController bookingController;
   late final LoginController loginController;
   late final UserController userController;
+  late final WalletController walletController;
   late final SegmentSdkService segmentService;
+  late final TournamentHomeCubit tournamentHomeCubit;
 
   // Animation controllers
   late final AnimationController _fadeController;
@@ -55,6 +71,11 @@ class _HomeContentViewState extends State<HomeContentView>
   // Scroll controller for optimization
   late final ScrollController _scrollController;
   static const double _sectionGap = 24.0;
+  static const double _maxContentWidth = 720.0;
+
+  // Hidden from the home feed for now; flip to bring them back.
+  static const bool _showGamePassCard = false;
+  static const bool _showUpcomingGames = false;
 
   final remoteRepo = locator<RemoteRepoInterface>();
 
@@ -66,19 +87,50 @@ class _HomeContentViewState extends State<HomeContentView>
     );
   }
 
+  List<Widget> _buildVisibleSections() {
+    final sections = <Widget>[
+      const HomeMumbaiSurferBanner(),
+      if (FeatureFlags.tournamentsEnabled) ...[
+        _buildLazyLoadedSection('hostBanner', _buildHostBanner()),
+        _buildLazyLoadedSection('playerLobby', _buildPlayerLobby()),
+      ],
+      const DailyRewardsCard(),
+      _buildLazyLoadedSection('cafe', _cachedCafeSection),
+      _buildLazyLoadedSection('miniGames', _cachedMiniGamesSection),
+      _buildLazyLoadedSection('shorts', _cachedShortsSection),
+      if (_showGamePassCard)
+        _buildLazyLoadedSection('gamePass', _buildGamePassContainer()),
+      if (_showUpcomingGames)
+        _buildLazyLoadedSection('games', _cachedGamesSection),
+      _buildLazyLoadedSection('news', _cachedNewsSection),
+      _buildLazyLoadedSection('referral', _buildReferFriendModal()),
+      _buildLazyLoadedSection('squadMissions', const SquadMissionsCard()),
+      _buildLazyLoadedSection('gameOnIndia', _buildGameOnIndiaBanner()),
+    ];
+
+    return sections.where((section) => section is! SizedBox).toList();
+  }
+
   // State variables
   bool isInitialized = false;
   bool _isRefreshing = false;
+  String? _refreshErrorMessage;
   bool showReferModal = false;
+  bool _fcmRegistered = false;
 
   // Cached widgets for better performance
-  Widget? _cachedAppBar;
   Widget? _cachedGamePassContainer;
   Widget? _cachedGameOnIndiaBanner;
+  final _arcadeBoard = MiniGameLeaderboardService();
+  late final Widget _cachedCafeSection;
+  late final Widget _cachedMiniGamesSection;
+  late final Widget _cachedShortsSection;
+  late final Widget _cachedNewsSection;
+  late final Widget _cachedGamesSection;
 
   // Visibility tracking for lazy loading
   final Map<String, bool> _sectionVisibility = {};
-final prefs = locator<SharedPreferences>();
+  final prefs = locator<SharedPreferences>();
 
   @override
   bool get wantKeepAlive => true;
@@ -87,19 +139,10 @@ final prefs = locator<SharedPreferences>();
   void initState() {
     super.initState();
     _initializeControllers();
+    _initializeSections();
     _initializeAnimations();
     _initializeScrollController();
     _initializeData();
-
-    // 🔹Check if Welcome Aboard popup was already shown
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      bool shown = prefs.getBool('welcome_shown') ?? false;
-
-      if (!shown) {
-        _showWelcomePopup(context); // your function
-        await prefs.setBool('welcome_shown', true);
-      }
-    });
   }
 
   @override
@@ -109,7 +152,7 @@ final prefs = locator<SharedPreferences>();
     _fadeController.dispose();
     _slideController.dispose();
     _scrollController.dispose();
-    _initAuthToken();
+    tournamentHomeCubit.close();
     super.dispose();
   }
 
@@ -117,7 +160,18 @@ final prefs = locator<SharedPreferences>();
     bookingController = Get.find<BookingController>();
     loginController = Get.find<LoginController>();
     userController = Get.find<UserController>();
+    walletController = Get.find<WalletController>();
     segmentService = locator<SegmentSdkService>();
+    tournamentHomeCubit = TournamentHomeCubit();
+  }
+
+  void _initializeSections() {
+    // Reuse long-lived section widgets to avoid rebuilding heavy trees.
+    _cachedCafeSection = CafeSection();
+    _cachedMiniGamesSection = const MiniGamesSection();
+    _cachedShortsSection = ViralShotsSection();
+    _cachedNewsSection = const GamerNewsSection();
+    _cachedGamesSection = const GamesSection();
   }
 
   void _initializeAnimations() {
@@ -131,22 +185,28 @@ final prefs = locator<SharedPreferences>();
     );
   }
 
-  void _initAuthToken() async {
-    final uid = await remoteRepo.getUIDFromPreferences();
-    if (uid.isNotEmpty) {
-      await remoteRepo.checkUserExistsInAPI(uid);
-    }
-  }
-
   void _initializeScrollController() {
     _scrollController = ScrollController()..addListener(_onScrollChanged);
   }
 
   void _initializeData() {
-    // Register FCM token immediately
-    BlocProvider.of<FcmCubit>(context).registerFCMToken();
+    _sectionVisibility.addAll({
+      'playerLobby': true,
+      'cafe': true,
+      'gamePass': true,
+      'hostBanner': true,
+      'miniGames': true,
+      // near the end of the feed: shown once the sections above it have been revealed
+      'squadMissions': false,
+      'referral': false,
+      'shorts': true,
+      'news': false,
+      'games': false,
+      'gameOnIndia': false,
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _refreshData();
+      if (!mounted) return;
+      _refreshData(forceRefresh: false);
       _trackHomeScreenViewed();
       _startAnimations();
     });
@@ -162,12 +222,24 @@ final prefs = locator<SharedPreferences>();
     final position = _scrollController.position;
     final maxScroll = position.maxScrollExtent;
     final currentScroll = position.pixels;
+    bool changed = false;
 
-    final wasSeen = _sectionVisibility['shorts'] ?? false;
-    if (currentScroll > maxScroll * 0.7 && !wasSeen) {
-      _sectionVisibility['shorts'] = true;
-      if (!mounted) return;
-      setState(() {}); // guarded
+    void reveal(String key) {
+      if (_sectionVisibility[key] == true) return;
+      _sectionVisibility[key] = true;
+      changed = true;
+    }
+
+    if (currentScroll > maxScroll * 0.15) reveal('miniGames');
+    if (currentScroll > maxScroll * 0.45) reveal('referral');
+    if (currentScroll > maxScroll * 0.60) reveal('shorts');
+    if (currentScroll > maxScroll * 0.72) reveal('news');
+    if (currentScroll > maxScroll * 0.82) reveal('games');
+    if (currentScroll > maxScroll * 0.82) reveal('squadMissions');
+    if (currentScroll > maxScroll * 0.90) reveal('gameOnIndia');
+
+    if (changed && mounted) {
+      setState(() {});
     }
   }
 
@@ -178,302 +250,125 @@ final prefs = locator<SharedPreferences>();
     }
   }
 
-  void _showWelcomePopup(BuildContext context) {
-    showDialog(
-      useSafeArea: false,
-      context: context,
-      barrierDismissible: false,
-      builder: (_) {
-        return Dialog(
-          insetPadding: EdgeInsets.zero,
-          backgroundColor: Colors.transparent,
-          child: Container(
-            width: double.infinity,
-            height: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: SweepGradient(
-                center: Alignment.center,
-                startAngle: 0.0,
-                endAngle: 6.28319, // 2 * pi
-                colors: [
-                  Color(0xFF1541A3), // 22%
-                  Color(0xFF070C29), // 28%
-                  Color(0xFF040309), // 66%
-                  Color(0xFF060A22), // 73%
-                  Color(0xFF8320C3), // 97%
-                  Color(0xFF1541A3), // repeat start to close loop
-                ],
-                stops: [
-                  0.22,
-                  0.28,
-                  0.66,
-                  0.73,
-                  0.97,
-                  1.0,
-                ],
-                transform: GradientRotation(-1), // -90° in radians (π/2)
-              ),
-            ),
-            child: Stack(
-              children: [
-                ///Added individual icons
-                // Example:
-                Positioned(
-                  top: 50,
-                  left: 20,
-                  child: Transform.rotate(
-                    angle: 0.4,
-                    child: Image.asset("assets/welcome_aboard_images/dollar.png", width: 62),
-                  ),
-                ),
-                Positioned(
-                  top: 5,
-                  right: -70,
-                  child: Transform(
-                    transform: Matrix4.identity()..scale(-1.0, 1.0),
-                    child: Image.asset("assets/welcome_aboard_images/dollar.png", width: 82, fit: BoxFit.fill,),
-                  ),
-                ),
-                Positioned(
-                  top: 280,
-                  right: -30,
-                  child: Transform.rotate(
-                    angle: 0.4,
-                    child: Image.asset("assets/welcome_aboard_images/dollar.png", width: 72, fit: BoxFit.fill,),
-                  ),
-                ),
-                Positioned(
-                  bottom: 120,
-                  right: -80,
-                  child: Transform(
-                    transform: Matrix4.identity()..scale(-1.0, 1.0),
-                    child: Image.asset("assets/welcome_aboard_images/dollar.png", width: 62, fit: BoxFit.fill,),
-                  ),
-                ),
-                Positioned(
-                  bottom: -20,
-                  right: 150,
-                  child: Transform.rotate(
-                    angle: 0.4,
-                    child: Image.asset("assets/welcome_aboard_images/dollar.png", width: 62, fit: BoxFit.fill,),
-                  ),
-                ),
-                Positioned(
-                  bottom: 30,
-                  left: 20,
-                  child: Image.asset("assets/welcome_aboard_images/dollar.png", width: 52, fit: BoxFit.fill,),
-                ),
-                Positioned(
-                  bottom: 170,
-                  left: -20,
-                  child: Transform.rotate(
-                    angle: 0.4,
-                    child: Image.asset("assets/welcome_aboard_images/dollar.png", width: 62, fit: BoxFit.fill,),
-                  ),
-                ),
-
-                Positioned(
-                  top: -20,
-                  left: 180,
-                  child: Transform(
-                    transform: Matrix4.identity()..scale(-1.0, 1.0)..rotateZ(-0.3),
-                    child: Image.asset("assets/welcome_aboard_images/lightning_bolt.png", height: 82, fit: BoxFit.cover,),
-                  ),
-                ),
-                Positioned(
-                  top: 110,
-                  right: -30,
-                  child: Transform.rotate(
-                    angle: 0.3,
-                    child: Image.asset("assets/welcome_aboard_images/lightning_bolt.png", height: 85, fit: BoxFit.cover,),
-                  ),
-                ),
-                Positioned(
-                  bottom: 250,
-                  right: -100,
-                  child: Transform(
-                    transform: Matrix4.identity()
-                      ..scale(-1.0, 1.0)
-                      ..rotateZ(0.4),
-                    child: Image.asset("assets/welcome_aboard_images/lightning_bolt.png", height: 82, fit: BoxFit.cover,),
-                  ),
-                ),
-                Positioned(
-                  bottom: 30,
-                  right: -75,
-                  child: Transform(
-                    transform: Matrix4.identity()
-                      ..scale(-1.0, 1.0)
-                      ..rotateZ(0.4),
-                    child: Image.asset("assets/welcome_aboard_images/lightning_bolt.png", height: 82, fit: BoxFit.cover,),
-                  ),
-                ),
-                Positioned(
-                  bottom: 115,
-                  left: 55,
-                  child: Image.asset("assets/welcome_aboard_images/lightning_bolt.png", height: 52, fit: BoxFit.cover,),
-                ),
-                Positioned(
-                  top: 220,
-                  left: 5,
-                  child: Image.asset("assets/welcome_aboard_images/lightning_bolt.png", height: 52, fit: BoxFit.cover,),
-                ),
-
-                // Main content
-                Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        "Welcome Aboard!",
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 25),
-
-                      // Gift box image
-                      Image.asset(
-                        "assets/welcome_aboard_images/gift_box.png",
-                        height: 160,
-                        fit: BoxFit.fill,
-                      ),
-
-                      const SizedBox(height: 25),
-
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 24),
-                        child: Column(
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  "You’ve unlocked ",
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                      fontSize: 16,
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold
-                                  ),
-                                ),
-                                Text(" ₹30 bonus crate! 🎁", style: TextStyle(fontSize: 16, color: Colors.green, fontWeight: FontWeight.bold),),
-                              ],
-                            ),
-                            Text("Use it to book your favourite café today!", style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold),),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 40),
-
-                      GestureDetector(
-                        onTap: ()async{
-                          Navigator.of(context).pop();
-                          await Get.find<WalletController>().claimDropCrate();                        },
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(30),
-                          child: Stack(
-                            children: [
-                              // Frosted background blur
-                              BackdropFilter(
-                                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                                child: Container(
-                                  width: 280,
-                                  height: 50,
-                                  alignment: Alignment.center,
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(30),
-                                    border: Border.all(
-                                      width: 1.5,
-                                      style: BorderStyle.solid,
-                                      color: Colors.white.withOpacity(0.3), // base glass stroke
-                                    ),
-                                  ),
-                                  child: ShaderMask(
-                                    shaderCallback: (Rect bounds) {
-                                      return LinearGradient(
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                        colors: [
-                                          Colors.white.withOpacity(0.8), // reflection
-                                          Colors.transparent,            // fades away
-                                          Colors.white.withOpacity(0.4),
-                                        ],
-                                        stops: const [0.0, 0.5, 1.0],
-                                      ).createShader(bounds);
-                                    },
-                                    blendMode: BlendMode.srcATop,
-                                    child: const Text(
-                                      "Claim in Drop Crate",
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.green,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Future<void> _refreshData() async {
+  Future<void> _refreshData({bool forceRefresh = true}) async {
     if (_isRefreshing) return;
 
     if (!mounted) return;
-    setState(() => _isRefreshing = true);
+    setState(() {
+      _isRefreshing = true;
+      _refreshErrorMessage = null;
+    });
+    final fcmCubit = BlocProvider.of<FcmCubit>(context);
+    final hashCoinCubit = BlocProvider.of<HashCoinCubit>(context);
 
     try {
-      // Optimized parallel API calls with proper error handling
-      await Future.wait([
-        _fetchUserDataIfNeeded(),
-        _refreshWalletIfReady(),
-        bookingController.fetchUserBookings(),
-        BlocProvider.of<HashCoinCubit>(context).getHashCoin(),
-      ], eagerError: false).timeout(
-        const Duration(seconds: 10),
-        onTimeout: () {
-          return [];
-        },
-      );
+      final hasUser = await _fetchUserDataIfNeeded(forceRefresh: forceRefresh);
+      if (hasUser) {
+        final tasks = <Future<void>>[
+          _refreshWalletIfReady(forceRefresh: forceRefresh),
+          bookingController.fetchUserBookings(forceRefresh: forceRefresh),
+          if (FeatureFlags.tournamentsEnabled)
+            tournamentHomeCubit.fetchTournaments(forceRefresh: forceRefresh),
+          hashCoinCubit.getHashCoin(forceRefresh: forceRefresh),
+        ];
+        if (!_fcmRegistered) {
+          tasks.add(
+            fcmCubit.registerFCMToken(forceRefresh: forceRefresh).then((
+              registered,
+            ) {
+              _fcmRegistered = registered;
+            }),
+          );
+        }
+        await Future.wait(tasks);
+      }
       if (!mounted) return;
 
-      setState(() => isInitialized = true);
+      if (!isInitialized) {
+        setState(() => isInitialized = true);
+      }
     } catch (e) {
-      debugPrint('Error refreshing data: $e');
+      AppLogger.e('Error refreshing data: $e');
+      if (mounted) {
+        setState(() {
+          _refreshErrorMessage =
+              'We couldn\'t refresh your home feed. Check your connection and try again.';
+        });
+      }
     } finally {
-      if (!mounted) return;
-      setState(() => _isRefreshing = false);
+      if (mounted) {
+        setState(() => _isRefreshing = false);
+      }
     }
   }
 
-  Future<void> _fetchUserDataIfNeeded() async {
+  Future<bool> _fetchUserDataIfNeeded({required bool forceRefresh}) async {
     final currentUser = firebase_auth.FirebaseAuth.instance.currentUser;
-    if (currentUser != null) {
-      await userController.fetchUserData(currentUser.uid);
-      await _refreshWalletIfReady();
+    if (currentUser == null) {
+      _redirectToLogin();
+      return false;
     }
+
+    if (!forceRefresh) {
+      final cachedUser = await remoteRepo.getUserFromPreferences();
+      final jwt = await remoteRepo.getJwtFromPreferences();
+      final backendId = (cachedUser?['id'] ?? cachedUser?['user_id'] ?? '')
+          .toString()
+          .trim();
+      final hasUsableCachedSession =
+          cachedUser != null &&
+          backendId.isNotEmpty &&
+          jwt != null &&
+          !isJwtExpired(jwt);
+
+      if (hasUsableCachedSession) {
+        userController.setUserData(User.fromJson(cachedUser));
+        userController.id.value = backendId;
+        return true;
+      }
+    }
+
+    // Refresh backend session + JWT before any authed calls.
+    final apiUser = await remoteRepo.checkUserExistsInAPI(currentUser.uid);
+
+    if (apiUser != null && mounted) {
+      // push into controller without a second network call
+      userController.setUserData(User.fromJson(apiUser));
+      final backendId = (apiUser['id'] ?? apiUser['user_id'] ?? '').toString();
+      if (backendId.trim().isEmpty) {
+        _redirectToLogin();
+        return false;
+      }
+      userController.id.value = backendId;
+    } else {
+      // fall back to existing fetch (no-auth) for safety
+      final fetchedUser = await userController.fetchUserData(currentUser.uid);
+      final backendId =
+          (fetchedUser?['id'] ??
+                  fetchedUser?['user_id'] ??
+                  userController.userId)
+              .toString()
+              .trim();
+      if (backendId.isEmpty) {
+        _redirectToLogin();
+        return false;
+      }
+      userController.id.value = backendId;
+    }
+    return true;
   }
 
-  Future<void> _refreshWalletIfReady() async {
-    final walletController = Get.find<WalletController>();
+  void _redirectToLogin() {
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Get.offAllNamed(AppRoutes.LOGIN);
+    });
+  }
+
+  Future<void> _refreshWalletIfReady({required bool forceRefresh}) async {
     if (walletController.isWalletReady) {
-      await walletController.refreshWallet();
+      await walletController.fetchWallet(forceRefresh: forceRefresh);
     }
   }
 
@@ -481,30 +376,21 @@ final prefs = locator<SharedPreferences>();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'REFER TO A FRIEND',
-          style: GoogleFonts.inter(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
+        const HomeSectionTitle(
+          title: 'Refer to a ',
+          accent: 'Friend',
+          brand: true,
         ),
         const SizedBox(height: 12),
-        ReferFriendModal(
-          isDialog: false,
-          onReferNow: () {
-            segmentService.onReferralViewed(
-              email:
-                  userController
-                      .user
-                      .value
-                      .contact
-                      ?.electronicAddress
-                      ?.emailId ??
-                  '',
-            );
-            Get.to(
-              () => ReferralViewWithController(
+        Obx(() {
+          final user = userController.user.value;
+          return ReferFriendModal(
+            isDialog: false,
+            referralCode: user.referralCode,
+            referralCount: user.referralCount,
+            referralRewards: user.referralRewards,
+            onReferNow: () {
+              segmentService.onReferralViewed(
                 email:
                     userController
                         .user
@@ -513,10 +399,22 @@ final prefs = locator<SharedPreferences>();
                         ?.electronicAddress
                         ?.emailId ??
                     '',
-              ),
-            );
-          },
-        ),
+              );
+              Get.to(
+                () => ReferralViewWithController(
+                  email:
+                      userController
+                          .user
+                          .value
+                          .contact
+                          ?.electronicAddress
+                          ?.emailId ??
+                      '',
+                ),
+              );
+            },
+          );
+        }),
       ],
     );
   }
@@ -526,65 +424,154 @@ final prefs = locator<SharedPreferences>();
     super.build(context);
 
     return Scaffold(
+      backgroundColor: Colors.black,
       body: RefreshIndicator(
-        onRefresh: _refreshData,
+        onRefresh: () => _refreshData(forceRefresh: true),
         backgroundColor: Colors.black,
+        color: const Color(0xFF00DC00),
         child: CustomScrollView(
           controller: _scrollController,
           physics: const BouncingScrollPhysics(),
           slivers: [
-            _buildOptimizedAppBar(),
+            const OptimizedAppBar(),
             SliverToBoxAdapter(
-              child: FadeTransition(
-                opacity: _fadeController,
-                child: SlideTransition(
-                  position: Tween<Offset>(
-                    begin: const Offset(0, 0.1),
-                    end: Offset.zero,
-                  ).animate(_slideController),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: _sectionGap), // top padding
-                        ..._intersperse([
-
-                          // 🔷 1. Game Pass – Monetization + Core use
-                          _buildLazyLoadedSection('gamePass', _buildGamePassContainer()),
-
-                          // 🔷 2. Café Section – Main booking action
-                          _buildLazyLoadedSection('cafe', CafeSection()),
-
-                          // 🔷 3. Contact Support – High trust & user concern item
-                          ContactSupport(),
-
-                          // 🔷 4. Mini Games – Retention boost (engaging short content)
-                          // _buildLazyLoadedSection('miniGames', const MiniGamesSection()),
-
-                          // 🔷 5. Refer & Earn – Growth lever
-                          _buildLazyLoadedSection('referral', _buildReferFriendModal()),
-
-                          // 🔷 6. Viral Shorts – Fun scroll content, lower intent
-                          _buildLazyLoadedSection('shorts', ViralShotsSection()),
-
-                          // 🔷 7. Gamer News – Passive consumption
-                          _buildLazyLoadedSection('news', const GamerNewsSection()),
-
-                          // 🔷 8. Games List – Browse-only for now (assuming no play feature)
-                          _buildLazyLoadedSection('games', const GamesSection()),
-
-                          // 🔷 9. GameOn India Banner – Occasional promo
-                          _buildLazyLoadedSection('gameOnIndia', _buildGameOnIndiaBanner()),
-
-                        ], const SizedBox(height: _sectionGap)),
-                        const SizedBox(height: _sectionGap), // bottom padding
-                      ],
-
-
+              child: Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: LeaderMarquee(
+                  service: _arcadeBoard,
+                  onOpen: () => Get.to(
+                    () => MiniGameLeaderboardPage(
+                      scoreService: MiniGameScoreService(),
+                      leaderboardService: _arcadeBoard,
                     ),
                   ),
                 ),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final horizontalPadding = constraints.maxWidth >= 600
+                      ? 24.0
+                      : 16.0;
+                  return Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(
+                        maxWidth: _maxContentWidth,
+                      ),
+                      child: FadeTransition(
+                        opacity: _fadeController,
+                        child: SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(0, 0.035),
+                            end: Offset.zero,
+                          ).animate(_slideController),
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: horizontalPadding,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(height: 18),
+                                if (_refreshErrorMessage != null) ...[
+                                  _buildRefreshErrorState(),
+                                  const SizedBox(height: 18),
+                                ] else if (!isInitialized && _isRefreshing) ...[
+                                  _buildInitialLoadingState(),
+                                  const SizedBox(height: 18),
+                                ],
+                                // Only takes space while someone is waiting.
+                                const LudoLookingBanner(bottomGap: _sectionGap),
+                                // Only takes space while someone is streaming.
+                                const LiveNowStrip(bottomGap: _sectionGap),
+                                ..._intersperse(
+                                  _buildVisibleSections(),
+                                  const SizedBox(height: _sectionGap),
+                                ),
+                                const SizedBox(height: 104),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRefreshErrorState() {
+    return Semantics(
+      liveRegion: true,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xFF2A1717),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0x66FF6B6B)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.wifi_off_rounded, color: Color(0xFFFF8C8C)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                _refreshErrorMessage!,
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontSize: 12.5,
+                  height: 1.35,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            TextButton(
+              onPressed: _isRefreshing
+                  ? null
+                  : () => _refreshData(forceRefresh: true),
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInitialLoadingState() {
+    return Semantics(
+      label: 'Loading your home feed',
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.055),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        ),
+        child: Row(
+          children: [
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Color(0xFF00DC00),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Getting your next game ready…',
+              style: GoogleFonts.inter(
+                color: Colors.white70,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
@@ -595,7 +582,7 @@ final prefs = locator<SharedPreferences>();
 
   Widget _buildLazyLoadedSection(String sectionKey, Widget child) {
     // Initialize visibility map if not exists
-    _sectionVisibility[sectionKey] ??= true;
+    _sectionVisibility[sectionKey] ??= false;
 
     if (!_sectionVisibility[sectionKey]!) {
       return const SizedBox.shrink();
@@ -604,115 +591,169 @@ final prefs = locator<SharedPreferences>();
     return RepaintBoundary(child: child);
   }
 
-  Widget _buildOptimizedAppBar() {
-    if (_cachedAppBar != null) return _cachedAppBar!;
+  Widget _buildPlayerLobby() {
+    return BlocBuilder<TournamentHomeCubit, TournamentHomeState>(
+      bloc: tournamentHomeCubit,
+      builder: (context, state) {
+        if (state is TournamentHomeLoaded) {
+          final upcoming = state.joinableTournaments
+              .where(
+                (tournament) => tournament.status == TournamentStatus.upcoming,
+              )
+              .toList(growable: false);
+          if (upcoming.isNotEmpty) {
+            return _buildUpcomingTournaments(upcoming);
+          }
+        }
+        // No upcoming tournaments: show nothing (the lobby card was removed).
+        return const SizedBox.shrink();
+      },
+    );
+  }
 
-    _cachedAppBar = SliverAppBar(
-      backgroundColor: Colors.transparent,
-      systemOverlayStyle: const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-      ),
-      elevation: 0,
-      pinned: false,
-      expandedHeight: 60,
-      flexibleSpace: ClipRRect(
-        borderRadius: BorderRadius.circular(30),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  const Color(0xFFFFFFFF).withOpacity(0.1),
-                  const Color(0xFF64BD55).withOpacity(0.2),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(25),
-            ),
-          ),
-        ),
-      ),
-      leadingWidth: 55,
-      centerTitle: false,
-      leading: Obx(
-        () => Padding(
-          padding: const EdgeInsets.only(left: 10,top: 5),
-          child: userController.isLoading.value
-              ? _buildShimmerAvatar()
-              : _buildOptimizedUserAvatar(userController.user.value.photoUrl),
-        ),
-      ),
-      title: Obx(
-        () => Padding(
-          padding: const EdgeInsets.only(top: 15.0),
-          child: Column(
-
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
+  Widget _buildUpcomingTournaments(List<TournamentModel> tournaments) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Row(
             children: [
-              Text(
-                'Hey, ${userController.user.value.gameUserName}!',
-                style: GoogleFonts.inter(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
+              const HomeSectionTitle(
+                title: 'Upcoming ',
+                accent: 'Tournaments',
+                brand: true,
               ),
-              const SizedBox(height: 2),
-              Text(
-                '${userController.user.value.contact?.physicalAddress?.addressLine1}',
-                style: GoogleFonts.inter(
-                  color: const Color(0xFFB6B6B6),
-                  fontSize: 11.5,
-                ),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
+              const Spacer(),
+              TextButton(
+                onPressed: () => Get.find<HomeController>().onItemTapped(2),
+                child: const Text('View all'),
               ),
             ],
           ),
         ),
-      ),
-      actions: [
-        Padding(
-          padding: const EdgeInsets.only(right: 10),
-          child: BlocBuilder<HashCoinCubit, HashCoinState>(
-            builder: (_, state) => RewardsSection(
-              hashCoin: (state is HashCoinLoaded) ? state.hashCoin : 0,
-            ),
+        const SizedBox(height: 6),
+        SizedBox(
+          height: 210,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            itemCount: tournaments.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 9),
+            itemBuilder: (_, index) =>
+                _buildUpcomingTournamentCard(tournaments[index]),
           ),
         ),
       ],
     );
-
-    return _cachedAppBar!;
   }
 
-  Widget _buildOptimizedUserAvatar(String? photoUrl) {
-    const double size = 40;
-
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: const Color(0xFF6DFB60), width: 2),
-      ),
-      child: CircleAvatar(
-        radius: size / 2,
-        backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
-            ? CachedNetworkImageProvider(
-                photoUrl,
-                errorListener: (error) => print('Avatar image error: $error'),
+  Widget _buildUpcomingTournamentCard(TournamentModel tournament) {
+    final imagePath = tournament.imageUrl.trim();
+    final image = imagePath.startsWith('http')
+        ? NetworkImage(imagePath)
+        : AssetImage(
+                imagePath.isEmpty
+                    ? 'assets/hash_store_images/tournament_img1.png'
+                    : imagePath,
               )
-            : const NetworkImage(
-                    'https://wallpapers.com/images/hd/placeholder-profile-icon-20tehfawxt5eihco.jpg',
-                  )
-                  as ImageProvider,
-        backgroundColor: Colors.white,
+              as ImageProvider;
+    final date = tournament.startDate;
+    final dateLabel = date == null
+        ? 'DATE TBA'
+        : '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+
+    return GestureDetector(
+      onTap: () {
+        if (tournament.source == 'community') {
+          Get.toNamed(
+            AppRoutes.TOURNAMENT_DETAIL,
+            arguments: {
+              'id': tournament.id,
+              'can_manage': tournament.canManage,
+            },
+          );
+        } else {
+          Get.to(() => TournamentsDetailsView(tournament: tournament));
+        }
+      },
+      child: SizedBox(
+        width: 124,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: SizedBox(
+                width: 124,
+                height: 160,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Image(image: image, fit: BoxFit.cover),
+                    const DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.transparent,
+                            Color(0x55FF3E8E),
+                            Color(0xE6140A10),
+                          ],
+                          stops: [0.35, 0.72, 1],
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      left: 8,
+                      right: 8,
+                      bottom: 8,
+                      child: Row(
+                        children: [
+                          Text(
+                            tournament.statusLabel.toUpperCase(),
+                            style: GoogleFonts.inter(
+                              color: HomeTokens.orange,
+                              fontSize: 8,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: .7,
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            tournament.entryFee,
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 7),
+            Text(
+              tournament.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 12.5,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              dateLabel,
+              style: GoogleFonts.inter(color: Colors.white54, fontSize: 10.5),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -720,95 +761,8 @@ final prefs = locator<SharedPreferences>();
   Widget _buildGamePassContainer() {
     if (_cachedGamePassContainer != null) return _cachedGamePassContainer!;
 
-    _cachedGamePassContainer = BounceTap(
-      // onTap: () => Get.to(() => PaymentSuccessScreen(
-      //   dateText: "2/8/25",
-      //   timeText: "11:45 pm",
-      //   totalText: "₹500",
-      //   email: "test00@gmail.com",
-      //   onViewInvoice: () {
-      //     // Navigate to invoice screen or open a link
-      //   },
-      // ),),
-      // onTap: () => Get.to(() => FruitCuttingScreen()),
+    _cachedGamePassContainer = HomeGamePassCard(
       onTap: () => Get.to(() => GamePassViewPage()),
-      child: Container(
-        height: 200,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          border: Border.all(color: const Color(0xFF6DFB60), width: 1),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Stack(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: CachedNetworkImage(
-                imageUrl:
-                    'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075177/gamepassbg_jkkq7b.png',
-                height: 200,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                // cacheWidth: 400, // Optimize memory usage
-                placeholder: (_, _) =>
-                    const Center(child: RainbowGlowingLoader(size: 40)),
-                errorWidget: (_, _, _) => Container(
-                  color: Colors.grey,
-                  alignment: Alignment.center,
-                  child: const Icon(
-                    Icons.image_not_supported,
-                    color: Colors.white54,
-                    size: 40,
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              left: 20,
-              top: 40,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Pay with Hash Pass',
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Get the digital membership card now.\nUse at any participating gaming cafe.',
-                    style: GoogleFonts.inter(color: Colors.white, fontSize: 10),
-                  ),
-                  const SizedBox(height: 32),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 6,
-                      horizontal: 14,
-                    ),
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: const Color(0xFF75F94C),
-                        width: 1.5,
-                      ),
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                    child: Text(
-                      'Know More',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
 
     return _cachedGamePassContainer!;
@@ -834,7 +788,7 @@ final prefs = locator<SharedPreferences>();
   //               end: Alignment.bottomCenter,
   //               colors: [
   //                 const Color(0xFFFFFFFF).withOpacity(0.1),
-  //                 const Color(0xFF64BD55).withOpacity(0.2),
+  //                 const Color(0xff00DC00).withOpacity(0.2),
   //               ],
   //             ),
   //             borderRadius: BorderRadius.circular(25),
@@ -905,7 +859,7 @@ final prefs = locator<SharedPreferences>();
   //     height: size,
   //     decoration: BoxDecoration(
   //       shape: BoxShape.circle,
-  //       border: Border.all(color: const Color(0xFF6DFB60), width: 2),
+  //       border: Border.all(color: const Color(0xff00DC00), width: 2),
   //     ),
   //     child: CircleAvatar(
   //       radius: size / 2,
@@ -930,7 +884,7 @@ final prefs = locator<SharedPreferences>();
   //       width: double.infinity,
   //       decoration: BoxDecoration(
   //         color: Colors.transparent,
-  //         border: Border.all(color: const Color(0xFF00DC00), width: 1.5),
+  //         border: Border.all(color: const Color(0xff00DC00), width: 1.5),
   //         borderRadius: BorderRadius.circular(50),
   //       ),
   //       child: Center(
@@ -938,7 +892,7 @@ final prefs = locator<SharedPreferences>();
   //           'Game On, India!',
   //           style: GoogleFonts.inter(
   //             fontSize: 16,
-  //             color: const Color(0xFF75F94C),
+  //             color: const Color(0xff00DC00),
   //           ),
   //         ),
   //       ),
@@ -947,37 +901,28 @@ final prefs = locator<SharedPreferences>();
   //   return _cachedGameOnIndiaBanner!;
   // }
   Widget _buildGameOnIndiaBanner() {
-    return Padding(
-      padding: const EdgeInsets.only(top: 5.0),
-      child: Center(
-        child: ShaderMask(
-          shaderCallback: (bounds) => const LinearGradient(
-            colors: [
-              Color(0xFFFF9933), // Saffron
-              Colors.white, // White
-              Color(0xFF138808), // Green
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ).createShader(bounds),
-          child: Text(
-            'Game On, India!',
-            style: GoogleFonts.tulpenOne(
-              fontSize: 100,
-              fontWeight: FontWeight.normal,
-              color: Colors.white, // Text color required for ShaderMask
-            ),
-          ),
-        ),
-      ),
-    );
+    if (_cachedGameOnIndiaBanner != null) return _cachedGameOnIndiaBanner!;
+
+    _cachedGameOnIndiaBanner = const HomeSignOffCard();
+
+    return _cachedGameOnIndiaBanner!;
   }
 
-  Widget _buildShimmerAvatar() {
-    return Shimmer.fromColors(
-      baseColor: Colors.grey.shade800,
-      highlightColor: Colors.grey.shade600,
-      child: const CircleAvatar(radius: 13, backgroundColor: Colors.grey),
+  Widget _buildHostBanner() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        HomeSectionTitle(
+          title: 'Earn with ',
+          accent: 'HASH',
+          brand: true,
+          actionLabel: 'Host program',
+          onAction: () => Get.toNamed(AppRoutes.HOST_ONBOARDING),
+          accentColor: HomeTokens.coral,
+        ),
+        const SizedBox(height: 12),
+        HomeHostCard(onTap: () => Get.toNamed(AppRoutes.HOST_ONBOARDING)),
+      ],
     );
   }
 }

@@ -1,0 +1,2290 @@
+import 'dart:async';
+import 'package:hash/core/utils/app_snackbar.dart';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:hash/config/feature_flags.dart';
+import 'package:hash/utils/widgets/loader.dart';
+import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/app/modules/chat/models/chat_message_model.dart';
+import 'package:hash/app/modules/chat/models/chat_room_model.dart';
+import 'package:hash/features/mini_games/ludo/online/ludo_match_screen.dart';
+import 'package:hash/app/modules/chat/models/chat_user_model.dart';
+import 'package:hash/app/modules/chat/services/chat_service.dart';
+import 'package:hash/app/modules/chat/theme/chat_palette.dart';
+import 'package:hash/app/modules/chat/views/chat_group_details_view.dart';
+import 'package:hash/app/modules/chat/widgets/chat_forward_sheet.dart';
+import 'package:hash/app/modules/chat/widgets/chat_user_profile_sheet.dart';
+import 'package:hash/app/modules/chat/widgets/chat_wallpaper.dart';
+import 'package:hash/app/modules/chat/widgets/ludo_invite_card.dart';
+import 'package:hash/app/modules/chat/widgets/score_challenge_card.dart';
+import 'package:hash/features/mini_games/mini_game_launcher.dart';
+import 'package:hash/features/mini_games/snakes_ladders/snl_match_screen.dart';
+import 'package:hash/features/mini_games/snakes_ladders/snl_match_service.dart';
+import 'package:hash/features/mini_games/flappy_birds/Layouts/Pages/page_start_screen.dart';
+import 'package:hash/features/mini_games/flappy_birds/online/bird_match.dart';
+import 'package:hash/features/mini_games/arrow_escape/arrow_escape_screen.dart';
+import 'package:hash/features/mini_games/arrow_escape/online/arrow_match.dart';
+import 'package:hash/features/mini_games/arrow_escape/online/arrow_match_service.dart';
+import 'package:hash/features/mini_games/wordly/online/wordly_match.dart';
+import 'package:hash/features/mini_games/wordly/online/wordly_match_service.dart';
+import 'package:hash/features/mini_games/wordly/wordly_screen.dart';
+import 'package:hash/features/mini_games/ludo/constants.dart';
+import 'package:hash/features/mini_games/ludo/online/ludo_match.dart';
+import 'package:hash/features/mini_games/flappy_birds/online/bird_match_service.dart';
+import 'package:hash/app/modules/community/services/community_api.dart';
+import 'package:hash/app/modules/tournaments_section/models/tournament_model.dart';
+import 'package:hash/app/modules/tournaments_section/pages/tournaments_details_view.dart';
+import 'package:hash/app/routes/app_routes.dart';
+import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
+import 'package:hash/core/service/fb_events_service.dart';
+import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service/squad_missions_service.dart';
+import 'package:hash/core/service_locator.dart';
+import 'package:hash/core/utils/haptics.dart';
+import 'package:hash/features/mini_games/arcade_analytics.dart';
+
+class ChatParticipantAccount {
+  const ChatParticipantAccount({
+    required this.firebaseUid,
+    required this.name,
+    required this.username,
+  });
+
+  final String firebaseUid;
+  final String name;
+  final String username;
+}
+
+class ChatRoomView extends StatefulWidget {
+  final String roomId;
+  final String? roomCollection;
+  final List<ChatParticipantAccount> participantAccounts;
+  final ChatService? chatService;
+
+  const ChatRoomView({
+    super.key,
+    required this.roomId,
+    this.roomCollection,
+    this.participantAccounts = const [],
+    this.chatService,
+  });
+
+  @override
+  State<ChatRoomView> createState() => _ChatRoomViewState();
+}
+
+class _ChatRoomViewState extends State<ChatRoomView> {
+  late final ChatService _chatService;
+  final RemoteRepoInterface _remoteRepo = locator<RemoteRepoInterface>();
+  final SegmentSdkService _segmentService = locator<SegmentSdkService>();
+  final FbEventsService _fbEventsService = locator<FbEventsService>();
+  final SquadMissionsService _squadMissionsService =
+      locator<SquadMissionsService>();
+  final TextEditingController _messageController = TextEditingController();
+  final FocusNode _messageFocus = FocusNode();
+  bool _isSending = false;
+  bool _isTyping = false;
+  bool _isValidatingRoom = true;
+  String? _roomAccessError;
+  final Set<String> _joiningInviteMessageIds = <String>{};
+  final Map<String, String> _inviteActionStateByMessageId = <String, String>{};
+
+  /// The message being replied to, shown above the composer until sent.
+  ChatMessageModel? _replyTo;
+
+  /// Keys of the text bubbles currently built, for jumping to a quoted one.
+  final Map<String, GlobalKey> _bubbleKeys = <String, GlobalKey>{};
+  String? _highlightedMessageId;
+
+  @override
+  void initState() {
+    super.initState();
+    _chatService = widget.chatService ?? Get.find<ChatService>();
+    unawaited(_validateRoomAccess());
+  }
+
+  Future<void> _validateRoomAccess() async {
+    try {
+      await _chatService.requireAccessibleRoom(
+        widget.roomId,
+        collection: widget.roomCollection,
+      );
+      if (!mounted) return;
+      setState(() => _isValidatingRoom = false);
+      _trackRoomOpened();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _isValidatingRoom = false;
+        _roomAccessError = error is TimeoutException
+            ? 'Chat verification timed out. Check your connection and try again.'
+            : error.toString().replaceFirst('Exception: ', '');
+      });
+    }
+  }
+
+  void _trackRoomOpened() {
+    unawaited(
+      _segmentService.onCustomEvent('Chat Room Viewed', {
+        'room_id': widget.roomId,
+      }),
+    );
+    unawaited(
+      _fbEventsService.logEvent('Chat Room Viewed', {'room_id': widget.roomId}),
+    );
+    unawaited(
+      _segmentService.onCustomEvent('Chat Started', {
+        'chat_type': 'room_open',
+        'room_id': widget.roomId,
+      }),
+    );
+    unawaited(
+      _fbEventsService.onChatStarted(
+        chatType: 'room_open',
+        roomId: widget.roomId,
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    unawaited(
+      _chatService.setTyping(
+        roomId: widget.roomId,
+        isTyping: false,
+        collection: widget.roomCollection,
+      ),
+    );
+    _messageController.dispose();
+    _messageFocus.dispose();
+    super.dispose();
+  }
+
+  String _formatTime(DateTime dateTime) {
+    final hours = dateTime.hour;
+    final h12 = hours == 0
+        ? 12
+        : hours > 12
+        ? hours - 12
+        : hours;
+    final suffix = hours >= 12 ? 'PM' : 'AM';
+    final minute = dateTime.minute.toString().padLeft(2, '0');
+    return '$h12:$minute $suffix';
+  }
+
+  String _formatBookingDateLabel(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return '';
+    final parsed = DateTime.tryParse(trimmed);
+    if (parsed == null) return trimmed;
+    const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    final weekday = weekdays[parsed.weekday - 1];
+    final month = months[parsed.month - 1];
+    return '$weekday, ${parsed.day} $month';
+  }
+
+  String _formatClockLabel(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return '';
+    final parts = trimmed.split(':');
+    if (parts.length < 2) return trimmed;
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+    if (hour == null || minute == null) return trimmed;
+    final normalizedHour = hour % 24;
+    final h12 = normalizedHour == 0
+        ? 12
+        : normalizedHour > 12
+        ? normalizedHour - 12
+        : normalizedHour;
+    final suffix = normalizedHour >= 12 ? 'PM' : 'AM';
+    if (minute == 0) return '$h12 $suffix';
+    return '$h12:${minute.toString().padLeft(2, '0')} $suffix';
+  }
+
+  String _formatSlotLabel(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return '';
+    final parts = trimmed.split(' - ');
+    if (parts.length != 2) return trimmed;
+    final start = _formatClockLabel(parts[0]);
+    final end = _formatClockLabel(parts[1]);
+    if (start.isEmpty || end.isEmpty) return trimmed;
+    return '$start to $end';
+  }
+
+  Future<void> _sendMessage() async {
+    if (_isSending || _isValidatingRoom || _roomAccessError != null) return;
+    final text = _messageController.text.trim();
+    if (text.isEmpty) return;
+
+    setState(() => _isSending = true);
+    try {
+      await _chatService.sendTextMessage(
+        roomId: widget.roomId,
+        text: text,
+        collection: widget.roomCollection,
+        replyTo: _replyTo,
+      );
+      _messageController.clear();
+      if (mounted) setState(() => _replyTo = null);
+      await _chatService.setTyping(
+        roomId: widget.roomId,
+        isTyping: false,
+        collection: widget.roomCollection,
+      );
+      _isTyping = false;
+      unawaited(
+        _segmentService.onCustomEvent('Chat Message Sent', {
+          'room_id': widget.roomId,
+          'message_length': text.length,
+          'message_type': 'text',
+        }),
+      );
+      unawaited(
+        _fbEventsService.logEvent('Chat Message Sent', {
+          'room_id': widget.roomId,
+          'message_length': text.length,
+          'message_type': 'text',
+        }),
+      );
+      unawaited(
+        _fbEventsService.onChatMessageSent(
+          roomId: widget.roomId,
+          messageType: 'text',
+        ),
+      );
+      Haptics.light();
+    } catch (e) {
+      if (!mounted) return;
+      AppSnackbar.show(
+        'Chat',
+        e.toString().replaceFirst('Exception: ', ''),
+        snackPosition: SnackPosition.BOTTOM,
+        colorText: Colors.white,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSending = false);
+      }
+    }
+  }
+
+  void _startReply(ChatMessageModel message) {
+    Haptics.light();
+    setState(() => _replyTo = message);
+    _messageFocus.requestFocus();
+  }
+
+  /// Scrolls to the quoted message and flashes it. Only messages still laid
+  /// out by the list can be reached; older ones stay where they are.
+  void _jumpToMessage(String messageId) {
+    final target = _bubbleKeys[messageId]?.currentContext;
+    if (target == null) {
+      AppSnackbar.show(
+        'Chat',
+        'Scroll up to find the original message.',
+        snackPosition: SnackPosition.BOTTOM,
+        colorText: Colors.white,
+      );
+      return;
+    }
+    Scrollable.ensureVisible(
+      target,
+      alignment: 0.5,
+      duration: const Duration(milliseconds: 250),
+    );
+    setState(() => _highlightedMessageId = messageId);
+    Future<void>.delayed(const Duration(milliseconds: 1200), () {
+      if (mounted && _highlightedMessageId == messageId) {
+        setState(() => _highlightedMessageId = null);
+      }
+    });
+  }
+
+  void _openProfile(String uid, String name, {bool canMessage = true}) {
+    if (uid.trim().isEmpty || uid == _chatService.currentUid) return;
+    Haptics.tap();
+    showChatUserProfileSheet(
+      context,
+      chatService: _chatService,
+      uid: uid,
+      fallbackName: name,
+      canMessage: canMessage,
+    );
+  }
+
+  Future<void> _forwardMessage(ChatMessageModel message) async {
+    final rooms = await showChatForwardSheet(
+      context,
+      chatService: _chatService,
+    );
+    if (rooms == null || rooms.isEmpty || !mounted) return;
+    var failed = 0;
+    for (final room in rooms) {
+      try {
+        await _chatService.sendTextMessage(
+          roomId: room.id,
+          text: message.text,
+          forwarded: true,
+        );
+      } catch (_) {
+        failed++;
+      }
+    }
+    if (!mounted) return;
+    final sent = rooms.length - failed;
+    AppSnackbar.show(
+      'Chat',
+      failed == 0
+          ? 'Forwarded to $sent chat${sent == 1 ? '' : 's'}.'
+          : 'Forwarded to $sent of ${rooms.length} chats.',
+      snackPosition: SnackPosition.BOTTOM,
+      colorText: Colors.white,
+    );
+  }
+
+  void _showMessageActions(ChatMessageModel message) {
+    Haptics.light();
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: ChatPalette.roomBar,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (sheetContext) {
+        Widget action(IconData icon, String label, VoidCallback onTap) =>
+            ListTile(
+              leading: Icon(icon, color: ChatPalette.roomText),
+              title: Text(
+                label,
+                style: GoogleFonts.inter(color: ChatPalette.roomText),
+              ),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                onTap();
+              },
+            );
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              action(Icons.reply_rounded, 'Reply', () => _startReply(message)),
+              action(
+                Icons.shortcut_rounded,
+                'Forward',
+                () => _forwardMessage(message),
+              ),
+              action(Icons.copy_rounded, 'Copy', () {
+                Clipboard.setData(ClipboardData(text: message.text));
+              }),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// The quoted message inside a reply bubble, or above the composer.
+  Widget _buildQuote({
+    required String senderName,
+    required String text,
+    VoidCallback? onTap,
+    VoidCallback? onClose,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 4),
+        padding: const EdgeInsets.fromLTRB(8, 5, 4, 5),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.22),
+          borderRadius: BorderRadius.circular(6),
+          border: const Border(
+            left: BorderSide(color: ChatPalette.roomAccent, width: 3),
+          ),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    senderName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      color: ChatPalette.roomAccent,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    text,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      color: ChatPalette.roomTextMuted,
+                      fontSize: 12.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (onClose != null)
+              IconButton(
+                onPressed: onClose,
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(
+                  Icons.close_rounded,
+                  size: 18,
+                  color: ChatPalette.roomTextMuted,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMessageBubble({
+    required ChatMessageModel message,
+    required bool isMine,
+    required bool isGroup,
+  }) {
+    if (message.type == 'system') {
+      return _buildDisputeSystemMessage(message);
+    }
+    if (message.type == 'team_invite') {
+      return _buildTeamInviteCard(message: message, isMine: isMine);
+    }
+    if (message.type == 'tournament_deep_link') {
+      return _buildTournamentDeepLink(message: message, isMine: isMine);
+    }
+    if (message.type == 'arena_booking_invite') {
+      return _buildArenaBookingInviteCard(message: message, isMine: isMine);
+    }
+    if (message.type == 'score_challenge') {
+      return _buildScoreChallengeCard(message: message, isMine: isMine);
+    }
+    if (message.type == 'ludo_invite') {
+      return _buildLudoInviteCard(message: message, isMine: isMine);
+    }
+    if (message.type == 'snl_invite') {
+      return _buildLudoInviteCard(message: message, isMine: isMine, snl: true);
+    }
+    if (message.type == 'bird_invite') {
+      return _buildLudoInviteCard(message: message, isMine: isMine, bird: true);
+    }
+    if (message.type == 'arrow_invite') {
+      return _buildLudoInviteCard(
+        message: message,
+        isMine: isMine,
+        arrow: true,
+      );
+    }
+    if (message.type == 'wordly_invite') {
+      return _buildLudoInviteCard(
+        message: message,
+        isMine: isMine,
+        wordly: true,
+      );
+    }
+
+    final alignment = isMine ? Alignment.centerRight : Alignment.centerLeft;
+    final isSeen = message.seenBy.length > 1;
+    final metaColor = isMine
+        ? Colors.white.withValues(alpha: 0.6)
+        : ChatPalette.roomTextMuted;
+    final replyTo = message.meta['reply_to'];
+    final isForwarded = message.meta['forwarded'] == true;
+    final isHighlighted = _highlightedMessageId == message.id;
+
+    final bubble = Align(
+      alignment: alignment,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.sizeOf(context).width * 0.78,
+        ),
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 2),
+          padding: const EdgeInsets.fromLTRB(9, 6, 8, 5),
+          decoration: BoxDecoration(
+            color: isHighlighted
+                ? ChatPalette.roomAccent.withValues(alpha: 0.55)
+                : isMine
+                ? ChatPalette.bubbleOut
+                : ChatPalette.bubbleIn,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(isMine ? 10 : 2),
+              topRight: Radius.circular(isMine ? 2 : 10),
+              bottomLeft: const Radius.circular(10),
+              bottomRight: const Radius.circular(10),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.25),
+                blurRadius: 1,
+                offset: const Offset(0, 1),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (isGroup && !isMine)
+                GestureDetector(
+                  onTap: () =>
+                      _openProfile(message.senderId, message.senderName),
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 2),
+                    child: Text(
+                      message.senderName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        color: ChatPalette.accent,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              if (isForwarded)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 2),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.shortcut_rounded, size: 13, color: metaColor),
+                      const SizedBox(width: 3),
+                      Text(
+                        'Forwarded',
+                        style: GoogleFonts.inter(
+                          color: metaColor,
+                          fontSize: 11.5,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              if (replyTo is Map)
+                _buildQuote(
+                  senderName: (replyTo['sender_name'] ?? 'Player').toString(),
+                  text: (replyTo['text'] ?? '').toString(),
+                  onTap: () => _jumpToMessage((replyTo['id'] ?? '').toString()),
+                ),
+              // Time and ticks sit beside short messages and drop to their
+              // own line under long ones.
+              Wrap(
+                alignment: WrapAlignment.end,
+                crossAxisAlignment: WrapCrossAlignment.end,
+                spacing: 8,
+                children: [
+                  Text(
+                    message.text,
+                    style: GoogleFonts.inter(
+                      color: ChatPalette.roomText,
+                      fontSize: 14.5,
+                      height: 1.3,
+                    ),
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _formatTime(message.createdAt),
+                        style: GoogleFonts.inter(
+                          color: metaColor,
+                          fontSize: 10.5,
+                        ),
+                      ),
+                      if (isMine) ...[
+                        const SizedBox(width: 3),
+                        Icon(
+                          isSeen ? Icons.done_all_rounded : Icons.done_rounded,
+                          size: 15,
+                          color: isSeen ? ChatPalette.tickSeen : metaColor,
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    // Dispute rooms are written by the backend: plain messages only.
+    if (widget.roomCollection != null) return bubble;
+
+    // Swiping right starts a reply; the bubble itself never leaves the list.
+    return Dismissible(
+      key: _bubbleKeys.putIfAbsent(message.id, GlobalKey.new),
+      direction: DismissDirection.startToEnd,
+      dismissThresholds: const {DismissDirection.startToEnd: 0.2},
+      confirmDismiss: (_) async {
+        _startReply(message);
+        return false;
+      },
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onLongPress: () => _showMessageActions(message),
+        child: bubble,
+      ),
+    );
+  }
+
+  Widget _buildDisputeSystemMessage(ChatMessageModel message) {
+    final data = message.meta;
+    final contexts = data['result_contexts'] is List
+        ? (data['result_contexts'] as List).whereType<Map>().toList()
+        : const <Map>[];
+    final evidenceUrls = <String>{};
+    final previewUrl = (data['preview_image_url'] ?? '').toString().trim();
+    if (previewUrl.isNotEmpty) evidenceUrls.add(previewUrl);
+    for (final rawContext in contexts) {
+      final context = Map<String, dynamic>.from(rawContext);
+      final evidence = context['evidence'];
+      if (evidence is! List) continue;
+      for (final rawEvidence in evidence.whereType<Map>()) {
+        final url = (rawEvidence['file_url'] ?? '').toString().trim();
+        if (url.isNotEmpty) evidenceUrls.add(url);
+      }
+    }
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF211613), Color(0xFF120E0D)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: ChatPalette.accent.withValues(alpha: .65)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.gavel_rounded,
+                color: ChatPalette.accent,
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'DISPUTE OPENED',
+                  style: GoogleFonts.inter(
+                    color: ChatPalette.accent,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: .8,
+                  ),
+                ),
+              ),
+              const Icon(
+                Icons.lock_outline_rounded,
+                color: ChatPalette.textSecondary,
+                size: 15,
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          SelectableText(
+            message.text,
+            style: GoogleFonts.inter(
+              color: ChatPalette.textPrimary,
+              fontSize: 13,
+              height: 1.45,
+            ),
+          ),
+          if (contexts.length > 1) ...[
+            const SizedBox(height: 12),
+            Text(
+              'SUBMITTED RESULTS',
+              style: GoogleFonts.inter(
+                color: ChatPalette.textSecondary,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 6),
+            ...contexts.asMap().entries.map((entry) {
+              final context = Map<String, dynamic>.from(entry.value);
+              final submitter = context['submitter'] is Map
+                  ? Map<String, dynamic>.from(context['submitter'] as Map)
+                  : const <String, dynamic>{};
+              final submitterName = (submitter['display_name'] ?? 'Participant')
+                  .toString();
+              final winner = (context['winner_team_name'] ?? 'Result submitted')
+                  .toString();
+              final scoreA = context['team_a_score'];
+              final scoreB = context['team_b_score'];
+              final score = scoreA == null || scoreB == null
+                  ? ''
+                  : ' · $scoreA-$scoreB';
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  '${entry.key + 1}. $submitterName — $winner$score',
+                  style: GoogleFonts.inter(
+                    color: ChatPalette.textPrimary,
+                    fontSize: 12,
+                  ),
+                ),
+              );
+            }),
+          ],
+          if (evidenceUrls.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              'SUBMITTED EVIDENCE',
+              style: GoogleFonts.inter(
+                color: ChatPalette.textSecondary,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 7),
+            SizedBox(
+              height: 116,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: evidenceUrls.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  final url = evidenceUrls.elementAt(index);
+                  return InkWell(
+                    onTap: () => _openEvidencePreview(url),
+                    borderRadius: BorderRadius.circular(9),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(9),
+                      child: Image.network(
+                        url,
+                        width: 170,
+                        height: 116,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => Container(
+                          width: 170,
+                          color: ChatPalette.surfaceAlt,
+                          alignment: Alignment.center,
+                          child: const Icon(
+                            Icons.broken_image_outlined,
+                            color: ChatPalette.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+          const SizedBox(height: 8),
+          Text(
+            'System record · ${_formatTime(message.createdAt)}',
+            style: GoogleFonts.inter(
+              color: ChatPalette.textSecondary,
+              fontSize: 10,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openEvidencePreview(String url) => showDialog<void>(
+    context: context,
+    barrierColor: Colors.black.withValues(alpha: .94),
+    builder: (dialogContext) => Dialog.fullscreen(
+      backgroundColor: Colors.black,
+      child: SafeArea(
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: InteractiveViewer(
+                minScale: .8,
+                maxScale: 5,
+                child: Center(
+                  child: Image.network(
+                    url,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, _, _) => const Icon(
+                      Icons.broken_image_outlined,
+                      color: Colors.white54,
+                      size: 42,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: IconButton.filled(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                icon: const Icon(Icons.close_rounded),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+
+  Widget _buildTournamentDeepLink({
+    required ChatMessageModel message,
+    required bool isMine,
+  }) {
+    final meta = _messageMeta(message);
+    final eventId = (meta['event_id'] ?? '').toString().trim();
+    final communityTeam = meta['community_team'] == true;
+    final link = (meta['deep_link'] ?? message.text).toString().trim();
+    return Align(
+      alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.sizeOf(context).width * .82,
+        ),
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF101B12),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: ChatPalette.primary),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Tournament link',
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 7),
+            SelectableText(
+              link,
+              style: GoogleFonts.inter(
+                color: ChatPalette.primary,
+                fontSize: 12,
+                decoration: TextDecoration.underline,
+                decorationColor: ChatPalette.primary,
+              ),
+            ),
+            const SizedBox(height: 9),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: eventId.isEmpty
+                    ? null
+                    : () => _openTournamentInvite(
+                        eventId: eventId,
+                        communityTeam: communityTeam,
+                      ),
+                icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                label: const Text('Open Tournament'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: ChatPalette.primary,
+                  foregroundColor: Colors.black,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTeamInviteCard({
+    required ChatMessageModel message,
+    required bool isMine,
+  }) {
+    final meta = _messageMeta(message);
+    final eventId = (meta['event_id'] ?? '').toString().trim();
+    final teamId = (meta['team_id'] ?? '').toString().trim();
+    final teamName = (meta['team_name'] ?? 'Team').toString().trim();
+    final storedDeepLink = (meta['deep_link'] ?? '').toString().trim();
+    final deepLink = storedDeepLink.isNotEmpty
+        ? storedDeepLink
+        : (eventId.isEmpty
+              ? ''
+              : Uri(
+                  scheme: 'hashforgamers',
+                  host: 'tournaments',
+                  path: '/$eventId',
+                  queryParameters: {if (teamId.isNotEmpty) 'team_id': teamId},
+                ).toString());
+    final communityTeam = meta['community_team'] == true;
+    final isLoading = _joiningInviteMessageIds.contains(message.id);
+    final actionState = _inviteActionStateByMessageId[message.id];
+    final isInvalid = eventId.isEmpty || teamId.isEmpty;
+
+    return Align(
+      alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.sizeOf(context).width * 0.86,
+        ),
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF171717), Color(0xFF0F0F0F)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isMine
+                  ? Colors.white.withValues(alpha: 0.22)
+                  : ChatPalette.border.withValues(alpha: 0.7),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: ChatPalette.primary.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.groups_rounded,
+                      size: 16,
+                      color: ChatPalette.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Team Invite',
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                teamName.isEmpty ? 'Team' : teamName,
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                isMine
+                    ? 'You shared this invite in chat.'
+                    : 'Tap join to join this team.',
+                style: GoogleFonts.inter(
+                  color: ChatPalette.textSecondary,
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  _socialProofChip(
+                    icon: Icons.workspace_premium_rounded,
+                    label: 'Team',
+                    color: ChatPalette.accent,
+                  ),
+                  const SizedBox(width: 6),
+                  StreamBuilder<int>(
+                    stream: _squadMissionsService.watchCurrentStreakForSquad(
+                      squadKey: teamId,
+                    ),
+                    builder: (context, snap) {
+                      final streak = snap.data ?? 0;
+                      return _socialProofChip(
+                        icon: Icons.local_fire_department_rounded,
+                        label: '${streak}d Streak',
+                        color: const Color(0xFFFF8A00),
+                      );
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: eventId.isEmpty
+                      ? null
+                      : () => _openTournamentInvite(
+                          eventId: eventId,
+                          communityTeam: communityTeam,
+                        ),
+                  icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                  label: const Text('View Tournament'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: ChatPalette.primary,
+                    side: BorderSide(
+                      color: ChatPalette.primary.withValues(alpha: .7),
+                    ),
+                    minimumSize: const Size.fromHeight(36),
+                  ),
+                ),
+              ),
+              if (deepLink.isNotEmpty) ...[
+                const SizedBox(height: 5),
+                SelectableText(
+                  deepLink,
+                  maxLines: 1,
+                  style: GoogleFonts.inter(
+                    color: ChatPalette.primary,
+                    fontSize: 11,
+                    decoration: TextDecoration.underline,
+                    decorationColor: ChatPalette.primary,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 8),
+              if (actionState != null)
+                Text(
+                  actionState == 'joined'
+                      ? 'JOINED'
+                      : actionState == 'already_member'
+                      ? 'ALREADY IN TEAM'
+                      : 'UNABLE TO JOIN',
+                  style: GoogleFonts.inter(
+                    color: actionState == 'joined'
+                        ? ChatPalette.success
+                        : Colors.redAccent,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: .4,
+                  ),
+                )
+              else
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: (isMine || isLoading || isInvalid)
+                        ? null
+                        : () => _joinTeamInvite(
+                            messageId: message.id,
+                            eventId: eventId,
+                            teamId: teamId,
+                            communityTeam: communityTeam,
+                          ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: ChatPalette.primary,
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor: Colors.white12,
+                      disabledForegroundColor: Colors.white54,
+                      minimumSize: const Size.fromHeight(36),
+                    ),
+                    child: isLoading
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text(
+                            isInvalid ? 'Unavailable' : 'Join Team',
+                            style: GoogleFonts.inter(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
+                          ),
+                  ),
+                ),
+              const SizedBox(height: 6),
+              Text(
+                _formatTime(message.createdAt),
+                style: GoogleFonts.inter(
+                  color: ChatPalette.textSecondary,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Maps a Wordly race onto the invite card's four seat colours.
+  static InviteLobby? _wordlyLobby(WordlyMatch? m) {
+    if (m == null) return null;
+    const seats = LudoPlayerType.values;
+    final ordered = m.ordered.take(seats.length).toList();
+    final seatOf = {for (final (i, p) in ordered.indexed) p.uid: seats[i]};
+    return InviteLobby(
+      status: switch (m.status) {
+        WordlyMatchStatus.waiting => LudoMatchStatus.waiting,
+        WordlyMatchStatus.active => LudoMatchStatus.active,
+        WordlyMatchStatus.finished => LudoMatchStatus.finished,
+      },
+      seats: {
+        for (final p in ordered)
+          seatOf[p.uid]!: LudoSeatInfo(
+            uid: p.uid,
+            name: p.name,
+            photo: p.photo,
+          ),
+      },
+      turn: seats.first,
+      winners: [
+        if (m.status == WordlyMatchStatus.finished)
+          for (final p in m.standings)
+            if (seatOf[p.uid] != null) seatOf[p.uid]!,
+      ],
+    );
+  }
+
+  /// Maps an Arrow Escape race onto the invite card's four seat colours.
+  static InviteLobby? _arrowLobby(ArrowMatch? m) {
+    if (m == null) return null;
+    const seats = LudoPlayerType.values;
+    final ordered = m.ordered.take(seats.length).toList();
+    final seatOf = {for (final (i, p) in ordered.indexed) p.uid: seats[i]};
+    return InviteLobby(
+      status: switch (m.status) {
+        ArrowMatchStatus.waiting => LudoMatchStatus.waiting,
+        ArrowMatchStatus.active => LudoMatchStatus.active,
+        ArrowMatchStatus.finished => LudoMatchStatus.finished,
+      },
+      seats: {
+        for (final p in ordered)
+          seatOf[p.uid]!: LudoSeatInfo(
+            uid: p.uid,
+            name: p.name,
+            photo: p.photo,
+          ),
+      },
+      turn: seats.first,
+      winners: [
+        if (m.status == ArrowMatchStatus.finished)
+          for (final p in m.standings)
+            if (seatOf[p.uid] != null) seatOf[p.uid]!,
+      ],
+    );
+  }
+
+  /// Maps a Laggy Bird race onto the invite card's four seat colours.
+  static InviteLobby? _birdLobby(BirdMatch? m) {
+    if (m == null) return null;
+    const seats = LudoPlayerType.values;
+    final ordered = m.ordered.take(seats.length).toList();
+    final seatOf = {for (final (i, p) in ordered.indexed) p.uid: seats[i]};
+    return InviteLobby(
+      status: switch (m.status) {
+        BirdMatchStatus.waiting => LudoMatchStatus.waiting,
+        BirdMatchStatus.active => LudoMatchStatus.active,
+        BirdMatchStatus.finished => LudoMatchStatus.finished,
+      },
+      seats: {
+        for (final p in ordered)
+          seatOf[p.uid]!: LudoSeatInfo(
+            uid: p.uid,
+            name: p.name,
+            photo: p.photo,
+          ),
+      },
+      turn: seats.first,
+      winners: [
+        if (m.status == BirdMatchStatus.finished)
+          for (final p in m.standings)
+            if (seatOf[p.uid] != null) seatOf[p.uid]!,
+      ],
+    );
+  }
+
+  Widget _buildScoreChallengeCard({
+    required ChatMessageModel message,
+    required bool isMine,
+  }) {
+    final meta = _messageMeta(message);
+    final gameId = (meta['game_id'] ?? '').toString().trim();
+    final game = MiniGameLauncher.find(gameId);
+    final score = meta['score'];
+    return Align(
+      alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.sizeOf(context).width * 0.82,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: ScoreChallengeCard(
+            challenger: (meta['challenger_name'] ?? message.senderName)
+                .toString(),
+            gameName: (meta['game_name'] ?? game?.title ?? 'the arcade')
+                .toString(),
+            score: score is num ? score.toInt() : 0,
+            isMine: isMine,
+            icon: game?.icon,
+            onPlay: game == null
+                ? null
+                : () {
+                    ArcadeAnalytics.from('chat_challenge');
+                    unawaited(game.open());
+                  },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLudoInviteCard({
+    required ChatMessageModel message,
+    required bool isMine,
+    bool snl = false,
+    bool bird = false,
+    bool wordly = false,
+    bool arrow = false,
+  }) {
+    final meta = _messageMeta(message);
+    final matchId = (meta['match_id'] ?? '').toString().trim();
+    final inviterName = (meta['inviter_name'] ?? 'A friend').toString().trim();
+    void open() {
+      if (matchId.isEmpty) return;
+      Get.to(
+        () => arrow
+            ? ArrowEscapeScreen(matchId: matchId)
+            : wordly
+            ? WordlyGame(matchId: matchId)
+            : bird
+            ? FlappyBirds(matchId: matchId)
+            : snl
+            ? SnlMatchScreen(matchId: matchId)
+            : LudoMatchScreen(matchId: matchId),
+      );
+    }
+
+    return Align(
+      alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.sizeOf(context).width * 0.86,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: LudoInviteCard(
+            matchId: matchId,
+            inviterName: inviterName,
+            isMine: isMine,
+            timeLabel: _formatTime(message.createdAt),
+            onOpen: open,
+            title: arrow
+                ? 'ARROW RACE'
+                : wordly
+                ? 'WORDLY'
+                : bird
+                ? 'BIRD RACE'
+                : (snl ? 'SNAKES' : 'LUDO'),
+            iconAsset: arrow
+                ? 'assets/mini_game_icons/arrow_escape.png'
+                : wordly
+                ? 'assets/mini_game_icons/wordly.png'
+                : bird
+                ? 'assets/mini_game_icons/flappy_birds.png'
+                : snl
+                ? 'assets/mini_game_icons/snakes_ladders.png'
+                : 'assets/mini_game_icons/ludo_icon.png',
+            lobby: arrow && matchId.isNotEmpty
+                ? ArrowMatchService().watch(matchId).map(_arrowLobby)
+                : wordly && matchId.isNotEmpty
+                ? WordlyMatchService().watch(matchId).map(_wordlyLobby)
+                : bird && matchId.isNotEmpty
+                ? BirdMatchService().watch(matchId).map(_birdLobby)
+                : snl && matchId.isNotEmpty
+                ? SnlMatchService()
+                      .watch(matchId)
+                      .map(
+                        (m) => m == null
+                            ? null
+                            : InviteLobby(
+                                status: m.status,
+                                seats: m.seats,
+                                turn: m.turn,
+                                winners: m.winners,
+                              ),
+                      )
+                : null,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildArenaBookingInviteCard({
+    required ChatMessageModel message,
+    required bool isMine,
+  }) {
+    final meta = _messageMeta(message);
+    final cafeName = (meta['cafe_name'] ?? 'Gaming Cafe').toString().trim();
+    final consoleType = (meta['console_type'] ?? 'Setup').toString().trim();
+    final bookingDate = _formatBookingDateLabel(
+      (meta['booking_date'] ?? '').toString(),
+    );
+    final playerCount =
+        int.tryParse((meta['player_count'] ?? '1').toString()) ?? 1;
+    final slotLabels = ((meta['slot_labels'] as List?) ?? const [])
+        .map((e) => _formatSlotLabel(e.toString()))
+        .where((e) => e.isNotEmpty)
+        .toList();
+    final previewSlots = slotLabels.take(3).toList();
+    final extraSlotCount = slotLabels.length > previewSlots.length
+        ? slotLabels.length - previewSlots.length
+        : 0;
+    final accentColor = isMine
+        ? const Color(0xFFB9FFB0)
+        : const Color(0xFF8BFF72);
+    final edgeColor = isMine
+        ? const Color(0xFF6BE061)
+        : const Color(0xFF53DA47);
+
+    return Align(
+      alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.sizeOf(context).width * 0.86,
+        ),
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            color: const Color(0xFF101010),
+            border: Border.all(color: edgeColor, width: 1.2),
+            boxShadow: [
+              BoxShadow(
+                color: edgeColor.withValues(alpha: 0.14),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.07),
+                  ),
+                  gradient: LinearGradient(
+                    colors: isMine
+                        ? const [Color(0xFF203F24), Color(0xFF101812)]
+                        : const [Color(0xFF172317), Color(0xFF0E120E)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: Stack(
+                  children: [
+                    Positioned(
+                      right: -16,
+                      top: -20,
+                      child: Container(
+                        width: 72,
+                        height: 72,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: accentColor.withValues(alpha: 0.08),
+                        ),
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 5,
+                              ),
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: edgeColor,
+                                  width: 1.15,
+                                ),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                'SQUAD BOOKING',
+                                style: GoogleFonts.inter(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 9.8,
+                                  letterSpacing: 0.55,
+                                ),
+                              ),
+                            ),
+                            const Spacer(),
+                            Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.18),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.08),
+                                ),
+                              ),
+                              child: Icon(
+                                Icons.event_available_rounded,
+                                size: 16,
+                                color: accentColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          cafeName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 16,
+                            height: 1.0,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _socialProofChip(
+                                icon: Icons.desktop_windows_rounded,
+                                label: consoleType.toUpperCase(),
+                                color: accentColor,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _socialProofChip(
+                                icon: Icons.groups_2_rounded,
+                                label:
+                                    '$playerCount ${playerCount == 1 ? 'Player' : 'Players'}',
+                                color: const Color(0xFFFFC857),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  if (bookingDate.isNotEmpty)
+                    _socialProofChip(
+                      icon: Icons.calendar_today_rounded,
+                      label: bookingDate,
+                      color: ChatPalette.accent,
+                    ),
+                  if (slotLabels.isNotEmpty)
+                    _socialProofChip(
+                      icon: Icons.schedule_rounded,
+                      label:
+                          '${slotLabels.length} ${slotLabels.length == 1 ? 'slot' : 'slots'}',
+                      color: const Color(0xFFFFB84D),
+                    ),
+                  _socialProofChip(
+                    icon: Icons.lock_clock_rounded,
+                    label: isMine ? 'Shared' : 'Received',
+                    color: edgeColor,
+                  ),
+                ],
+              ),
+              if (previewSlots.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF161616),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.08),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.schedule_send_rounded,
+                            size: 15,
+                            color: accentColor,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Selected Slots',
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      ...previewSlots.map(
+                        (slotLabel) => Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                margin: const EdgeInsets.only(top: 5),
+                                width: 6,
+                                height: 6,
+                                decoration: BoxDecoration(
+                                  color: accentColor,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  slotLabel,
+                                  style: GoogleFonts.inter(
+                                    color: Colors.white,
+                                    fontSize: 11.8,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      if (extraSlotCount > 0)
+                        Text(
+                          '+$extraSlotCount more ${extraSlotCount == 1 ? 'slot' : 'slots'} included',
+                          style: GoogleFonts.inter(
+                            color: ChatPalette.textSecondary,
+                            fontSize: 10.8,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 8),
+              Text(
+                isMine ? 'Shared with your squad' : 'Shared with you',
+                style: GoogleFonts.inter(
+                  color: ChatPalette.textSecondary,
+                  fontSize: 10.8,
+                  height: 1.2,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _formatTime(message.createdAt),
+                style: GoogleFonts.inter(
+                  color: ChatPalette.textSecondary,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _socialProofChip({
+    required IconData icon,
+    required String label,
+    required Color color,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 12, color: color),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            color: ChatPalette.textSecondary,
+            fontWeight: FontWeight.w600,
+            fontSize: 10,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Map<String, dynamic> _messageMeta(ChatMessageModel message) {
+    try {
+      final dynamicMessage = message as dynamic;
+      final raw = dynamicMessage.meta;
+      if (raw is Map<String, dynamic>) return raw;
+      if (raw is Map) return Map<String, dynamic>.from(raw);
+    } catch (_) {}
+    return const <String, dynamic>{};
+  }
+
+  Future<void> _joinTeamInvite({
+    required String messageId,
+    required String eventId,
+    required String teamId,
+    bool communityTeam = false,
+  }) async {
+    if (_joiningInviteMessageIds.contains(messageId)) return;
+
+    setState(() {
+      _joiningInviteMessageIds.add(messageId);
+    });
+
+    try {
+      final userId = await _chatService.resolveCurrentBackendUserId();
+      if (userId == null || userId <= 0) {
+        throw Exception('Unable to identify your account. Please relogin.');
+      }
+
+      if (communityTeam) {
+        await CommunityApi().respondToTeamInvitation(
+          eventId,
+          teamId,
+          action: 'accept',
+        );
+      } else {
+        await _remoteRepo.joinEventTeam(
+          eventId: eventId,
+          teamId: teamId,
+          userId: userId,
+        );
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _inviteActionStateByMessageId[messageId] = 'joined';
+      });
+      AppSnackbar.show(
+        'Team Joined',
+        'You have joined the team successfully.',
+        snackPosition: SnackPosition.BOTTOM,
+        colorText: Colors.white,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      final error = e.toString().replaceFirst('Exception: ', '');
+      final lowered = error.toLowerCase();
+      setState(() {
+        _inviteActionStateByMessageId[messageId] =
+            lowered.contains('already') || lowered.contains('member')
+            ? 'already_member'
+            : 'failed';
+      });
+      AppSnackbar.show(
+        'Unable to Join',
+        error,
+        snackPosition: SnackPosition.BOTTOM,
+        colorText: Colors.white,
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _joiningInviteMessageIds.remove(messageId);
+        });
+      }
+    }
+  }
+
+  Future<void> _openTournamentInvite({
+    required String eventId,
+    required bool communityTeam,
+  }) async {
+    if (!FeatureFlags.tournamentsEnabled) {
+      AppSnackbar.show(
+        'Tournaments',
+        'Tournaments aren\'t available right now.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+    if (communityTeam) {
+      await Get.toNamed(
+        AppRoutes.TOURNAMENT_DETAIL,
+        arguments: {'id': eventId},
+      );
+      return;
+    }
+
+    try {
+      final payload = await _remoteRepo.fetchEventById(eventId: eventId);
+      if (!mounted) return;
+      await Get.to(
+        () => TournamentsDetailsView(
+          tournament: TournamentModel.fromJson(payload),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      AppSnackbar.show(
+        'Tournament',
+        error.toString().replaceFirst('Exception: ', ''),
+        snackPosition: SnackPosition.BOTTOM,
+        colorText: Colors.white,
+      );
+    }
+  }
+
+  Widget _buildComposer() {
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_replyTo != null)
+              _buildQuote(
+                senderName: _replyTo!.senderId == _chatService.currentUid
+                    ? 'You'
+                    : _replyTo!.senderName,
+                text: _replyTo!.text,
+                onClose: () => setState(() => _replyTo = null),
+              ),
+            _buildComposerRow(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildComposerRow() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+          child: TextField(
+            controller: _messageController,
+            focusNode: _messageFocus,
+            style: GoogleFonts.inter(color: ChatPalette.roomText),
+            cursorColor: ChatPalette.roomAccent,
+            minLines: 1,
+            maxLines: 4,
+            onChanged: (value) async {
+              final nextTyping = value.trim().isNotEmpty;
+              if (nextTyping == _isTyping) return;
+              _isTyping = nextTyping;
+              await _chatService.setTyping(
+                roomId: widget.roomId,
+                isTyping: nextTyping,
+                collection: widget.roomCollection,
+              );
+            },
+            textInputAction: TextInputAction.send,
+            onSubmitted: (_) => _sendMessage(),
+            decoration: InputDecoration(
+              hintText: 'Message',
+              hintStyle: GoogleFonts.inter(color: ChatPalette.roomTextMuted),
+              filled: true,
+              fillColor: ChatPalette.roomBar,
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 18,
+                vertical: 13,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(24),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 6),
+        GestureDetector(
+          onTap: _isSending ? null : _sendMessage,
+          child: Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: _isSending ? ChatPalette.roomBar : ChatPalette.roomAccent,
+              shape: BoxShape.circle,
+            ),
+            child: _isSending
+                ? const Padding(
+                    padding: EdgeInsets.all(12.0),
+                    child: AppLinearLoader(width: 24, height: 3),
+                  )
+                : const Icon(Icons.send_rounded, color: Colors.white, size: 22),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAppBarTitle(
+    String title, {
+    String? subtitle,
+    bool highlightSubtitle = false,
+  }) {
+    final initial = title.trim().isEmpty
+        ? '#'
+        : title.trim().characters.first.toUpperCase();
+    return Row(
+      children: [
+        CircleAvatar(
+          radius: 18,
+          backgroundColor: ChatPalette.roomAccent,
+          child: Text(
+            initial,
+            style: GoogleFonts.inter(
+              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                  color: ChatPalette.roomText,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              if (subtitle != null)
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    color: highlightSubtitle
+                        ? ChatPalette.roomAccent
+                        : ChatPalette.roomTextMuted,
+                    fontSize: 12,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showDisputeParticipants(ChatRoomModel room) {
+    final accountsByUid = <String, ChatParticipantAccount>{
+      for (final account in widget.participantAccounts)
+        if (account.firebaseUid.trim().isNotEmpty)
+          account.firebaseUid.trim(): account,
+    };
+    final memberIds = <String>{...room.members, ...accountsByUid.keys}.toList();
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: ChatPalette.surface,
+      isScrollControlled: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 16, 18, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Dispute participants',
+                style: GoogleFonts.inter(
+                  color: ChatPalette.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${memberIds.length} accounts in this chat',
+                style: GoogleFonts.inter(color: ChatPalette.textSecondary),
+              ),
+              const SizedBox(height: 14),
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: memberIds.length,
+                  separatorBuilder: (_, _) =>
+                      const Divider(color: ChatPalette.border, height: 1),
+                  itemBuilder: (context, index) {
+                    final uid = memberIds[index];
+                    final suppliedAccount = accountsByUid[uid];
+                    return StreamBuilder<ChatUserModel?>(
+                      stream: _chatService.streamUserById(uid),
+                      builder: (context, snapshot) {
+                        final account = snapshot.data;
+                        final fallbackName =
+                            suppliedAccount?.name.trim().isNotEmpty == true
+                            ? suppliedAccount!.name.trim()
+                            : room.memberNames[uid]?.trim() ?? '';
+                        final fallbackUsername =
+                            suppliedAccount?.username.trim().isNotEmpty == true
+                            ? suppliedAccount!.username.trim()
+                            : room.memberUsernames[uid]?.trim() ?? '';
+                        final name =
+                            account?.displayName.trim().isNotEmpty == true
+                            ? account!.displayName.trim()
+                            : fallbackName.isNotEmpty
+                            ? fallbackName
+                            : 'Tournament participant';
+                        final username =
+                            account?.username.trim().isNotEmpty == true
+                            ? account!.username.trim()
+                            : fallbackUsername;
+                        final isCurrent = uid == _chatService.currentUid;
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: CircleAvatar(
+                            backgroundColor: ChatPalette.primary,
+                            foregroundColor: Colors.black,
+                            child: Text(
+                              name.characters.first.toUpperCase(),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          title: Text(
+                            isCurrent ? '$name (You)' : name,
+                            style: GoogleFonts.inter(
+                              color: ChatPalette.textPrimary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          subtitle: Text(
+                            username.isNotEmpty
+                                ? '@$username'
+                                : 'Username unavailable',
+                            style: GoogleFonts.inter(
+                              color: ChatPalette.textSecondary,
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final currentUid = _chatService.currentUid;
+
+    return Scaffold(
+      backgroundColor: ChatPalette.roomBg,
+      appBar: AppBar(
+        backgroundColor: ChatPalette.roomBar,
+        foregroundColor: ChatPalette.roomText,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        centerTitle: false,
+        surfaceTintColor: Colors.transparent,
+        titleSpacing: 0,
+        title: StreamBuilder<ChatRoomModel?>(
+          stream: _chatService.streamRoom(
+            widget.roomId,
+            collection: widget.roomCollection,
+          ),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return _buildAppBarTitle('Chat unavailable');
+            }
+            final room = snapshot.data;
+            final title = room == null || currentUid == null
+                ? 'Chat'
+                : room.isDispute
+                ? 'Dispute Group Chat'
+                : room.displayTitleFor(currentUid);
+            final typingPeers =
+                room?.typingUserIds.where((id) => id != currentUid).toList() ??
+                const [];
+
+            if (room == null) {
+              return _buildAppBarTitle(title);
+            }
+
+            if (room.isGroup || room.isDispute) {
+              final subtitle = typingPeers.isNotEmpty
+                  ? 'typing...'
+                  : '${{...room.members, ...widget.participantAccounts.map((e) => e.firebaseUid)}.where((id) => id.trim().isNotEmpty).length} members';
+              return _buildAppBarTitle(
+                title,
+                subtitle: subtitle,
+                highlightSubtitle: typingPeers.isNotEmpty,
+              );
+            }
+
+            final otherId = room.members.firstWhere(
+              (id) => id != currentUid,
+              orElse: () => '',
+            );
+            return StreamBuilder<ChatUserModel?>(
+              stream: _chatService.streamUserById(otherId),
+              builder: (context, otherSnap) {
+                final other = otherSnap.data;
+                final subtitle = typingPeers.isNotEmpty
+                    ? 'typing...'
+                    : other == null
+                    ? 'Offline'
+                    : other.isOnline
+                    ? 'Online'
+                    : other.lastSeenAt == null
+                    ? 'Last seen recently'
+                    : 'Last seen ${_formatTime(other.lastSeenAt!)}';
+
+                return GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => _openProfile(otherId, title, canMessage: false),
+                  child: _buildAppBarTitle(
+                    title,
+                    subtitle: subtitle,
+                    highlightSubtitle:
+                        typingPeers.isNotEmpty || other?.isOnline == true,
+                  ),
+                );
+              },
+            );
+          },
+        ),
+        actions: [
+          StreamBuilder<ChatRoomModel?>(
+            stream: _chatService.streamRoom(
+              widget.roomId,
+              collection: widget.roomCollection,
+            ),
+            builder: (context, snapshot) {
+              final room = snapshot.data;
+              final canOpenDetails =
+                  room?.isDispute == true ||
+                  (room?.isGroup == true && widget.roomCollection == null);
+              if (!canOpenDetails) {
+                return const SizedBox.shrink();
+              }
+
+              return IconButton(
+                tooltip: 'Group details',
+                onPressed: () async {
+                  Haptics.tap();
+                  if (room!.isDispute) {
+                    _showDisputeParticipants(room);
+                    return;
+                  }
+                  final didLeaveGroup = await Get.to<bool>(
+                    () => ChatGroupDetailsView(roomId: widget.roomId),
+                  );
+                  if (!mounted || didLeaveGroup != true) return;
+                  Get.back();
+                },
+                icon: const Icon(
+                  Icons.info_outline_rounded,
+                  color: ChatPalette.roomText,
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+      body: ChatWallpaper(
+        child: _isValidatingRoom
+            ? const AppLinearLoader.screen()
+            : _roomAccessError != null
+            ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 28),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.lock_outline_rounded,
+                        color: ChatPalette.textSecondary,
+                        size: 34,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        _roomAccessError!,
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.inter(
+                          color: ChatPalette.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _isValidatingRoom = true;
+                            _roomAccessError = null;
+                          });
+                          unawaited(_validateRoomAccess());
+                        },
+                        child: const Text('Try again'),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            : Column(
+                children: [
+                  Expanded(
+                    child: StreamBuilder<ChatRoomModel?>(
+                      stream: _chatService.streamRoom(
+                        widget.roomId,
+                        collection: widget.roomCollection,
+                      ),
+                      builder: (context, roomSnapshot) {
+                        if (roomSnapshot.hasError) {
+                          return Center(
+                            child: Text(
+                              'Could not read this chat room.',
+                              style: GoogleFonts.inter(
+                                color: ChatPalette.textSecondary,
+                              ),
+                            ),
+                          );
+                        }
+                        final room = roomSnapshot.data;
+                        final isGroup = room?.isGroup == true;
+
+                        return StreamBuilder<List<ChatMessageModel>>(
+                          stream: _chatService.streamRoomMessages(
+                            widget.roomId,
+                            collection: widget.roomCollection,
+                          ),
+                          builder: (context, messagesSnapshot) {
+                            if (messagesSnapshot.hasError) {
+                              return Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 28,
+                                  ),
+                                  child: Text(
+                                    'Messages could not be loaded. You may not have access to this dispute chat.',
+                                    textAlign: TextAlign.center,
+                                    style: GoogleFonts.inter(
+                                      color: ChatPalette.textSecondary,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }
+                            if (messagesSnapshot.connectionState ==
+                                    ConnectionState.waiting &&
+                                !(messagesSnapshot.hasData)) {
+                              return const AppLinearLoader.screen();
+                            }
+
+                            final messages = messagesSnapshot.data ?? const [];
+
+                            if (messages.isEmpty) {
+                              return Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 28,
+                                  ),
+                                  child: Text(
+                                    'No messages yet. Say hi and start the conversation.',
+                                    textAlign: TextAlign.center,
+                                    style: GoogleFonts.inter(
+                                      color: ChatPalette.textSecondary,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }
+
+                            return ListView.builder(
+                              reverse: true,
+                              keyboardDismissBehavior:
+                                  ScrollViewKeyboardDismissBehavior.onDrag,
+                              physics: const BouncingScrollPhysics(),
+                              padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
+                              itemCount: messages.length,
+                              itemBuilder: (context, index) {
+                                final message = messages[index];
+                                final isMine = message.senderId == currentUid;
+
+                                return _buildMessageBubble(
+                                  message: message,
+                                  isMine: isMine,
+                                  isGroup: isGroup,
+                                );
+                              },
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                  _buildComposer(),
+                ],
+              ),
+      ),
+    );
+  }
+}

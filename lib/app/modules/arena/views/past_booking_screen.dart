@@ -1,15 +1,19 @@
-import 'package:barcode_widget/barcode_widget.dart' as bw;
-import 'package:dotted_line/dotted_line.dart';
+import 'package:hash/app/modules/arena/controllers/cafe_controller.dart';
+import 'package:hash/app/modules/home/widgets/home_design.dart';
+import 'dart:ui' show FontFeature;
+import 'package:hash/app/modules/hash_store/widgets/neon_switch.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/home/controllers/home_controller.dart';
+import 'package:hash/app/modules/home/models/live_session_booking.dart';
+import 'package:hash/app/modules/arena/services/booking_food_order_service.dart';
 import 'package:in_app_review/in_app_review.dart';
 import 'package:intl/intl.dart';
 import 'package:hash/app/modules/arena/controllers/booking_controller.dart';
 import 'package:hash/app/modules/arena/views/past_booking_screen_detail.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:hash/app/modules/cafe_play/views/cafe_qr_scanner_view.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -25,13 +29,15 @@ class PastBookingsScreen extends StatefulWidget {
 
 class _PastBookingsScreenState extends State<PastBookingsScreen>
     with SingleTickerProviderStateMixin {
-  final BookingController ctr = Get.put(BookingController());
+  final BookingController ctr = Get.isRegistered<BookingController>()
+      ? Get.find<BookingController>()
+      : Get.put(BookingController());
   late TabController _tabController;
   String _sortOrder = 'newer'; // 'newer' or 'older'
   final prefs = locator<SharedPreferences>();
   bool hasRated = false;
 
-  void getRatingBool(){
+  void getRatingBool() {
     final hasRated = prefs.getBool('hasRatedApp') ?? false;
     this.hasRated = hasRated;
   }
@@ -42,8 +48,9 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
     getRatingBool();
     _tabController = TabController(length: 3, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ctr.fetchUserBookings().then((_){
-        if(!hasRated && ctr.userBookings.isNotEmpty){
+      ctr.fetchUserBookings(forceRefresh: false).then((_) {
+        if (!mounted) return;
+        if (!hasRated && ctr.userBookings.isNotEmpty && _ratePromptDue) {
           _maybeShowRatingDialogIfPending();
         }
       });
@@ -65,22 +72,32 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
     }
   }
 
-// Colors
-  static const _green = Color(0xFF338125);
+  // Colors
+  static const _green = Color(0xff00DC00);
   static const _yellow = Color(0xFFF5C042);
   static const _red = Color(0xFFE2584E);
 
-// Bucketing stays as you wrote (with pending_verified excluded)
+  // Bucketing stays as you wrote (with pending_verified excluded)
   String _statusBucket(dynamic rawStatus) {
     final s = (rawStatus ?? '').toString().toLowerCase().trim();
     if (s.isEmpty) return 'pending';
     if (s.contains('pending_verified')) return 'exclude';
     if (s.contains('confirm') || s.contains('success')) return 'confirmed';
-    if (s.contains('pend') || s.contains('await') || s.contains('unpaid')) return 'pending';
+    if (s.contains('pend') || s.contains('await') || s.contains('unpaid'))
+      return 'pending';
     return 'pending';
   }
 
-// Count per bucket for tab badges
+  String _subtitle() {
+    final upcoming = _countFor('confirmed');
+    final total = _countFor('all');
+    if (total == 0) return 'Your bookings show up here';
+    return upcoming > 0
+        ? '$upcoming locked in · $total total'
+        : '$total session${total == 1 ? '' : 's'}';
+  }
+
+  // Count per bucket for tab badges
   int _countFor(String filter) {
     return ctr.userBookings.where((b) {
       final bucket = _statusBucket(b['status']);
@@ -89,7 +106,6 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
       return bucket == filter;
     }).length;
   }
-
 
   List<Map<String, dynamic>> _getFilteredAndSorted(String filter) {
     final bookings = List<Map<String, dynamic>>.from(ctr.userBookings);
@@ -111,46 +127,61 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
     return filtered;
   }
 
+  // Ask at most once every 30 days; "Maybe Later" used to re-ask on every
+  // visit to Sessions.
+  bool get _ratePromptDue {
+    final last = prefs.getInt('ratePromptShownAt') ?? 0;
+    return DateTime.now().millisecondsSinceEpoch - last >
+        const Duration(days: 30).inMilliseconds;
+  }
+
   void _maybeShowRatingDialogIfPending() {
-      if (context.mounted) {
-        showDialog(
-          context: context,
-          builder: (context) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16)),
-              backgroundColor: const Color(0xff404040),
-              title: const Text(
-                  "Enjoying our app?", style: TextStyle(color: Colors.white)),
-              content: const Text(
-                  "We’d love your feedback! Please rate us on the Play Store.",
-                  style: TextStyle(color: Colors.white)),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context)
-                        .pop(); // "Maybe later" – do NOT set hasRatedApp
-                    // Next successful payment will set ratePromptPending again.
-                  },
-                  child: const Text(
-                      "Maybe Later", style: TextStyle(color: Colors.white)),
-                ),
-                TextButton(
-                  onPressed: () async {
-                    Navigator.of(context).pop();
-                    await prefs.setBool(
-                        'hasRatedApp', true); // never show again
-                    final InAppReview inAppReview = InAppReview.instance;
-                    await inAppReview.openStoreListing();
-                  },
-                  child: const Text(
-                      "Rate Us", style: TextStyle(color: Colors.green)),
-                ),
-              ],
-            );
-          },
+    if (!mounted) return;
+    prefs.setInt('ratePromptShownAt', DateTime.now().millisecondsSinceEpoch);
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          backgroundColor: const Color(0xff404040),
+          title: const Text(
+            "Enjoying our app?",
+            style: TextStyle(color: Colors.white),
+          ),
+          content: const Text(
+            "We’d love your feedback! Please rate us on the Play Store.",
+            style: TextStyle(color: Colors.white),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(
+                  context,
+                ).pop(); // "Maybe later": asked again after 30 days
+              },
+              child: const Text(
+                "Maybe Later",
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await prefs.setBool('hasRatedApp', true); // never show again
+                final InAppReview inAppReview = InAppReview.instance;
+                await inAppReview.openStoreListing();
+              },
+              child: const Text(
+                "Rate Us",
+                style: TextStyle(color: const Color(0xff00DC00)),
+              ),
+            ),
+          ],
         );
-      }
+      },
+    );
   }
 
   void _showRatingDialog() {
@@ -159,37 +190,49 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
       barrierDismissible: false,
       builder: (context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           backgroundColor: const Color(0xff404040),
-          title: const Text("Enjoying our app?", style: TextStyle(color: Colors.white)),
-          content: const Text("We’d love your feedback! Please rate us on the Play Store.",
-              style: TextStyle(color: Colors.white)),
+          title: const Text(
+            "Enjoying our app?",
+            style: TextStyle(color: Colors.white),
+          ),
+          content: const Text(
+            "We’d love your feedback! Please rate us on the Play Store.",
+            style: TextStyle(color: Colors.white),
+          ),
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(); // "Maybe later" – do NOT set hasRatedApp
-                // Next successful payment will set ratePromptPending again.
+                Navigator.of(
+                  context,
+                ).pop(); // "Maybe later": asked again after 30 days
               },
-              child: const Text("Maybe Later", style: TextStyle(color: Colors.white)),
+              child: const Text(
+                "Maybe Later",
+                style: TextStyle(color: Colors.white),
+              ),
             ),
             TextButton(
               onPressed: () async {
                 Navigator.of(context).pop();
                 final prefs = await SharedPreferences.getInstance();
-                await prefs.setBool('hasRatedApp', true);        // never show again
+                await prefs.setBool('hasRatedApp', true); // never show again
                 await prefs.setBool('ratePromptPending', false); // extra safety
                 final InAppReview inAppReview = InAppReview.instance;
                 await inAppReview.openStoreListing();
               },
-              child: const Text("Rate Us", style: TextStyle(color: Colors.green)),
+              child: const Text(
+                "Rate Us",
+                style: TextStyle(color: const Color(0xff00DC00)),
+              ),
             ),
           ],
         );
       },
     );
   }
-
-
 
   @override
   Widget build(BuildContext ctx) => Scaffold(
@@ -198,23 +241,47 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 24),
+          const SizedBox(height: 10),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.fromLTRB(20, 0, 12, 0),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('My Bookings',
-                    style:
-                    GoogleFonts.inter(fontSize: 18, color: Colors.white)),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Sessions',
+                        style: GoogleFonts.inter(
+                          fontSize: 26,
+                          height: 1.1,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.6,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Obx(
+                        () => Text(
+                          _subtitle(),
+                          style: GoogleFonts.inter(
+                            fontSize: 12.5,
+                            color: Colors.white54,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 IconButton(
                   splashRadius: 18,
-                  tooltip:
-                  _sortOrder == 'newer' ? 'Newest first' : 'Oldest first',
+                  tooltip: _sortOrder == 'newer'
+                      ? 'Newest first'
+                      : 'Oldest first',
                   onPressed: () {
                     setState(() {
-                      _sortOrder =
-                      _sortOrder == 'newer' ? 'older' : 'newer';
+                      _sortOrder = _sortOrder == 'newer' ? 'older' : 'newer';
                     });
                   },
                   icon: AnimatedSwitcher(
@@ -226,70 +293,85 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
                           ? CupertinoIcons.sort_down_circle
                           : CupertinoIcons.sort_up_circle,
                       key: ValueKey(_sortOrder),
-                      size: 20,
-                      color: Colors.green,
+                      size: 22,
+                      color: _green,
                     ),
                   ),
                 ),
               ],
             ),
           ),
-
-          // Tabs
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 10),
-          child: Container(
+          const SizedBox(height: 14),
+          // Segmented control: equal-width tabs on a dark track, the
+          // selected one a glowing green pill. Clipped so the neon wave
+          // stays inside the track, as it does in the shop dock.
+          Container(
+            height: 48,
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.all(4),
+            clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
-              color: const Color(0xFF141415),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.transparent),
-            ),
-            child: TabBar(
-              controller: _tabController,
-              isScrollable: true,
-              dividerColor: Colors.transparent,
-                indicatorAnimation:TabIndicatorAnimation.elastic,
-                enableFeedback: true,
-              // Add more space inside each tab
-              labelPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
-                indicatorColor: Colors.transparent,
-
-
-                // Indicator pill with spacing
-              indicator: BoxDecoration(
-                color: const Color(0xFF1F2A1C),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: _green.withOpacity(0.5)),
+              gradient: const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFF15171A), Color(0xFF0E0F11)],
               ),
-
-              // Push indicator slightly away from text baseline
-              indicatorPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
-
-              // Make indicator fill only tab label, not full width
-              indicatorSize: TabBarIndicatorSize.tab,
-
-              labelColor: const Color(0xFF93F80A),
-              unselectedLabelColor: Colors.white70,
-              labelStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13),
-              unselectedLabelStyle: GoogleFonts.inter(fontWeight: FontWeight.w500, fontSize: 13),
-              overlayColor: MaterialStateProperty.all(Colors.transparent),
-
-              tabs: [
-                Tab(child: _TabChip(text: 'All', count: _countFor('all'))),
-                Tab(child: _TabChip(text: 'Confirmed', count: _countFor('confirmed'))),
-                Tab(child: _TabChip(text: 'Pending', count: _countFor('pending'))),
-              ],
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
+            ),
+            child: Obx(
+              () => NeonTabBar(
+                TabBar(
+                  controller: _tabController,
+                  dividerColor: Colors.transparent,
+                  indicatorAnimation: TabIndicatorAnimation.elastic,
+                  enableFeedback: true,
+                  labelPadding: EdgeInsets.zero,
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  indicator: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF3CF03C), Color(0xff00DC00)],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: _green.withValues(alpha: 0.35),
+                        blurRadius: 14,
+                        spreadRadius: -2,
+                      ),
+                    ],
+                  ),
+                  labelColor: Colors.black,
+                  unselectedLabelColor: Colors.white60,
+                  labelStyle: GoogleFonts.inter(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                    letterSpacing: -0.1,
+                  ),
+                  unselectedLabelStyle: GoogleFonts.inter(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                  overlayColor: WidgetStateProperty.all(Colors.transparent),
+                  splashFactory: NoSplash.splashFactory,
+                  tabs: neonTabs([
+                    _TabChip(text: 'All', count: _countFor('all')),
+                    _TabChip(text: 'Locked', count: _countFor('confirmed')),
+                    _TabChip(text: 'Pending', count: _countFor('pending')),
+                  ]),
+                ),
+              ),
             ),
           ),
-        ),
 
-
-        const SizedBox(height: 8),
+          const SizedBox(height: 6),
 
           Expanded(
             child: Obx(() {
-              if (ctr.isLoading.value) {
-                return Center(child: RainbowLoadingBar());
+              if (ctr.isLoading.value && ctr.userBookings.isEmpty) {
+                return Center(child: AppLinearLoader());
               }
 
               return TabBarView(
@@ -312,7 +394,6 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
                   ),
                 ],
               );
-
             }),
           ),
         ],
@@ -320,6 +401,7 @@ class _PastBookingsScreenState extends State<PastBookingsScreen>
     ),
   );
 }
+
 class _TabChip extends StatelessWidget {
   const _TabChip({required this.text, required this.count});
   final String text;
@@ -327,23 +409,35 @@ class _TabChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(text),
-        const SizedBox(width: 6),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-          decoration: BoxDecoration(
-            color: Colors.white12,
-            borderRadius: BorderRadius.circular(999),
+    // Follows the TabBar's label colour, so it reads on the green pill too.
+    final color = DefaultTextStyle.of(context).style.color ?? Colors.white;
+    return Tab(
+      height: 40,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(text),
+          const SizedBox(width: 6),
+          Container(
+            constraints: const BoxConstraints(minWidth: 20),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              '$count',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: color,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
           ),
-          child: Text(
-            '$count',
-            style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white),
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -375,7 +469,7 @@ class _BookingsList extends StatelessWidget {
       //           await ctr.fetchUserBookings();
       //         },
       //         style: ElevatedButton.styleFrom(
-      //           backgroundColor: const Color(0xFF338125),
+      //           backgroundColor: const Color(0xff00DC00),
       //           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       //           shape: RoundedRectangleBorder(
       //             borderRadius: BorderRadius.circular(8),
@@ -399,9 +493,9 @@ class _BookingsList extends StatelessWidget {
           margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: const Color(0xFF1C1C1C),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Color(0xff292929), width: 0.5)
+            color: const Color(0xFF111214),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -432,10 +526,13 @@ class _BookingsList extends StatelessWidget {
                   homeController.onItemTapped(1);
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF93F80A),
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  backgroundColor: const Color(0xff00DC00),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
                 child: Text(
@@ -456,34 +553,38 @@ class _BookingsList extends StatelessWidget {
     return RefreshIndicator(
       onRefresh: () async {
         final ctr = Get.find<BookingController>();
-        await ctr.fetchUserBookings();
+        await ctr.fetchUserBookings(forceRefresh: true);
       },
-      color: const Color(0xFF338125),
+      color: const Color(0xff00DC00),
       backgroundColor: const Color(0xFF1D1D1F),
       child: ListView.separated(
-        padding: const EdgeInsets.all(16),
-        separatorBuilder: (_, __) => const SizedBox(height: 20),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        separatorBuilder: (_, __) => const SizedBox(height: 14),
         itemCount: bookings.length,
         itemBuilder: (_, i) {
           final d = bookings[i];
           return BookingTicketCard(
             game: d['slot']?['gaming_type_id']?['game_name'] ?? 'Unknown',
-            cafe: d['slot']?['gaming_type_id']?['cafe_name']?['cafe_name'] ?? 'Cafe',
+            cafe: CybercafesController.cafeNameForBooking(d) ?? 'Cafe',
             start: fmt(d['slot']?['time']?['start_time']),
             end: fmt(d['slot']?['time']?['end_time']),
             status: (d['status'] ?? 'Pending').toString(),
-            price: double.tryParse(
-              '${d['slot']?['gaming_type_id']?['single_slot_price'] ?? 0}',
-            ) ??
+            price:
+                double.tryParse(
+                  '${d['slot']?['gaming_type_id']?['single_slot_price'] ?? 0}',
+                ) ??
                 0,
             loc: d['slot']?['location'] ?? 'Mumbai',
             id: d['booking_id'] ?? 0,
             raw: d,
             accessCode: d['access_code'],
             bookDate: d['book_date'],
-            extraServices: (d['extra_services'] as List<dynamic>?)
-                ?.map((e) => ExtraService.fromJson(e as Map<String, dynamic>))
-                .toList() ??
+            extraServices:
+                (d['extra_services'] as List<dynamic>?)
+                    ?.map(
+                      (e) => ExtraService.fromJson(e as Map<String, dynamic>),
+                    )
+                    .toList() ??
                 [],
           );
         },
@@ -491,7 +592,6 @@ class _BookingsList extends StatelessWidget {
     );
   }
 }
-
 
 class TicketClipper extends CustomClipper<Path> {
   @override
@@ -546,27 +646,315 @@ class BookingTicketCard extends StatelessWidget {
   final String? accessCode;
   final String? bookDate;
   final List<ExtraService> extraServices;
+  BookingFoodOrderService get _foodOrderService => BookingFoodOrderService();
 
-  void _handleScannedCode(String scannedCode) async {
+  String _readFirstNonEmpty(Iterable<dynamic> values) {
+    for (final value in values) {
+      final normalized = (value ?? '').toString().trim();
+      if (normalized.isNotEmpty && normalized.toLowerCase() != 'null') {
+        return normalized;
+      }
+    }
+    return '';
+  }
+
+  String _resolveConsoleId(Map<String, dynamic> qrData) {
+    return _readFirstNonEmpty([
+      qrData['console_id'],
+      qrData['consoleId'],
+      qrData['id'],
+      qrData['console'] is Map ? qrData['console']['id'] : null,
+      qrData['console'] is Map ? qrData['console']['console_id'] : null,
+    ]);
+  }
+
+  String _resolveGameId(Map<String, dynamic> qrData) {
+    final slot = raw['slot'] as Map<String, dynamic>?;
+    final gamingType = slot?['gaming_type_id'] as Map<String, dynamic>?;
+    return _readFirstNonEmpty([
+      raw['game_id'],
+      raw['gameId'],
+      slot?['game_id'],
+      slot?['gameId'],
+      gamingType?['game_id'],
+      gamingType?['gameId'],
+      gamingType?['id'],
+      qrData['game_id'],
+      qrData['gameId'],
+    ]);
+  }
+
+  String _resolveVendorId(Map<String, dynamic> qrData) {
+    final slot = raw['slot'] as Map<String, dynamic>?;
+    final gamingType = slot?['gaming_type_id'] as Map<String, dynamic>?;
+    final cafe = gamingType?['cafe_name'] as Map<String, dynamic>?;
+    return _readFirstNonEmpty([
+      raw['vendor_id'],
+      raw['vendorId'],
+      slot?['vendor_id'],
+      slot?['vendorId'],
+      gamingType?['vendor_id'],
+      gamingType?['vendorId'],
+      cafe?['vendor_id'],
+      cafe?['vendorId'],
+      cafe?['id'],
+      qrData['vendor_id'],
+      qrData['vendorId'],
+    ]);
+  }
+
+  bool _isCompletedBooking() {
+    final normalizedStatus = status.toLowerCase();
+    if (normalizedStatus.contains('completed') ||
+        normalizedStatus.contains('session_completed')) {
+      return true;
+    }
+
+    bool truthy(dynamic value) {
+      if (value is bool) return value;
+      if (value is num) return value != 0;
+      final raw = value?.toString().trim().toLowerCase() ?? '';
+      return raw == 'true' || raw == '1' || raw == 'yes';
+    }
+
+    String readFirst(List<dynamic> values) {
+      for (final value in values) {
+        final text = value?.toString().trim() ?? '';
+        if (text.isNotEmpty) return text;
+      }
+      return '';
+    }
+
+    final completedFlag = [
+      raw['is_completed'],
+      raw['completed'],
+      raw['session_completed'],
+      raw['review_allowed'],
+      raw['can_review'],
+      raw['is_review_allowed'],
+    ].any(truthy);
+    if (completedFlag) return true;
+
+    final completedAt = readFirst([
+      raw['completed_at'],
+      raw['session_completed_at'],
+      raw['ended_at'],
+      raw['session_end_at'],
+    ]);
+    return completedAt.isNotEmpty;
+  }
+
+  Future<void> _showWriteReviewDialog(BuildContext context) async {
+    if (!_isCompletedBooking()) {
+      debugPrint(
+        'Review blocked on client -> booking_id=$id, status=$status, raw=$raw',
+      );
+      final messenger = ScaffoldMessenger.of(context);
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              'Review will be available once this session is marked completed.',
+              style: GoogleFonts.inter(color: Colors.white),
+            ),
+            backgroundColor: Colors.red.withValues(alpha: 0.9),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      return;
+    }
+
+    final vendorId = int.tryParse(_resolveVendorId(const {}));
+    final bookingId = id;
+    if (vendorId == null || vendorId <= 0 || bookingId <= 0) {
+      final messenger = ScaffoldMessenger.of(context);
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              'Review details are incomplete for this booking.',
+              style: GoogleFonts.inter(color: Colors.white),
+            ),
+            backgroundColor: Colors.red.withValues(alpha: 0.9),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      return;
+    }
+
+    final rootMessenger = ScaffoldMessenger.of(context);
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => _WriteReviewDialog(
+        cafe: cafe,
+        vendorId: vendorId,
+        bookingId: bookingId,
+        rootMessenger: rootMessenger,
+      ),
+    );
+  }
+
+  void _showScanMessage(
+    ScaffoldMessengerState messenger, {
+    required String title,
+    required String message,
+    required Color backgroundColor,
+  }) {
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            '$title: $message',
+            style: GoogleFonts.inter(color: Colors.white),
+          ),
+          backgroundColor: backgroundColor,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 6),
+        ),
+      );
+  }
+
+  Future<void> _showScanSuccessDialog(
+    BuildContext context,
+    String message,
+  ) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 28),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(22, 20, 22, 18),
+            decoration: BoxDecoration(
+              color: const Color(0xFF121212),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: const Color(0xff00DC00).withValues(alpha: 0.28),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xff00DC00).withValues(alpha: 0.10),
+                  blurRadius: 24,
+                  offset: const Offset(0, 12),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xff00DC00).withValues(alpha: 0.12),
+                    border: Border.all(
+                      color: const Color(0xff00DC00).withValues(alpha: 0.30),
+                    ),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Icon(
+                    Icons.check_rounded,
+                    color: Color(0xff00DC00),
+                    size: 34,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Scan Completed',
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  // Server start is confirmed; the PC unlock isn't observed.
+                  '$message The PC will unlock shortly.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    color: Colors.white70,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    height: 1.45,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xff00DC00),
+                      foregroundColor: Colors.black,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                    ),
+                    child: Text(
+                      'Done',
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  static final Set<String> _scansInFlight = {};
+
+  void _handleScannedCode(
+    BuildContext context,
+    ScaffoldMessengerState messenger,
+    String scannedCode,
+  ) async {
+    // One request per ticket at a time, however often it gets scanned.
+    final scanKey = id.toString();
+    if (!_scansInFlight.add(scanKey)) return;
     try {
-      // Parse the JSON from the QR code
-      final Map<String, dynamic> qrData = jsonDecode(scannedCode);
+      Map<String, dynamic> qrData;
+      final trimmedCode = scannedCode.trim();
+      try {
+        final decoded = jsonDecode(trimmedCode);
+        if (decoded is Map<String, dynamic>) {
+          qrData = decoded;
+        } else if (decoded is Map) {
+          qrData = Map<String, dynamic>.from(decoded);
+        } else {
+          qrData = {'console_id': decoded};
+        }
+      } catch (_) {
+        qrData = {'console_id': trimmedCode};
+      }
 
-      // Extract the required fields from the QR code JSON
-      final consoleId = qrData['console_id']?.toString() ?? '';
-      final gameId = qrData['game_id']?.toString() ?? '';
-      final vendorId = qrData['vendor_id']?.toString() ?? '';
+      // QR is the source of truth for console, booking payload is the source of truth for booking/game/vendor.
+      final consoleId = _resolveConsoleId(qrData);
+      final gameId = _resolveGameId(qrData);
+      final vendorId = _resolveVendorId(qrData);
       final bookingId = id.toString();
 
-      // Validate that all required fields are present
-      if (consoleId.isEmpty || gameId.isEmpty || vendorId.isEmpty) {
-        Get.snackbar(
-          'Error',
-          'Invalid QR Code format. Missing required fields.',
-          backgroundColor: Colors.red.withOpacity(0.8),
-          colorText: Colors.white,
-          duration: const Duration(seconds: 3),
-          snackPosition: SnackPosition.TOP,
+      // The ticket and the scanned PC are enough to start; game and vendor
+      // are optional consistency checks.
+      if (consoleId.isEmpty) {
+        _showScanMessage(
+          messenger,
+          title: 'Error',
+          message: 'This QR code has no PC details. Scan the code on the PC.',
+          backgroundColor: Colors.red.withValues(alpha: 0.88),
         );
         return;
       }
@@ -580,36 +968,37 @@ class BookingTicketCard extends StatelessWidget {
         bookingId: bookingId,
       );
 
-      Get.snackbar(
-        'Success',
-        result, // Use the API response message
-        backgroundColor: Colors.green.withOpacity(0.8),
-        colorText: Colors.white,
-        duration: const Duration(seconds: 3),
-        snackPosition: SnackPosition.TOP,
-      );
+      if (!context.mounted) return;
+      await _showScanSuccessDialog(context, result);
     } catch (e) {
       String errorMessage = 'Failed to process QR code';
 
       if (e is FormatException) {
         errorMessage = 'Invalid QR Code format. Please scan a valid QR code.';
       } else {
-        errorMessage = 'Failed to verify booking: ${e.toString()}';
+        errorMessage = e.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
       }
 
-      Get.snackbar(
-        'Error',
-        errorMessage,
-        backgroundColor: Colors.red.withOpacity(0.8),
-        colorText: Colors.white,
-        duration: const Duration(seconds: 3),
-        snackPosition: SnackPosition.TOP,
+      _showScanMessage(
+        messenger,
+        title: 'Error',
+        message: errorMessage,
+        backgroundColor: Colors.red.withValues(alpha: 0.88),
       );
+    } finally {
+      _scansInFlight.remove(scanKey);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final liveSession = LiveSessionBooking.fromPastBooking(raw);
+    final canWriteReview = _isCompletedBooking();
+    final canOrderFood =
+        liveSession != null &&
+        liveSession.vendorId.isNotEmpty &&
+        !canWriteReview &&
+        DateTime.now().isBefore(liveSession.startAt);
     final String formattedStatus = status
         .replaceAll('_', ' ')
         .split(' ')
@@ -635,10 +1024,22 @@ class BookingTicketCard extends StatelessWidget {
     }
     Color _accentForStatus(String s) {
       final v = s.toLowerCase();
-      if (v.contains('confirm') || v.contains('success')) return const Color(0xFF338125); // green
-      if (v.contains('pend') || v.contains('await') || v.contains('unpaid')) return const Color(0xFFF5C042); // yellow
-      return Colors.white; // default for any other/unknown
+      if (v.contains('confirm') || v.contains('success'))
+        return const Color(0xff00DC00); // green
+      if (v.contains('pend') || v.contains('await') || v.contains('unpaid'))
+        return const Color(0xFFF5C042); // yellow
+      if (v.contains('cancel') || v.contains('fail')) {
+        return const Color(0xFFE2584E); // red
+      }
+      return const Color(0xFFB9BCC4); // completed and anything else
     }
+
+    final accent = _accentForStatus(status);
+    const tabular = [FontFeature.tabularFigures()];
+    const pink = HomeTokens.pink;
+    const coral = HomeTokens.coral;
+    const orange = HomeTokens.orange;
+    const brand = HomeTokens.brandGradient;
 
     return InkWell(
       borderRadius: BorderRadius.circular(20),
@@ -649,161 +1050,363 @@ class BookingTicketCard extends StatelessWidget {
         clipper: _TicketClipper(),
         child: Container(
           decoration: BoxDecoration(
-            color: const Color(0xFF1D1D1F),
+            // A warm pink-to-orange wash over the dark ticket.
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color.alphaBlend(
+                  pink.withValues(alpha: 0.20),
+                  const Color(0xFF17151A),
+                ),
+                Color.alphaBlend(
+                  coral.withValues(alpha: 0.08),
+                  const Color(0xFF121214),
+                ),
+                Color.alphaBlend(
+                  orange.withValues(alpha: 0.14),
+                  const Color(0xFF0E0D0E),
+                ),
+              ],
+              stops: const [0, 0.55, 1],
+            ),
             borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.22),
+                blurRadius: 18,
+                offset: const Offset(0, 10),
+              ),
+            ],
           ),
           child: Row(
             children: [
               Container(
-                width: 25,
-                height: 50,
-                decoration: const BoxDecoration(
-                  color: Colors.black,
+                width: 22,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.92),
                   borderRadius: BorderRadius.only(
                     topRight: Radius.circular(100),
                     bottomRight: Radius.circular(100),
                   ),
                 ),
               ),
-
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 12,
-                    horizontal: 8,
-                  ),
-                  child: Row(
+                  padding: const EdgeInsets.fromLTRB(10, 12, 10, 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Column(
+                      Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            '#$id',
-                            style: GoogleFonts.inter(
-                              color: _accentForStatus(status),
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                            ),),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Booking ID',
-                            style: GoogleFonts.inter(
-                              color: _accentForStatus(status).withOpacity(0.75),
-                              fontSize: 10,
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              ShaderMask(
+                                blendMode: BlendMode.srcIn,
+                                shaderCallback: brand.createShader,
+                                child: Text(
+                                  '#$id',
+                                  style: GoogleFonts.inter(
+                                    color: Colors.white,
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -0.5,
+                                    fontFeatures: tabular,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'BOOKING',
+                                style: GoogleFonts.inter(
+                                  color: coral.withValues(alpha: 0.75),
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(width: 10),
+                          SizedBox(
+                            width: 34,
+                            height: 34,
+                            child: IconButton(
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints.tightFor(
+                                width: 34,
+                                height: 34,
+                              ),
+                              splashRadius: 16,
+                              tooltip: 'Scan QR',
+                              onPressed: () async {
+                                if (!context.mounted) return;
+                                final messenger = ScaffoldMessenger.of(context);
+                                // Same scanner as the cafe wallet: framed
+                                // camera plus "Scan from gallery".
+                                final result = await Get.to(
+                                  () => const CafeQrScannerView(),
+                                );
+                                if (!context.mounted) return;
+                                if (result != null) {
+                                  _handleScannedCode(
+                                    context,
+                                    messenger,
+                                    result.toString(),
+                                  );
+                                }
+                              },
+                              style: IconButton.styleFrom(
+                                backgroundColor: Colors.white.withValues(
+                                  alpha: 0.06,
+                                ),
+                                foregroundColor: Colors.white70,
+                                side: BorderSide(
+                                  color: Colors.white.withValues(alpha: 0.08),
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                              icon: const Icon(
+                                Icons.qr_code_scanner_rounded,
+                                size: 16,
+                              ),
                             ),
                           ),
-
-                          const SizedBox(height: 8), // Reduced from 12
-                          ElevatedButton(
-                            onPressed: () async {
-                              final result = await Get.to(
-                                () => const QrScannerView(),
-                              );
-                              if (result != null) {
-                                _handleScannedCode(result.toString());
-                              }
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF338125),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ), // very slim
-                              minimumSize: const Size(
-                                0,
-                                28,
-                              ), // optional: control height
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(4),
+                          const SizedBox(width: 10),
+                          Container(
+                            width: 1,
+                            height: 86,
+                            decoration: BoxDecoration(
+                              border: Border(
+                                left: BorderSide(
+                                  color: Colors.white.withValues(alpha: 0.10),
+                                  width: 1,
+                                ),
                               ),
-                              textStyle: GoogleFonts.inter(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w400,
-                              ),
-                              tapTargetSize: MaterialTapTargetSize
-                                  .shrinkWrap, // avoid extra height
-                              elevation: 0, // optional: keep it flat
                             ),
-                            child: const Text('Scan QR'),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text.rich(
+                                  TextSpan(
+                                    text: cafe,
+                                    children: [
+                                      TextSpan(
+                                        text: '  ·  $game',
+                                        style: GoogleFonts.inter(
+                                          color: Colors.white54,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.inter(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14.5,
+                                    letterSpacing: -0.2,
+                                  ),
+                                ),
+                                const SizedBox(height: 5),
+                                Text(
+                                  '$start – $end',
+                                  style: GoogleFonts.inter(
+                                    color: Colors.white.withValues(alpha: 0.88),
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w600,
+                                    fontFeatures: tabular,
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  formattedDate,
+                                  style: GoogleFonts.inter(
+                                    color: Colors.white54,
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(height: 5),
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 6,
+                                      height: 6,
+                                      decoration: BoxDecoration(
+                                        color: accent,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      formattedStatus,
+                                      style: GoogleFonts.inter(
+                                        color: accent,
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),
-
-                      const SizedBox(width: 12), // Reduced from 18
-                      SizedBox(
-                        height: 80, // Reduced from 100
-                        child: DottedLine(
-                          direction: Axis.vertical,
-                          dashColor: Colors.white12,
-                          dashLength: 3, // Reduced from 4
-                          dashGapLength: 3, // Reduced from 4
-                        ),
-                      ),
-                      const SizedBox(width: 12), // Reduced from 18
-                      // Right Section
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                      if (canOrderFood || canWriteReview) ...[
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
                           children: [
-                            Text(
-                              '$cafe - $game',
-                              style: GoogleFonts.inter(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14, // Reduced from 16
-                              ),
-                            ),
-                            const SizedBox(height: 4), // Reduced from 6
-                            Text(
-                              '$start - $end',
-                              style: GoogleFonts.inter(
-                                color: Colors.white54,
-                                fontSize: 11, // Reduced from 13
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Date: $formattedDate',
-                              style: GoogleFonts.inter(
-                                color: Colors.white54,
-                                fontSize: 11, // Reduced from 13
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Status: $formattedStatus',
-                              style: GoogleFonts.inter(
-                                color: Colors.white54,
-                                fontSize: 11, // Reduced from 13
-                              ),
-                            ),
-                            const SizedBox(height: 8), // Reduced from 12
-                            bw.BarcodeWidget(
-                              data: 'HASH-$id',
-                              barcode: bw.Barcode.code128(),
-                              drawText: false,
-                              color: Colors.white,
-                              width: double.infinity,
-                              height: 30, // Reduced from 40
-                            ),
-                            const SizedBox(height: 6), // Reduced from 8
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.lock_outline,
-                                  size: 14,
-                                  color: Colors.white38,
-                                ), // Reduced from 16
-                                const SizedBox(width: 4), // Reduced from 6
-                                Text(
-                                  'Access Code: $displayAccessCode',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 11, // Reduced from 13
-                                    color: Colors.white70,
-                                    letterSpacing: 1,
+                            if (canOrderFood)
+                              SizedBox(
+                                height: 30,
+                                child: OutlinedButton.icon(
+                                  onPressed: () async {
+                                    await _foodOrderService
+                                        .orderForUpcomingSession(
+                                          context: context,
+                                          booking: raw,
+                                        );
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                    side: const BorderSide(
+                                      color: Color(0xff00DC00),
+                                    ),
+                                    foregroundColor: const Color(0xff00DC00),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  icon: const Icon(
+                                    Icons.fastfood_rounded,
+                                    size: 13,
+                                  ),
+                                  label: Text(
+                                    'Order Food',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                 ),
-                              ],
+                              ),
+                            if (canWriteReview)
+                              SizedBox(
+                                height: 32,
+                                child: OutlinedButton(
+                                  onPressed: () =>
+                                      _showWriteReviewDialog(context),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: const Color(0xFFF3C44E),
+                                    side: BorderSide(
+                                      color: const Color(
+                                        0xFFF3C44E,
+                                      ).withValues(alpha: 0.35),
+                                    ),
+                                    backgroundColor: const Color(
+                                      0xFFF3C44E,
+                                    ).withValues(alpha: 0.08),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(9),
+                                    ),
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.star_rounded, size: 12),
+                                      const SizedBox(width: 2),
+                                      const Icon(Icons.star_rounded, size: 12),
+                                      const SizedBox(width: 2),
+                                      const Icon(
+                                        Icons.star_half_rounded,
+                                        size: 12,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        'Rate Session',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w700,
+                                          letterSpacing: 0.1,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
+                      const SizedBox(height: 10),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.32),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: coral.withValues(alpha: 0.22),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.lock_outline,
+                              size: 14,
+                              color: coral,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'ACCESS CODE',
+                              style: GoogleFonts.inter(
+                                fontSize: 9.5,
+                                color: Colors.white54,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                            const Spacer(),
+                            Flexible(
+                              child: Text(
+                                displayAccessCode,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.right,
+                                style: GoogleFonts.inter(
+                                  fontSize: 13,
+                                  color: accessCode == null
+                                      ? Colors.white38
+                                      : orange,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 1.6,
+                                  fontFeatures: tabular,
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -812,8 +1415,6 @@ class BookingTicketCard extends StatelessWidget {
                   ),
                 ),
               ),
-
-              // Left Section
               Container(
                 width: 25,
                 height: 50,
@@ -833,8 +1434,6 @@ class BookingTicketCard extends StatelessWidget {
   }
 }
 
-/*────────────────────  Ticket-style clipper  ────────────────────*/
-
 class _TicketClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
@@ -842,31 +1441,22 @@ class _TicketClipper extends CustomClipper<Path> {
 
     final Path path = Path();
     path.moveTo(0, 0);
-
-    // Left edge to top-notch start
     path.lineTo(0, size.height / 2 - radius);
     path.arcToPoint(
       Offset(0, size.height / 2 + radius),
       radius: const Radius.circular(radius),
       clockwise: false,
     );
-
-    // Bottom-left to bottom
     path.lineTo(0, size.height);
     path.lineTo(size.width, size.height);
-
-    // Right edge to bottom-notch start
     path.lineTo(size.width, size.height / 2 + radius);
     path.arcToPoint(
       Offset(size.width, size.height / 2 - radius),
       radius: const Radius.circular(radius),
       clockwise: false,
     );
-
-    // Top-right to top
     path.lineTo(size.width, 0);
     path.lineTo(0, 0);
-
     path.close();
     return path;
   }
@@ -874,39 +1464,372 @@ class _TicketClipper extends CustomClipper<Path> {
   @override
   bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }
-// qr_scanner_view.dart
 
-class QrScannerView extends StatelessWidget {
-  const QrScannerView({super.key});
+class _WriteReviewDialog extends StatefulWidget {
+  const _WriteReviewDialog({
+    required this.cafe,
+    required this.vendorId,
+    required this.bookingId,
+    required this.rootMessenger,
+  });
+
+  final String cafe;
+  final int vendorId;
+  final int bookingId;
+  final ScaffoldMessengerState rootMessenger;
+
+  @override
+  State<_WriteReviewDialog> createState() => _WriteReviewDialogState();
+}
+
+class _WriteReviewDialogState extends State<_WriteReviewDialog> {
+  late final TextEditingController _titleController;
+  late final TextEditingController _commentController;
+  int _selectedRating = 5;
+  bool _isAnonymous = false;
+  bool _isSubmitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController();
+    _commentController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _commentController.dispose();
+    super.dispose();
+  }
+
+  InputDecoration _inputDecoration(String hint) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: GoogleFonts.inter(color: Colors.white38, fontSize: 12),
+      filled: true,
+      fillColor: const Color(0xFF1B1C1F),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Color(0xFF2F3237)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Color(0xFF2F3237)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Color(0xFFF4C64F)),
+      ),
+      counterStyle: GoogleFonts.inter(color: Colors.white38, fontSize: 10),
+    );
+  }
+
+  String get _ratingLabel {
+    switch (_selectedRating) {
+      case 5:
+        return 'Loved it';
+      case 4:
+        return 'Really good';
+      case 3:
+        return 'Decent experience';
+      case 2:
+        return 'Needs work';
+      default:
+        return 'Poor experience';
+    }
+  }
+
+  String get _ratingHint {
+    switch (_selectedRating) {
+      case 5:
+        return 'Tell others what made this cafe stand out.';
+      case 4:
+        return 'Share what worked well and what could improve.';
+      case 3:
+        return 'A balanced review helps the next player.';
+      case 2:
+        return 'Point out the main issues clearly.';
+      default:
+        return 'Be specific so the team can fix it.';
+    }
+  }
+
+  Future<void> _submit() async {
+    if (_isSubmitting) return;
+    setState(() => _isSubmitting = true);
+    try {
+      await locator<RemoteRepoInterface>().createCafeReview(
+        vendorId: widget.vendorId,
+        bookingId: widget.bookingId,
+        rating: _selectedRating,
+        title: _titleController.text,
+        comment: _commentController.text,
+        isAnonymous: _isAnonymous,
+      );
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      widget.rootMessenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              'Review submitted successfully.',
+              style: GoogleFonts.inter(color: Colors.white),
+            ),
+            backgroundColor: const Color(0xff00DC00).withValues(alpha: 0.9),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      widget.rootMessenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              e.toString().replaceFirst('Exception: ', ''),
+              style: GoogleFonts.inter(color: Colors.white),
+            ),
+            backgroundColor: Colors.red.withValues(alpha: 0.9),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          MobileScanner(
-            controller: MobileScannerController(
-              detectionSpeed: DetectionSpeed.noDuplicates,
-              facing: CameraFacing.back,
-              torchEnabled: false,
-            ),
-            onDetect: (capture) {
-              final barcode = capture.barcodes.first;
-              if (barcode.rawValue != null) {
-                Get.back(result: barcode.rawValue);
-              }
-            },
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 22),
+      child: Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.82,
+        ),
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF17181B), Color(0xFF111214)],
           ),
-          Positioned(
-            top: 48,
-            left: 16,
-            child: IconButton(
-              icon: const Icon(Icons.close, color: Colors.white),
-              onPressed: () => Get.back(),
-            ),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: const Color(0xFF2A2D31)),
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF4C64F).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  'CAFE REVIEW',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFF4C64F),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.9,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'How was ${widget.cafe}?',
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Rate the session and leave a short review. Your feedback helps other players choose better.',
+                style: GoogleFonts.inter(
+                  color: Colors.white60,
+                  fontSize: 12.5,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.04),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _ratingLabel,
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _ratingHint,
+                      style: GoogleFonts.inter(
+                        color: Colors.white60,
+                        fontSize: 11.5,
+                        height: 1.35,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: List.generate(5, (index) {
+                        final star = index + 1;
+                        return Padding(
+                          padding: EdgeInsets.only(right: index == 4 ? 0 : 6),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(12),
+                            onTap: () => setState(() => _selectedRating = star),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 160),
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: star <= _selectedRating
+                                    ? const Color(
+                                        0xFFF4C64F,
+                                      ).withValues(alpha: 0.14)
+                                    : Colors.white.withValues(alpha: 0.04),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: star <= _selectedRating
+                                      ? const Color(
+                                          0xFFF4C64F,
+                                        ).withValues(alpha: 0.35)
+                                      : Colors.white.withValues(alpha: 0.06),
+                                ),
+                              ),
+                              child: Icon(
+                                star <= _selectedRating
+                                    ? Icons.star_rounded
+                                    : Icons.star_border_rounded,
+                                color: const Color(0xFFF4C64F),
+                                size: 24,
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: _titleController,
+                maxLength: 120,
+                style: GoogleFonts.inter(color: Colors.white),
+                decoration: _inputDecoration('Add a short title'),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: _commentController,
+                minLines: 3,
+                maxLines: 4,
+                style: GoogleFonts.inter(color: Colors.white),
+                decoration: _inputDecoration('What stood out for you?'),
+              ),
+              const SizedBox(height: 10),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.03),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: CheckboxListTile(
+                  value: _isAnonymous,
+                  onChanged: (value) =>
+                      setState(() => _isAnonymous = value ?? false),
+                  dense: true,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                  activeColor: const Color(0xFFF4C64F),
+                  checkColor: Colors.black,
+                  title: Text(
+                    'Post anonymously',
+                    style: GoogleFonts.inter(
+                      color: Colors.white70,
+                      fontSize: 12,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Your name will be hidden from other users.',
+                    style: GoogleFonts.inter(
+                      color: Colors.white38,
+                      fontSize: 10.5,
+                    ),
+                  ),
+                  controlAffinity: ListTileControlAffinity.leading,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _isSubmitting
+                          ? null
+                          : () => Navigator.of(context).pop(),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFF343434)),
+                        foregroundColor: Colors.white70,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: Text(
+                        'Cancel',
+                        style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _isSubmitting ? null : _submit,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFF4C64F),
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: _isSubmitting
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.black,
+                              ),
+                            )
+                          : Text(
+                              'Submit',
+                              style: GoogleFonts.inter(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

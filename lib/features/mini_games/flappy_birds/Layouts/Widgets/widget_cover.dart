@@ -3,14 +3,21 @@
 import 'package:flutter/material.dart';
 
 class Cover extends StatelessWidget {
-   Cover({Key? key}) : super(key: key);
+  Cover({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Container(
       color: Colors.brown,
       alignment: Alignment.center,
-      child: Text("Powered by Fue",style: TextStyle(color: Colors.white,fontSize: 45,fontFamily: "Magic4"),),
+      child: Text(
+        "Powered by Fue",
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 45,
+          fontFamily: "Magic4",
+        ),
+      ),
     );
   }
 }

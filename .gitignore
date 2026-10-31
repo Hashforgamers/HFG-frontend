@@ -29,6 +29,10 @@ migrate_working_dir/
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
+
+# Generated Xcode/Flutter iOS build outputs.
+ios/build_dd/
+ios/build_sim_arm/
 .pub-cache/
 .pub/
 /build/
@@ -43,6 +47,18 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+/android/build/
+/android/.kotlin/
 android_old/
 
 *.hprof
+/android/**/*.jks
+*.jks
+
+# Local env secrets
+.env*.json
+!.env.example.json
+.env
+
+# Local Graphify code knowledge graph
+/graphify-out/

@@ -1,12 +1,15 @@
 import 'dart:ui';
+import 'package:hash/core/utils/app_snackbar.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/core/service/global_bottom_sheet_service.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
+import 'package:hash/app/modules/hash_coin/widgets/hash_coin_icon.dart';
 import '../wallet/controllers/wallet_controller.dart';
 import '../wallet/views/wallet_view.dart';
+import 'package:hash/core/localization/app_region.dart';
 
 class RewardsSection extends StatelessWidget {
   final int hashCoin;
@@ -17,11 +20,14 @@ class RewardsSection extends StatelessWidget {
     final WalletController walletController = Get.find<WalletController>();
 
     return Wrap(
-      spacing: 8,
+      spacing: 6,
       children: [
         GestureDetector(
           onTap: () => _onRedeemPressed(context),
-          child: _buildPill(icon: "https://res.cloudinary.com/dxjjigepf/image/upload/v1754940678/hash_loog_kze6kr.png", amount: "$hashCoin"),
+          child: _buildPill(
+            icon: const HashCoinIcon(size: 18),
+            amount: "$hashCoin",
+          ),
         ),
         GestureDetector(
           onTap: () => Get.to(WalletPage()),
@@ -31,8 +37,17 @@ class RewardsSection extends StatelessWidget {
             return Stack(
               children: [
                 _buildPill(
-                  icon: "https://res.cloudinary.com/dxjjigepf/image/upload/v1754940678/hash_coin_logo_hy62ou.png",
-                  amount: isLoading ? "..." : "₹$walletBalance",
+                  icon: CachedNetworkImage(
+                    imageUrl:
+                        "https://res.cloudinary.com/dxjjigepf/image/upload/v1754940678/hash_coin_logo_hy62ou.png",
+                    height: 18,
+                    width: 18,
+                    placeholder: (_, _) =>
+                        const Center(child: RainbowGlowingLoader(size: 10)),
+                    errorWidget: (_, _, _) =>
+                        const Icon(Icons.error, color: Colors.red),
+                  ),
+                  amount: isLoading ? "..." : "${Money.symbol}$walletBalance",
                 ),
                 Positioned(
                   bottom: 0,
@@ -60,20 +75,19 @@ class RewardsSection extends StatelessWidget {
     GlobalBottomSheetService().showHashCoinRedemptionBottomSheet(
       context,
       hashCoin: hashCoin,
-      onSuccess: (message) => Get.snackbar("Success", message),
-      onError: (message) => Get.snackbar("Error", message),
-      onLoading: () => Get.snackbar("Loading", "Please wait..."),
+      onSuccess: (message) => AppSnackbar.show("Success", message),
+      onError: (message) => AppSnackbar.show("Error", message),
+      onLoading: () => AppSnackbar.show("Loading", "Please wait..."),
     );
   }
 
-  Widget _buildPill({required String icon, required String amount}) {
+  Widget _buildPill({required Widget icon, required String amount}) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(25),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 8),
-          constraints: const BoxConstraints(minWidth: 80),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
@@ -89,16 +103,8 @@ class RewardsSection extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CachedNetworkImage(
-                imageUrl: icon,
-                height: 18,
-                width: 18,
-                placeholder: (_, _) =>
-                    const Center(child: RainbowGlowingLoader(size: 10)),
-                errorWidget: (_, _, _) =>
-                    const Icon(Icons.error, color: Colors.red),
-              ),
-              const SizedBox(width: 8),
+              icon,
+              const SizedBox(width: 6),
               Text(
                 amount,
                 style: GoogleFonts.bigShouldersDisplay(

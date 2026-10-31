@@ -1,0 +1,173 @@
+@import "tailwindcss";
+
+/* Hash's chunky game look (lib/utils/widgets/game_panel.dart): purple bodies,
+   thick dark outlines, a 3D bottom lip, glossy buttons, Lilita One type. */
+@font-face {
+  font-family: "Lilita One";
+  src: url("./assets/lilita-one.woff2") format("woff2");
+  font-display: swap;
+}
+
+@theme {
+  --color-ink: #140c3f;
+  --color-panel: #33238a;
+  --color-neon: #7cf06b;
+  --color-volt: #ffe45c;
+  --color-danger: #ff5a4a;
+  --color-outline: #0b0b10;
+  --color-soft: #c9c0ff;
+  --font-mono: ui-monospace, "SF Mono", "Roboto Mono", Menlo, "Droid Sans Mono", monospace;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  background: linear-gradient(180deg, #2a1c78, #140c3f) fixed;
+  color: #fff;
+  font-family: "Lilita One", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  letter-spacing: 0.01em;
+  /* Lilita has one weight; never fake-bold it */
+  font-synthesis: none;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+button {
+  touch-action: manipulation;
+}
+button:focus-visible {
+  outline: 2px solid var(--color-volt);
+  outline-offset: 2px;
+}
+
+/* Inside the Hash app the WebView runs under the status bar, with the app's own
+   back button floating top-left; .in-app moves the top row clear of both. */
+.safe-top {
+  padding-top: calc(env(safe-area-inset-top) + 12px);
+}
+.in-app .safe-top {
+  padding-top: 42px;
+}
+.in-app .clear-back {
+  margin-left: 52px;
+}
+/* in the app its own back button does this job, so there's only ever one */
+.in-app .web-back {
+  visibility: hidden;
+}
+
+.glass {
+  background: linear-gradient(180deg, #4b36b8, #33238a);
+  border: 3px solid var(--color-outline);
+  box-shadow: inset 0 -6px 0 #1e145c, 0 8px 18px rgb(0 0 0 / 0.45);
+}
+/* recessed tray, like the Ludo seat sockets */
+.tray {
+  background: #1b1250;
+  border: 3px solid #120b38;
+  box-shadow: inset 0 4px 0 rgb(0 0 0 / 0.35);
+}
+/* chunky outlined game text (GameText) */
+.outline-text {
+  text-shadow:
+    0 0.09em 0 var(--color-outline),
+    0.06em 0.06em 0 var(--color-outline),
+    -0.06em 0.06em 0 var(--color-outline),
+    0.06em -0.06em 0 var(--color-outline),
+    -0.06em -0.06em 0 var(--color-outline);
+}
+.bg-arcade {
+  background:
+    radial-gradient(70% 45% at 50% 0%, rgb(143 123 255 / 0.35), transparent 70%),
+    linear-gradient(180deg, #2a1c78, #140c3f);
+}
+/* glossy 3D button: outline, lip, highlight; the face drops on press */
+.chunky {
+  position: relative;
+  border: 3px solid var(--color-outline);
+  box-shadow: inset 0 -5px 0 var(--lip), 0 6px 10px rgb(0 0 0 / 0.35);
+  background: linear-gradient(180deg, var(--top), var(--bottom));
+  color: #fff;
+  transition: transform 70ms, box-shadow 70ms;
+}
+.chunky::before {
+  content: "";
+  position: absolute;
+  inset: 3px 8px auto;
+  height: 38%;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.28);
+  pointer-events: none;
+}
+.chunky:active {
+  transform: translateY(3px);
+  box-shadow: inset 0 -2px 0 var(--lip), 0 2px 4px rgb(0 0 0 / 0.35);
+}
+.tone-green { --top: #7cf06b; --bottom: #2fbf3a; --lip: #1b7f24; }
+.tone-yellow { --top: #ffe45c; --bottom: #ffc21a; --lip: #d08a00; }
+.tone-purple { --top: #8f7bff; --bottom: #6a4df0; --lip: #4127b0; }
+.tone-red { --top: #ff7a6b; --bottom: #e8392c; --lip: #9e1e16; }
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+/* grids size themselves to their container, no JS layout */
+.fit-area {
+  container-type: size;
+}
+.fit-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--c), 1fr);
+  grid-template-rows: repeat(var(--r), 1fr);
+  width: min(100cqw, 100cqh * var(--c) / var(--r));
+  height: min(100cqh, 100cqw * var(--r) / var(--c));
+  font-size: calc(min(100cqw / var(--c), 100cqh / var(--r)) * 0.62);
+}
+
+.timer-bar {
+  transform-origin: left;
+  background: linear-gradient(180deg, #7cf06b, #2fbf3a);
+}
+.warn .timer-bar {
+  background: linear-gradient(180deg, #ff7a6b, #e8392c);
+}
+.warn .timer-text {
+  color: var(--color-danger);
+}
+.particle {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  pointer-events: none;
+  animation: burst 620ms cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+}
+@keyframes burst {
+  0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(0.2); opacity: 0; }
+}
+.shake {
+  animation: shake 300ms;
+}
+@keyframes shake {
+  25% { transform: translateX(-4px); }
+  50% { transform: translateX(4px); }
+  75% { transform: translateX(-2px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}

@@ -12,9 +12,7 @@ class GetVoucherModel {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'vouchers': vouchers.map((voucher) => voucher.toJson()).toList(),
-    };
+    return {'vouchers': vouchers.map((voucher) => voucher.toJson()).toList()};
   }
 }
 

@@ -1,65 +1,73 @@
 import 'package:get/get.dart';
 import 'package:hash/utils/constants.dart';
-import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart';
 import 'dart:convert';
+import 'package:hash/core/utils/app_logger.dart';
 
 class ReviewController extends GetxController {
   final String baseUri = hostName;
 
   var reviews = [].obs;
   var isLoading = false.obs;
+  final Dio _dio = Dio();
 
   // Method to add a review
   Future<void> addReview(String token, String pid, double rating, String comment) async {
-    final url = Uri.parse('$baseUri/product/$pid/reviews');
+    final url = '$baseUri/product/$pid/reviews';
     final body = {
       'rating': rating,
       'comment': comment,
     };
 
     try {
-      final response = await http.post(
+      final response = await _dio.post(
         url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: json.encode(body),
+        options: Options(
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        ),
+        data: body,
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        print('Review added successfully');
+        AppLogger.d('Review added successfully');
         // Refresh the reviews after adding a new one
         getReviews(pid);
       } else {
-        print('Failed to add review: ${response.statusCode}');
+        AppLogger.d('Failed to add review: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error adding review: $e');
+      AppLogger.d('Error adding review: $e');
     }
   }
 
   // Method to get reviews
   Future<void> getReviews(String pid) async {
     isLoading.value = true;
-    final url = Uri.parse('$baseUri/product/$pid/reviews');
+    final url = '$baseUri/product/$pid/reviews';
 
     try {
-      final response = await http.get(
+      final response = await _dio.get(
         url,
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        options: Options(
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        ),
       );
-      print(json.decode(response.body));
+      final data = response.data is String
+          ? json.decode(response.data as String)
+          : response.data;
+      AppLogger.d(data);
       if (response.statusCode == 200) {
-        final responseData = json.decode(response.body);
-        reviews.value = responseData['reviews'];
+        reviews.value = data['reviews'];
       } else {
-        print('Failed to fetch reviews: ${response.statusCode}');
+        AppLogger.d('Failed to fetch reviews: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error fetching reviews: $e');
+      AppLogger.d('Error fetching reviews: $e');
     } finally {
       isLoading.value = false;
     }
@@ -67,26 +75,28 @@ class ReviewController extends GetxController {
 
   // Method to delete a review
   Future<void> deleteReview(String token, String pid, String reviewId) async {
-    final url = Uri.parse('$baseUri/product/$pid/reviews/$reviewId');
+    final url = '$baseUri/product/$pid/reviews/$reviewId';
 
     try {
-      final response = await http.delete(
+      final response = await _dio.delete(
         url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
+        options: Options(
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        ),
       );
 
       if (response.statusCode == 200) {
-        print('Review deleted successfully');
+        AppLogger.d('Review deleted successfully');
         // Refresh the reviews after deleting one
         getReviews(pid);
       } else {
-        print('Failed to delete review: ${response.statusCode}');
+        AppLogger.d('Failed to delete review: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error deleting review: $e');
+      AppLogger.d('Error deleting review: $e');
     }
   }
 }

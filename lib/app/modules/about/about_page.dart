@@ -4,7 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 class AboutPage extends StatelessWidget {
   const AboutPage({super.key});
 
-  final Color brandGreen = const Color(0xFF00C853); // ✅ HashforGamers green
+  final Color brandGreen = const Color(0xff00DC00); // ✅ HashforGamers green
 
   @override
   Widget build(BuildContext context) {
@@ -147,7 +147,7 @@ class AboutPage extends StatelessWidget {
     bool isMultiLine = false,
     VoidCallback? onTap,
   }) {
-    final Color brandGreen = const Color(0xFF00C853);
+    final Color brandGreen = const Color(0xff00DC00);
 
     return InkWell(
       borderRadius: BorderRadius.circular(20),

@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:hash/core/utils/app_snackbar.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -24,13 +25,13 @@ class RewardsSection extends StatelessWidget {
               context,
               hashCoin: hashCoin,
               onSuccess: (message) {
-                Get.snackbar("Success", message);
+                AppSnackbar.show("Success", message);
               },
               onError: (message) {
-                Get.snackbar("Error", message);
+                AppSnackbar.show("Error", message);
               },
               onLoading: () {
-                Get.snackbar("Loading", "Please wait...");
+                AppSnackbar.show("Loading", "Please wait...");
               },
             );
           },
@@ -38,7 +39,7 @@ class RewardsSection extends StatelessWidget {
             CupertinoIcons.hexagon,
             "$hashCoin",
             "Hash Coins",
-            const Color(0xff338125),
+            const Color(0xff00DC00),
           ),
         ),
         GestureDetector(

@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'package:hash/core/utils/app_logger.dart';
 
 class OptimizedImageCacheManager {
   static final OptimizedImageCacheManager _instance = OptimizedImageCacheManager._internal();
@@ -95,7 +96,7 @@ class OptimizedImageCacheManager {
         final imageProvider = getOptimizedImage(imageUrl, type: type);
         await precacheImage(imageProvider, context);
       } catch (e) {
-        print('Failed to preload image: $imageUrl - $e');
+        AppLogger.d('Failed to preload image: $imageUrl - $e');
       }
     }
   }
@@ -137,7 +138,7 @@ class OptimizedImageCacheManager {
   }
 
   void _handleImageError(String cacheKey, dynamic error) {
-    print('Image loading error for $cacheKey: $error');
+    AppLogger.d('Image loading error for $cacheKey: $error');
     _imageCache.remove(cacheKey);
   }
 }

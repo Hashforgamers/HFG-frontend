@@ -1,28 +1,49 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:hash/app/modules/cafe_play/data/cafe_play_api.dart';
+import 'package:hash/app/modules/cafe_play/models/cafe_play_models.dart';
+import 'package:hash/app/modules/game_pass/model/get_vendor_passes_model.dart';
+import 'package:hash/app/modules/game_pass/model/vendor_passes_response.dart';
 import 'package:hash/core/network/api_endpoints.dart';
-import 'package:hash/core/network/error_handler.dart';
+import 'package:hash/core/network/api_error_handler.dart';
 import 'package:hash/core/network/network_config.dart';
+import 'package:hash/core/repositories/local/auth_data_repo.dart';
 import 'package:hash/core/repositories/model/booking_model.dart';
+import 'package:hash/core/repositories/model/hash_coin_spend.dart';
 import 'package:hash/core/repositories/model/capture_payment_model.dart';
 import 'package:hash/core/repositories/model/create_voucher_response.dart';
 import 'package:hash/core/repositories/model/extra_services_model.dart';
+import 'package:hash/core/repositories/model/event_team_members_response.dart';
 import 'package:hash/core/repositories/model/get_food_menu_model.dart';
 import 'package:hash/core/repositories/model/get_pass_model.dart';
 import 'package:hash/core/repositories/model/get_voucher_model.dart';
 import 'package:hash/core/repositories/model/purchase_pass_model.dart';
 import 'package:hash/core/repositories/model/transaction_history_model.dart';
+import 'package:hash/core/repositories/remote/auth_exceptions.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
+import 'package:hash/core/service/device_identifier_service.dart';
+import 'package:hash/core/service_locator.dart';
+import 'package:hash/core/utils/app_logger.dart';
 import 'package:hash/utils/encrypt_util.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
 
 class RemoteRepo implements RemoteRepoInterface {
   final NetworkProvider networkProvider;
+  final DeviceIdentifierService? deviceIdentifierService;
 
-  RemoteRepo({required this.networkProvider});
+  RemoteRepo({required this.networkProvider, this.deviceIdentifierService});
+
+  String _prettyJson(dynamic value) {
+    try {
+      return const JsonEncoder.withIndent('  ').convert(value);
+    } catch (_) {
+      return value.toString();
+    }
+  }
 
   @override
   Future<Map<String, dynamic>?> checkUserExistsInAPI(String fid) async {
@@ -66,7 +87,15 @@ class RemoteRepo implements RemoteRepoInterface {
       }
       return null;
     } catch (e) {
-      print('Error checking user existence: $e');
+      if (e is DioException && e.response?.statusCode == 404) {
+        debugPrint(
+          '[Auth][API] checkUserExistsInAPI | firebaseUid=$fid | status=404 | treating as user-missing',
+        );
+        return null;
+      }
+      debugPrint(
+        '[Auth][API] checkUserExistsInAPI failed | firebaseUid=$fid | error=$e',
+      );
       return null;
     }
   }
@@ -76,10 +105,26 @@ class RemoteRepo implements RemoteRepoInterface {
     final dio = networkProvider.noAuth();
 
     try {
-      final response = await dio.post(ApiEndpoints.signUp, data: userData);
+      final headers =
+          await deviceIdentifierService?.buildRequestHeaders() ??
+          const <String, String>{};
+      debugPrint(
+        '[iOS Signup][API] POST ${ApiEndpoints.signUp} | fid=${userData["fid"]} | name=${userData["name"]} | gamerTag=${userData["gameUserName"]} | email=${((userData["contact"] ?? const {})["electronicAddress"] ?? const {})["emailId"]} | mobile=${((userData["contact"] ?? const {})["electronicAddress"] ?? const {})["mobileNo"]} | headerKeys=${headers.keys.toList()}',
+      );
+      final response = await dio.post(
+        ApiEndpoints.signUp,
+        data: userData,
+        options: headers.isEmpty ? null : Options(headers: headers),
+      );
+      debugPrint(
+        '[iOS Signup][API] Response status=${response.statusCode} | bodyType=${response.data.runtimeType}',
+      );
 
       if (response.statusCode == 201) {
         final Map<String, dynamic> responseBody = response.data;
+        debugPrint(
+          '[iOS Signup][API] Signup success | responseKeys=${responseBody.keys.toList()}',
+        );
         // Save user data to preferences after successful signup
         await saveUserToPreferences(responseBody['user']);
         return responseBody;
@@ -91,6 +136,26 @@ class RemoteRepo implements RemoteRepoInterface {
     } catch (e) {
       // Handle DioException specifically
       if (e is DioException) {
+        debugPrint(
+          '[iOS Signup][API] DioException | status=${e.response?.statusCode} | data=${e.response?.data} | message=${e.message}',
+        );
+        final responseData = e.response?.data;
+        if (e.response?.statusCode == 409 && responseData is Map) {
+          final state = (responseData['state'] ?? '').toString().trim();
+          if (state == 'EMAIL_EXISTS') {
+            final details = responseData['details'];
+            final email = details is Map
+                ? (details['email'] ?? '').toString().trim()
+                : '';
+            throw AuthConflictException(
+              state: state,
+              message:
+                  (responseData['message'] ?? 'This email is already in use.')
+                      .toString(),
+              email: email.isEmpty ? null : email,
+            );
+          }
+        }
         // If it's a retryable error, let the interceptor handle it
         if (ApiErrorHandler.shouldRetry(e)) {
           rethrow; // Let the retry interceptor handle it
@@ -100,8 +165,77 @@ class RemoteRepo implements RemoteRepoInterface {
         final errorMessage = ApiErrorHandler.extractErrorMessage(e);
         throw Exception(errorMessage);
       }
-      print('Error during signup: $e');
+      debugPrint('[iOS Signup][API] Non-Dio signup error: $e');
       rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> getRegisteredPhoneStatus() async {
+    final dio = await networkProvider.auth();
+
+    try {
+      final response = await dio.get(ApiEndpoints.registeredPhoneStatus);
+      final data = response.data is Map<String, dynamic>
+          ? response.data as Map<String, dynamic>
+          : <String, dynamic>{};
+
+      if (response.statusCode == 200) {
+        return data;
+      }
+
+      throw Exception(
+        data['message']?.toString() ??
+            'Failed to fetch registered phone status.',
+      );
+    } on DioException catch (e) {
+      final responseData = e.response?.data;
+      if (responseData is Map<String, dynamic>) {
+        throw Exception(
+          responseData['message']?.toString() ??
+              'Failed to fetch registered phone status.',
+        );
+      }
+      throw Exception(ApiErrorHandler.extractErrorMessage(e));
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> updateRegisteredPhone({
+    required String phone,
+  }) async {
+    final dio = await networkProvider.auth();
+
+    try {
+      final response = await dio.put(
+        ApiEndpoints.registeredPhone,
+        data: <String, dynamic>{'phone': phone.trim()},
+      );
+      final data = response.data is Map<String, dynamic>
+          ? response.data as Map<String, dynamic>
+          : <String, dynamic>{};
+
+      if (response.statusCode == 200) {
+        return data;
+      }
+
+      throw Exception(
+        data['message']?.toString() ?? 'Failed to update phone number.',
+      );
+    } on DioException catch (e) {
+      final responseData = e.response?.data;
+      if (responseData is Map<String, dynamic>) {
+        final format = responseData['format']?.toString().trim();
+        final message = responseData['message']?.toString().trim();
+        final combined = [
+          message,
+          if (format != null && format.isNotEmpty) format,
+        ].where((item) => item != null && item.isNotEmpty).join('\n');
+        throw Exception(
+          combined.isNotEmpty ? combined : 'Failed to update phone number.',
+        );
+      }
+      throw Exception(ApiErrorHandler.extractErrorMessage(e));
     }
   }
 
@@ -137,13 +271,32 @@ class RemoteRepo implements RemoteRepoInterface {
     required String date,
   }) async {
     final dio = networkProvider.noAuth();
+    final endpoint =
+        '${ApiEndpoints.slotsBaseUrl}/getSlots/vendor/$vendorId/game/$gameId/$date';
     try {
-      final response = await dio.get(
-        '${ApiEndpoints.slotsBaseUrl}/getSlots/vendor/$vendorId/game/$gameId/$date',
+      print(
+        'Available console API request -> api=$endpoint, vendor_id=$vendorId, game_id=$gameId, date=$date',
       );
+      debugPrint(
+        'Available console API request -> api=$endpoint, vendor_id=$vendorId, game_id=$gameId, date=$date',
+      );
+      AppLogger.d(
+        'Available console API request -> api=$endpoint, vendor_id=$vendorId, game_id=$gameId, date=$date',
+      );
+
+      final response = await dio.get(endpoint);
 
       if (response.statusCode == 200) {
         final data = response.data;
+        print(
+          'Available console API response -> api=$endpoint, status=${response.statusCode}, response=$data',
+        );
+        debugPrint(
+          'Available console API response -> api=$endpoint, status=${response.statusCode}, response=$data',
+        );
+        AppLogger.d(
+          'Available console API response -> api=$endpoint, status=${response.statusCode}, response=$data',
+        );
         return (data['slots'] as List)
             .map((slot) => slot as Map<String, dynamic>)
             .toList();
@@ -153,7 +306,9 @@ class RemoteRepo implements RemoteRepoInterface {
         );
       }
     } catch (e) {
-      print('Error fetching slots: $e');
+      print('Available console API error -> api=$endpoint, error=$e');
+      debugPrint('Available console API error -> api=$endpoint, error=$e');
+      AppLogger.d('Available console API error -> api=$endpoint, error=$e');
       rethrow;
     }
   }
@@ -234,7 +389,19 @@ class RemoteRepo implements RemoteRepoInterface {
 
       if (response.statusCode == 200) {
         final List<dynamic> data = response.data;
-        return data.map((e) => e as Map<String, dynamic>).toList();
+        final bookings = data.map((e) => e as Map<String, dynamic>).toList();
+
+        if (bookings.isNotEmpty) {
+          final rawUserId =
+              bookings.first['user_id'] ?? bookings.first['userId'];
+          final userId = rawUserId?.toString().trim() ?? '';
+          if (userId.isNotEmpty) {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString('user_id', userId);
+          }
+        }
+
+        return bookings;
       } else {
         throw Exception(
           'Failed to fetch bookings. Status code: ${response.statusCode}',
@@ -242,7 +409,7 @@ class RemoteRepo implements RemoteRepoInterface {
       }
     } catch (e) {
       if (e is DioException) {
-        // If it's a retryable error, let the interceptor handle it
+        // If it's a retryable error, let the intercep
         if (ApiErrorHandler.shouldRetry(e)) {
           rethrow; // Let the retry interceptor handle it
         }
@@ -263,7 +430,13 @@ class RemoteRepo implements RemoteRepoInterface {
 
       if (response.statusCode == 200) {
         final data = response.data;
-        return List<Map<String, dynamic>>.from(data['vendors']);
+        final vendors = List<Map<String, dynamic>>.from(data['vendors']);
+        for (final vendor in vendors) {
+          AppLogger.d(
+            'Vendor amenities debug -> vendor_id=${vendor['vendor_id']}, cafe_name=${vendor['cafe_name']}, amenities=${vendor['amenities']}',
+          );
+        }
+        return vendors;
       } else {
         throw Exception(
           'Failed to fetch cybercafes. Status code: ${response.statusCode}',
@@ -286,26 +459,553 @@ class RemoteRepo implements RemoteRepoInterface {
   }
 
   @override
+  Future<List<Map<String, dynamic>>> fetchNearbyPlayers({
+    required double latitude,
+    required double longitude,
+    double radiusKm = 10,
+  }) async {
+    final dio = await networkProvider.auth();
+    final response = await dio.get(
+      ApiEndpoints.nearbyUsers(
+        latitude: latitude,
+        longitude: longitude,
+        radiusKm: radiusKm,
+      ),
+    );
+    final body = response.data;
+    final rawPlayers = body is List
+        ? body
+        : body is Map && body['players'] is List
+        ? body['players'] as List
+        : const <dynamic>[];
+    return rawPlayers
+        .whereType<Map>()
+        .map((player) => Map<String, dynamic>.from(player))
+        .toList();
+  }
+
+  @override
   Future<Map<String, dynamic>> fetchVendorGames(int vendorId) async {
-    final dio = networkProvider.noAuth();
+    // Dashboard vendor-games drives UI cards, booking service ids drive slot API.
+    final dashboardDio = await networkProvider.auth();
+    final bookingDio = networkProvider.noAuth();
+    final dashboardEndpoint = ApiEndpoints.vendorGamesByVendorId('$vendorId');
+    final bookingEndpoint = '${ApiEndpoints.vendorGames}/$vendorId';
     try {
-      final response = await dio.get('${ApiEndpoints.vendorGames}/$vendorId');
+      print(
+        'Arena detail API request -> type=vendor_games_dashboard, api=$dashboardEndpoint, vendor_id=$vendorId',
+      );
+      debugPrint(
+        'Arena detail API request -> type=vendor_games_dashboard, api=$dashboardEndpoint, vendor_id=$vendorId',
+      );
+      AppLogger.d(
+        'Arena detail API request -> type=vendor_games_dashboard, api=$dashboardEndpoint, vendor_id=$vendorId',
+      );
+
+      final response = await dashboardDio.get(dashboardEndpoint);
+      print(
+        'Arena detail API response -> type=vendor_games_dashboard, api=$dashboardEndpoint, status=${response.statusCode}\n${_prettyJson(response.data)}',
+      );
+      debugPrint(
+        'Arena detail API response -> type=vendor_games_dashboard, api=$dashboardEndpoint, status=${response.statusCode}\n${_prettyJson(response.data)}',
+      );
+      AppLogger.d(
+        'Arena detail API response -> type=vendor_games_dashboard, api=$dashboardEndpoint, status=${response.statusCode}\n${_prettyJson(response.data)}',
+      );
+
+      final Map<String, int> bookingGameIdByPlatform = {};
+      bool? legacyShopOpen;
+      final List<Map<String, dynamic>> legacyGamesForFallback = [];
+      final List<Map<String, dynamic>> legacyConsoleTypes = [];
+      try {
+        print(
+          'Arena detail API request -> type=vendor_games_booking_legacy, api=$bookingEndpoint, vendor_id=$vendorId',
+        );
+        debugPrint(
+          'Arena detail API request -> type=vendor_games_booking_legacy, api=$bookingEndpoint, vendor_id=$vendorId',
+        );
+        AppLogger.d(
+          'Arena detail API request -> type=vendor_games_booking_legacy, api=$bookingEndpoint, vendor_id=$vendorId',
+        );
+        final legacyResponse = await bookingDio.get(bookingEndpoint);
+        print(
+          'Arena detail API response -> type=vendor_games_booking_legacy, api=$bookingEndpoint, status=${legacyResponse.statusCode}\n${_prettyJson(legacyResponse.data)}',
+        );
+        debugPrint(
+          'Arena detail API response -> type=vendor_games_booking_legacy, api=$bookingEndpoint, status=${legacyResponse.statusCode}\n${_prettyJson(legacyResponse.data)}',
+        );
+        AppLogger.d(
+          'Arena detail API response -> type=vendor_games_booking_legacy, api=$bookingEndpoint, status=${legacyResponse.statusCode}\n${_prettyJson(legacyResponse.data)}',
+        );
+        if (legacyResponse.statusCode == 200 && legacyResponse.data is Map) {
+          legacyShopOpen = _parseLooseBool(
+            legacyResponse.data['shop_open'] ??
+                legacyResponse.data['is_open'] ??
+                legacyResponse.data['open_close_flag'],
+          );
+          final consoleTypes =
+              (legacyResponse.data['console_types'] as List?) ?? const [];
+          for (final item in consoleTypes) {
+            if (item is! Map) continue;
+            legacyConsoleTypes.add(Map<String, dynamic>.from(item));
+          }
+          final legacyGames =
+              (legacyResponse.data['games'] as List?) ?? const [];
+          for (final item in legacyGames) {
+            if (item is! Map) continue;
+            final map = Map<String, dynamic>.from(item);
+            legacyGamesForFallback.add(map);
+            final id = map['id'];
+            if (id is! num) continue;
+            final rawPlatform =
+                (map['game_name'] ??
+                        map['game_platform'] ??
+                        map['platform_type'] ??
+                        '')
+                    .toString();
+            final normalizedPlatform = _normalizePlatform(rawPlatform);
+            if (normalizedPlatform.isEmpty) continue;
+            bookingGameIdByPlatform[normalizedPlatform] = id.toInt();
+          }
+        }
+      } catch (e) {
+        debugPrint('Legacy booking game mapping unavailable: $e');
+      }
 
       if (response.statusCode == 200) {
-        final data = response.data;
-        return {
-          'games': List<Map<String, dynamic>>.from(data['games'] ?? []),
-          'shop_open': data['shop_open'] ?? false,
+        final List<dynamic> data = response.data is List
+            ? response.data as List
+            : response.data is Map && response.data['games'] is List
+            ? response.data['games'] as List
+            : const <dynamic>[];
+        final hasDashboardCatalog = data.any((item) {
+          if (item is! Map) return false;
+          final game = item['game'];
+          if (game is! Map) return false;
+          final title = (game['name'] ?? game['title'] ?? '').toString().trim();
+          return title.isNotEmpty;
+        });
+
+        // Normalize dashboard data for optional enrichment, but prefer legacy
+        // booking inventory when present because it carries the actual
+        // booking ids, console type, and total_slots semantics used by the UI.
+        final dashboardGames = data.map<Map<String, dynamic>>((item) {
+          final game = (item is Map ? item['game'] : null) ?? {};
+          final consoles = (item is Map ? item['consoles'] : []) ?? [];
+
+          final normalizedConsoles = <Map<String, dynamic>>[];
+          if (consoles is List) {
+            for (final c in consoles) {
+              if (c is! Map) continue;
+              final console = Map<String, dynamic>.from(c);
+              final consoleType = _normalizePlatform(
+                (console['console_type'] ?? console['consoleType'] ?? '')
+                    .toString(),
+              );
+              final bookingGameId =
+                  bookingGameIdByPlatform[consoleType] ??
+                  ((console['vendor_game_id'] is num)
+                      ? (console['vendor_game_id'] as num).toInt()
+                      : null);
+              if (bookingGameId != null) {
+                console['booking_game_id'] = bookingGameId;
+              }
+              normalizedConsoles.add(console);
+            }
+          }
+
+          final fallbackPlatform = normalizedConsoles.isNotEmpty
+              ? (normalizedConsoles.first['console_type'] ??
+                        normalizedConsoles.first['consoleType'] ??
+                        game['platform'] ??
+                        '')
+                    .toString()
+              : (game['platform'] ?? '').toString();
+          final firstConsoleBookingId = normalizedConsoles
+              .map((console) => console['booking_game_id'])
+              .whereType<num>()
+              .map((value) => value.toInt())
+              .cast<int?>()
+              .firstWhere((value) => value != null, orElse: () => null);
+          final firstConsoleVendorGameId = normalizedConsoles
+              .map((console) => console['vendor_game_id'])
+              .whereType<num>()
+              .map((value) => value.toInt())
+              .cast<int?>()
+              .firstWhere((value) => value != null, orElse: () => null);
+          final gameBookingId =
+              firstConsoleBookingId ??
+              bookingGameIdByPlatform[_normalizePlatform(fallbackPlatform)] ??
+              firstConsoleVendorGameId;
+
+          double? derivedPrice;
+          if (item is Map && item['avg_price'] != null) {
+            derivedPrice = (item['avg_price'] as num).toDouble();
+          } else if (normalizedConsoles.isNotEmpty) {
+            final first = normalizedConsoles.first;
+            if (first['price_per_hour'] != null) {
+              derivedPrice = (first['price_per_hour'] as num).toDouble();
+            }
+          }
+
+          return {
+            'game_id': game['id'],
+            'game_name': _sanitizeGameTitle(game['name'] ?? game['title']),
+            'game_platform': game['platform'],
+            'genre': game['genre'],
+            'image_url': game['image_url'],
+            'total_slots': item is Map ? item['total_consoles'] ?? 0 : 0,
+            'single_slot_price': derivedPrice ?? 0,
+            'booking_game_id': gameBookingId,
+            'consoles': normalizedConsoles,
+          };
+        }).toList();
+
+        final normalizedGames = <Map<String, dynamic>>[];
+        final normalizedGameIndexByPlatform = <String, int>{};
+
+        void upsertNormalizedGame(Map<String, dynamic> candidate) {
+          final platformKey = _normalizePlatform(
+            (candidate['game_platform'] ??
+                    candidate['platform_type'] ??
+                    candidate['console_type'] ??
+                    candidate['game_name'] ??
+                    '')
+                .toString(),
+          );
+
+          if (platformKey.isEmpty) {
+            normalizedGames.add(candidate);
+            return;
+          }
+
+          final existingIndex = normalizedGameIndexByPlatform[platformKey];
+          if (existingIndex == null) {
+            normalizedGameIndexByPlatform[platformKey] = normalizedGames.length;
+            normalizedGames.add(candidate);
+            return;
+          }
+
+          final existing = normalizedGames[existingIndex];
+          final mergedConsoles = <Map<String, dynamic>>[
+            ...((existing['consoles'] as List?)?.whereType<Map>().map(
+                  (console) => Map<String, dynamic>.from(console),
+                ) ??
+                const <Map<String, dynamic>>[]),
+          ];
+          final seenConsoleKeys = mergedConsoles
+              .map(
+                (console) => _normalizePlatform(
+                  (console['console_type'] ??
+                          console['consoleType'] ??
+                          console['type'] ??
+                          '')
+                      .toString(),
+                ),
+              )
+              .where((value) => value.isNotEmpty)
+              .toSet();
+
+          final incomingConsoles =
+              (candidate['consoles'] as List?)?.whereType<Map>().map(
+                (console) => Map<String, dynamic>.from(console),
+              ) ??
+              const <Map<String, dynamic>>[];
+
+          for (final console in incomingConsoles) {
+            final consoleKey = _normalizePlatform(
+              (console['console_type'] ??
+                      console['consoleType'] ??
+                      console['type'] ??
+                      '')
+                  .toString(),
+            );
+            if (consoleKey.isEmpty || seenConsoleKeys.add(consoleKey)) {
+              mergedConsoles.add(console);
+            }
+          }
+
+          normalizedGames[existingIndex] = {
+            ...existing,
+            'game_name':
+                (existing['game_name'] ?? '').toString().trim().isNotEmpty
+                ? existing['game_name']
+                : candidate['game_name'],
+            'game_platform':
+                (existing['game_platform'] ?? '').toString().trim().isNotEmpty
+                ? existing['game_platform']
+                : candidate['game_platform'],
+            'platform_type':
+                (existing['platform_type'] ?? '').toString().trim().isNotEmpty
+                ? existing['platform_type']
+                : candidate['platform_type'],
+            'console_type':
+                (existing['console_type'] ?? '').toString().trim().isNotEmpty
+                ? existing['console_type']
+                : candidate['console_type'],
+            'genre': (existing['genre'] ?? '').toString().trim().isNotEmpty
+                ? existing['genre']
+                : candidate['genre'],
+            'image_url':
+                (existing['image_url'] ?? '').toString().trim().isNotEmpty
+                ? existing['image_url']
+                : candidate['image_url'],
+            'total_slots':
+                (existing['total_slots'] is num &&
+                    (existing['total_slots'] as num) > 0)
+                ? existing['total_slots']
+                : candidate['total_slots'],
+            'single_slot_price':
+                (existing['single_slot_price'] is num &&
+                    (existing['single_slot_price'] as num) > 0)
+                ? existing['single_slot_price']
+                : candidate['single_slot_price'],
+            'booking_game_id':
+                existing['booking_game_id'] ?? candidate['booking_game_id'],
+            'consoles': mergedConsoles,
+          };
+        }
+
+        if (hasDashboardCatalog && dashboardGames.isNotEmpty) {
+          for (final dashboardGame in dashboardGames) {
+            upsertNormalizedGame(Map<String, dynamic>.from(dashboardGame));
+          }
+        }
+
+        if (legacyGamesForFallback.isNotEmpty) {
+          final dashboardByPlatform = <String, Map<String, dynamic>>{};
+          for (final dashboardGame in dashboardGames) {
+            final platform = _normalizePlatform(
+              (dashboardGame['game_platform'] ??
+                      dashboardGame['game_name'] ??
+                      '')
+                  .toString(),
+            );
+            if (platform.isEmpty || dashboardByPlatform.containsKey(platform)) {
+              continue;
+            }
+            dashboardByPlatform[platform] = dashboardGame;
+          }
+
+          for (final legacy in legacyGamesForFallback) {
+            final platform =
+                (legacy['game_platform'] ??
+                        legacy['platform_type'] ??
+                        legacy['console_type'] ??
+                        legacy['game_name'] ??
+                        '')
+                    .toString();
+            final normalizedPlatform = _normalizePlatform(platform);
+            final bookingId = legacy['id'];
+            if (bookingId is! num) continue;
+            final dashboardMatch = dashboardByPlatform[normalizedPlatform];
+            final legacyConsoleType =
+                (legacy['console_type'] ??
+                        legacy['platform_type'] ??
+                        legacy['game_platform'] ??
+                        legacy['game_name'] ??
+                        '')
+                    .toString();
+            upsertNormalizedGame({
+              'game_name': _sanitizeGameTitle(legacy['game_name']),
+              'game_platform': platform,
+              'platform_type': legacy['platform_type'],
+              'console_type': legacy['console_type'],
+              'genre': (dashboardMatch?['genre'] ?? legacy['genre'] ?? '')
+                  .toString(),
+              'image_url':
+                  (dashboardMatch?['image_url'] ?? legacy['image_url'] ?? '')
+                      .toString(),
+              'total_slots': legacy['total_slots'] ?? 1,
+              'single_slot_price': (legacy['single_slot_price'] is num)
+                  ? (legacy['single_slot_price'] as num).toDouble()
+                  : 0.0,
+              'booking_game_id': bookingId.toInt(),
+              'consoles': legacyConsoleType.trim().isEmpty
+                  ? <Map<String, dynamic>>[]
+                  : <Map<String, dynamic>>[
+                      {
+                        'console_type': legacyConsoleType,
+                        'booking_game_id': bookingId.toInt(),
+                        'vendor_game_id': bookingId.toInt(),
+                      },
+                    ],
+            });
+          }
+        }
+
+        if (legacyConsoleTypes.isNotEmpty) {
+          for (final consoleType in legacyConsoleTypes) {
+            final rawConsoleType =
+                (consoleType['console_slug'] ??
+                        consoleType['console_display_name'] ??
+                        consoleType['console_type'] ??
+                        '')
+                    .toString();
+            final normalizedPlatform = _normalizePlatform(rawConsoleType);
+            if (normalizedPlatform.isEmpty) continue;
+
+            upsertNormalizedGame({
+              'game_name': '',
+              'game_platform': rawConsoleType,
+              'platform_type': consoleType['family'],
+              'console_type': rawConsoleType,
+              'genre': (consoleType['family'] ?? '').toString(),
+              'image_url': '',
+              'total_slots': consoleType['inventory_count'] ?? 0,
+              'single_slot_price': 0.0,
+              'booking_game_id': consoleType['available_game_id'],
+              'consoles': <Map<String, dynamic>>[
+                {
+                  'console_type': rawConsoleType,
+                  'console_slug': consoleType['console_slug'],
+                  'console_display_name': consoleType['console_display_name'],
+                  'controller_policy': consoleType['controller_policy'],
+                  'default_capacity': consoleType['default_capacity'],
+                  'family': consoleType['family'],
+                  'has_game_pricing': consoleType['has_game_pricing'],
+                  'icon': consoleType['icon'],
+                  'input_mode': consoleType['input_mode'],
+                  'inventory_count': consoleType['inventory_count'],
+                  'supports_multiplayer': consoleType['supports_multiplayer'],
+                  'available_game_id': consoleType['available_game_id'],
+                  'booking_game_id': consoleType['available_game_id'],
+                  'bookable': consoleType['bookable'],
+                  'available_slot': consoleType['inventory_count'] ?? 0,
+                },
+              ],
+            });
+          }
+        }
+
+        if (normalizedGames.isEmpty) {
+          normalizedGames.addAll(dashboardGames);
+        }
+
+        final bool? dashboardShopOpen = response.data is Map<String, dynamic>
+            ? _parseLooseBool(
+                response.data['shop_open'] ??
+                    response.data['is_open'] ??
+                    response.data['open_close_flag'],
+              )
+            : null;
+
+        final result = {
+          'games': normalizedGames,
+          'shop_open': legacyShopOpen ?? dashboardShopOpen,
         };
+        print(
+          'Arena detail merged games -> vendor_id=$vendorId\n${_prettyJson(result)}',
+        );
+        debugPrint(
+          'Arena detail merged games -> vendor_id=$vendorId\n${_prettyJson(result)}',
+        );
+        AppLogger.d(
+          'Arena detail merged games -> vendor_id=$vendorId\n${_prettyJson(result)}',
+        );
+        return result;
       } else {
         throw Exception(
           'Failed to fetch vendor games. Status code: ${response.statusCode}',
         );
       }
     } catch (e) {
-      print('Error fetching vendor games: $e');
+      print(
+        'Arena detail API error -> type=vendor_games, dashboard_api=$dashboardEndpoint, booking_api=$bookingEndpoint, error=$e',
+      );
+      debugPrint(
+        'Arena detail API error -> type=vendor_games, dashboard_api=$dashboardEndpoint, booking_api=$bookingEndpoint, error=$e',
+      );
+      AppLogger.d(
+        'Arena detail API error -> type=vendor_games, dashboard_api=$dashboardEndpoint, booking_api=$bookingEndpoint, error=$e',
+      );
       rethrow;
     }
+  }
+
+  String _normalizePlatform(String value) {
+    final v = value
+        .toLowerCase()
+        .replaceAll('_', ' ')
+        .replaceAll('-', ' ')
+        .trim();
+    if (v.isEmpty) return '';
+    if (v.contains('ps') || v.contains('playstation')) return 'ps5';
+    if (v.contains('xbox')) return 'xbox';
+    if (v.contains('vr') || v.contains('virtual')) return 'vr_headset';
+    if (v.contains('nintendo') || v.contains('switch')) {
+      return 'nintendo_switch';
+    }
+    if (v.contains('steam') || v.contains('deck')) return 'steam_deck';
+    if (v.contains('arcade')) return 'arcade_cabinet';
+    if (v.contains('racing') || v.contains('rig')) return 'racing_rig';
+    if (v.contains('simulator')) return 'simulator';
+    if (v.contains('private') && v.contains('room')) return 'private_room';
+    if (v.contains('vip') && v.contains('room')) return 'vip_room';
+    if (v.contains('bootcamp') && v.contains('room')) return 'bootcamp_room';
+    if (v.contains('pc') || v.contains('computer')) return 'pc';
+    return v.replaceAll(' ', '_');
+  }
+
+  bool _looksLikeConsoleLabel(String value) {
+    final v = value
+        .toLowerCase()
+        .replaceAll('_', ' ')
+        .replaceAll('-', ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    if (v.isEmpty) return true;
+
+    const consoleLabels = <String>{
+      'pc',
+      'pcs',
+      'gaming pc',
+      'gaming pcs',
+      'pc setup',
+      'pc setups',
+      'console',
+      'consoles',
+      'playstation',
+      'play station',
+      'playstation 4',
+      'playstation 5',
+      'ps',
+      'ps4',
+      'ps5',
+      'xbox',
+      'xbox one',
+      'xbox series',
+      'xbox series s',
+      'xbox series x',
+      'vr',
+      'vr headset',
+      'virtual reality',
+      'nintendo switch',
+      'switch',
+    };
+
+    return consoleLabels.contains(v);
+  }
+
+  String _sanitizeGameTitle(dynamic value) {
+    final title = (value ?? '').toString().trim();
+    if (title.isEmpty) return '';
+    if (_looksLikeConsoleLabel(title)) return '';
+    return title;
+  }
+
+  bool? _parseLooseBool(dynamic value) {
+    if (value == null) return null;
+    if (value is bool) return value;
+    if (value is num) return value == 1;
+    if (value is String) {
+      final v = value.trim().toLowerCase();
+      if (v == 'true' || v == '1' || v == 'yes' || v == 'open') return true;
+      if (v == 'false' || v == '0' || v == 'no' || v == 'closed') {
+        return false;
+      }
+    }
+    return null;
   }
 
   @override
@@ -345,17 +1045,24 @@ class RemoteRepo implements RemoteRepoInterface {
     bool isGamePass = false,
     List<ExtraServiceItem>? extraServices,
     String? userPassId,
+    Map<String, dynamic>? squadDetails,
+    int? suggestedExtraControllerQty,
   }) async {
-    final dio = networkProvider.noAuth();
+    final dio = await networkProvider.auth();
     try {
       final Map<String, dynamic> requestData = {
         "booking_id": bookingIds,
         "payment_id": paymentId,
         "book_date": bookDate,
         "payment_mode": paymentMode,
-        "use_pass": isGamePass,
-        "user_pass_id": userPassId,
       };
+
+      if (isGamePass) {
+        requestData["use_pass"] = true;
+        if (userPassId != null && userPassId.trim().isNotEmpty) {
+          requestData["user_pass_id"] = userPassId.trim();
+        }
+      }
 
       // Add voucher code if provided
       if (voucherCode != null && voucherCode.isNotEmpty) {
@@ -369,21 +1076,130 @@ class RemoteRepo implements RemoteRepoInterface {
             .toList();
       }
 
-      final response = await dio.post(
-        ApiEndpoints.confirmBooking,
-        data: requestData,
+      if (squadDetails != null && squadDetails.isNotEmpty) {
+        requestData["squad_details"] = squadDetails;
+        requestData["squadDetails"] = squadDetails;
+        final playerCount = squadDetails["player_count"];
+        if (playerCount is num) {
+          requestData["playerCount"] = playerCount.toInt();
+        }
+      }
+
+      if (suggestedExtraControllerQty != null) {
+        requestData["suggestedExtraControllerQty"] =
+            suggestedExtraControllerQty < 0 ? 0 : suggestedExtraControllerQty;
+      }
+
+      final endpoint = ApiEndpoints.confirmBooking;
+      final stopwatch = Stopwatch()..start();
+
+      print(
+        'Confirm booking API request -> api=$endpoint, payment_mode=$paymentMode, payload=$requestData',
+      );
+      debugPrint(
+        'Confirm booking API request -> api=$endpoint, payment_mode=$paymentMode, payload=$requestData',
+      );
+      AppLogger.d(
+        'Confirm booking API request -> api=$endpoint, payment_mode=$paymentMode, payload=$requestData',
       );
 
-      if (response.statusCode == 200) {
+      final response = await dio
+          .post(endpoint, data: requestData)
+          .timeout(
+            const Duration(seconds: 20),
+            onTimeout: () => throw TimeoutException(
+              'Confirm booking request timed out after 20 seconds.',
+            ),
+          );
+
+      stopwatch.stop();
+      print(
+        'Confirm booking API response -> api=$endpoint, status=${response.statusCode}, elapsed_ms=${stopwatch.elapsedMilliseconds}, response=${response.data}',
+      );
+      debugPrint(
+        'Confirm booking API response -> api=$endpoint, status=${response.statusCode}, elapsed_ms=${stopwatch.elapsedMilliseconds}, response=${response.data}',
+      );
+      AppLogger.d(
+        'Confirm booking API response -> api=$endpoint, status=${response.statusCode}, elapsed_ms=${stopwatch.elapsedMilliseconds}, response=${response.data}',
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
         return response.data;
       } else {
         throw Exception(
           'Failed to confirm booking. Status code: ${response.statusCode}',
         );
       }
+    } on DioException catch (e) {
+      print(
+        'Confirm booking API DioException -> api=${e.requestOptions.uri}, type=${e.type}, status=${e.response?.statusCode}, response=${e.response?.data}, message=${e.message}',
+      );
+      debugPrint(
+        'Confirm booking API DioException -> api=${e.requestOptions.uri}, type=${e.type}, status=${e.response?.statusCode}, response=${e.response?.data}, message=${e.message}',
+      );
+      AppLogger.d(
+        'Confirm booking API DioException -> api=${e.requestOptions.uri}, type=${e.type}, status=${e.response?.statusCode}, response=${e.response?.data}, message=${e.message}',
+      );
+
+      if (ApiErrorHandler.shouldRetry(e)) {
+        rethrow;
+      }
+      final errorMessage = ApiErrorHandler.extractErrorMessage(e);
+      throw Exception(errorMessage);
     } catch (e) {
-      print('Error confirming booking: $e');
+      print('Confirm booking API error -> error=$e');
+      debugPrint('Confirm booking API error -> error=$e');
+      AppLogger.d('Confirm booking API error -> error=$e');
       rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> fetchBookingPricingEstimate({
+    required int vendorId,
+    required int gameId,
+    required String consoleType,
+    required bool squadEnabled,
+    required int playerCount,
+    int? suggestedExtraControllerQty,
+  }) async {
+    final dio = networkProvider.noAuth();
+    try {
+      final queryParameters = <String, dynamic>{
+        "vendor_id": vendorId,
+        "game_id": gameId,
+        "consoleType": consoleType,
+        "squadEnabled": squadEnabled,
+        "playerCount": playerCount,
+      };
+      if (suggestedExtraControllerQty != null) {
+        queryParameters["suggestedExtraControllerQty"] =
+            suggestedExtraControllerQty < 0 ? 0 : suggestedExtraControllerQty;
+      }
+
+      final response = await dio.get(
+        ApiEndpoints.bookingPricingEstimate,
+        queryParameters: queryParameters,
+      );
+
+      if (response.statusCode == 200) {
+        if (response.data is Map<String, dynamic>) {
+          return response.data as Map<String, dynamic>;
+        }
+        return Map<String, dynamic>.from(response.data as Map);
+      }
+
+      throw Exception(
+        'Failed to fetch pricing estimate. Status code: ${response.statusCode}',
+      );
+    } on DioException catch (e) {
+      if (ApiErrorHandler.shouldRetry(e)) {
+        rethrow;
+      }
+      final errorMessage = ApiErrorHandler.extractErrorMessage(e);
+      throw Exception(errorMessage);
+    } catch (e) {
+      throw Exception('Error fetching pricing estimate: $e');
     }
   }
 
@@ -619,34 +1435,39 @@ class RemoteRepo implements RemoteRepoInterface {
       rethrow;
     }
   }
+
   @override
   Future<void> claimDropCrateBonus({
     required String userId,
-    int amount = 30,
+    int amount = 10,
   }) async {
     final dio = await networkProvider.auth();
     try {
       final response = await dio.post(
-        '${ApiEndpoints.baseUrl}/wallet',
+        ApiEndpoints.wallet(),
         data: {
           "amount": amount,
           "reference_id": "drop_crate_${DateTime.now().millisecondsSinceEpoch}",
         },
       );
-
       if (response.statusCode == 200 || response.statusCode == 201) {
         debugPrint("✅ Drop Crate bonus claimed successfully.");
-      } else {
-        final err = response.data;
-        throw Exception(
-          (err is Map && err.containsKey('error'))
-              ? err['error']
-              : 'Failed to claim drop crate bonus',
+        return;
+      }
+      throw Exception('Failed to claim drop crate bonus');
+    } on DioException catch (e) {
+      final status = e.response?.statusCode;
+      final body = e.response?.data;
+      final message = body is Map
+          ? (body['message'] ?? body['error'])?.toString()
+          : null;
+      debugPrint("❌ Error claiming drop crate bonus: $status $message");
+      if (status == 401 || status == 403) {
+        throw WelcomeCrateRejected(
+          message ?? 'Couldn’t add the welcome bonus right now.',
         );
       }
-    } catch (e) {
-      debugPrint("❌ Error claiming drop crate bonus: $e");
-      rethrow;
+      rethrow; // timeouts / 5xx: caller may retry
     }
   }
 
@@ -654,22 +1475,54 @@ class RemoteRepo implements RemoteRepoInterface {
   Future<Map<String, dynamic>> addFunds({
     required String userId,
     required String paymentId,
-    required int amount,
+    required num amount,
   }) async {
     final dio = await networkProvider.auth();
+    final endpoint = ApiEndpoints.wallet();
+    final payload = {'amount': amount, 'reference_id': paymentId};
     try {
-      final response = await dio.post(
-        ApiEndpoints.wallet(),
-        data: {'amount': amount, 'reference_id': paymentId},
+      print('Wallet ledger request -> api=$endpoint, payload=$payload');
+      debugPrint('Wallet ledger request -> api=$endpoint, payload=$payload');
+      AppLogger.d('Wallet ledger request -> api=$endpoint, payload=$payload');
+      final response = await dio.post(endpoint, data: payload);
+
+      print(
+        'Wallet ledger response -> status=${response.statusCode}, response=${response.data}',
+      );
+      debugPrint(
+        'Wallet ledger response -> status=${response.statusCode}, response=${response.data}',
+      );
+      AppLogger.d(
+        'Wallet ledger response -> status=${response.statusCode}, response=${response.data}',
       );
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         return response.data;
       } else {
         throw Exception(
-          'Failed to add funds. Status code: ${response.statusCode}',
+          'Failed to update wallet balance. Status code: ${response.statusCode}',
         );
       }
+    } on DioException catch (e) {
+      final statusCode = e.response?.statusCode;
+      final responseData = e.response?.data;
+      print(
+        'Wallet ledger update failed -> api=$endpoint, payload=$payload, status=$statusCode, response=$responseData',
+      );
+      debugPrint(
+        'Wallet ledger update failed -> api=$endpoint, payload=$payload, status=$statusCode, response=$responseData',
+      );
+      AppLogger.d(
+        'Wallet ledger update failed -> api=$endpoint, payload=$payload, status=$statusCode, response=$responseData',
+      );
+      final backendMessage = responseData is Map
+          ? (responseData['message'] ?? responseData['error'])?.toString()
+          : null;
+      throw Exception(
+        backendMessage?.trim().isNotEmpty == true
+            ? backendMessage
+            : 'Wallet update failed (status: $statusCode).',
+      );
     } catch (e) {
       print('Error adding funds: $e');
       rethrow;
@@ -794,6 +1647,94 @@ class RemoteRepo implements RemoteRepoInterface {
   }
 
   @override
+  Future<int> addHashCoins({
+    required int amount,
+    String? source,
+    String? referenceId,
+  }) async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.post(
+        ApiEndpoints.getHashCoin,
+        data: {
+          'amount': amount,
+          'source': source ?? 'external_cafe_like',
+          'reference_id':
+              referenceId ??
+              'external_cafe_like_${DateTime.now().millisecondsSinceEpoch}',
+        },
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = response.data;
+        if (data is Map<String, dynamic>) {
+          final hashCoins = data['hash_coins'] ?? data['total_hash_coins'];
+          if (hashCoins is int) return hashCoins;
+          if (hashCoins is num) return hashCoins.toInt();
+        }
+        return amount;
+      }
+
+      throw Exception(
+        'Failed to add hash coins. Status code: ${response.statusCode}',
+      );
+    } catch (e) {
+      debugPrint('Error adding hash coins: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<int> spendHashCoins({
+    required int amount,
+    required String source,
+    required String referenceId,
+    String? itemId,
+  }) async {
+    final dio = await networkProvider.auth();
+    final Response<dynamic> response;
+    try {
+      response = await dio.post(
+        ApiEndpoints.spendHashCoin,
+        data: {
+          'amount': amount,
+          'source': source,
+          if (itemId != null) 'item_id': itemId,
+          'reference_id': referenceId,
+        },
+      );
+    } on DioException catch (e) {
+      // a refusal (4xx) carries the reason; anything else is a transport
+      // failure and is rethrown so the caller can retry with the same reference
+      final refused = e.response;
+      if (refused == null) rethrow;
+      throw HashCoinSpendException.fromResponse(
+        refused.statusCode,
+        refused.data,
+      );
+    }
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw HashCoinSpendException.fromResponse(
+        response.statusCode,
+        response.data,
+      );
+    }
+    final data = response.data;
+    if (data is Map<String, dynamic>) {
+      final hashCoins = data['hash_coins'] ?? data['total_hash_coins'];
+      if (hashCoins is num) return hashCoins.toInt();
+    }
+    return getHashCoin();
+  }
+
+  @override
+  Future<List<HashCoinPurchase>> getHashCoinPurchases() async {
+    final dio = await networkProvider.auth();
+    final response = await dio.get(ApiEndpoints.hashCoinPurchases);
+    return HashCoinPurchase.listFrom(response.data);
+  }
+
+  @override
   Future<CreateVoucherResponse> createOffer({
     required int discountPercentage,
   }) async {
@@ -816,6 +1757,9 @@ class RemoteRepo implements RemoteRepoInterface {
     }
   }
 
+  static const _scanSignInAgain =
+      'Your session has expired. Please sign in again.';
+
   @override
   Future<String> scanQrCode({
     required String consoleId,
@@ -823,48 +1767,354 @@ class RemoteRepo implements RemoteRepoInterface {
     required String vendorId,
     required String bookingId,
   }) async {
-    final dio = networkProvider.noAuth();
+    // vendor_id and game_id are optional consistency checks on the backend.
+    final data = <String, dynamic>{
+      'booking_id': int.tryParse(bookingId) ?? bookingId,
+      'console_id': int.tryParse(consoleId) ?? consoleId,
+      if (int.tryParse(vendorId) case final vendor?) 'vendor_id': vendor,
+      if (int.tryParse(gameId) case final game?) 'game_id': game,
+    };
+
+    // The user JWT is only exchanged for a short-lived checkout token, which
+    // authorizes the start; CafePlayApi renews that token once on a 401.
+    final cafeApi = CafePlayApi.instance;
+    Future<Response<dynamic>> start() async {
+      try {
+        return await cafeApi.startPhoneBooking(data);
+      } on CafePlayException catch (e) {
+        if (!e.isUnknownOutcome) rethrow;
+        // Timed out or dropped: the same booking and PC are safe to resend.
+        return cafeApi.startPhoneBooking(data);
+      }
+    }
+
+    Response<dynamic> response;
     try {
+      response = await start();
+    } on CafePlayException catch (e) {
+      if (e.statusCode != 401) throw Exception(e.message);
+      // The exchange rejected the stored JWT: refresh it once and retry the
+      // same ticket. A second 401 means the user has to sign in again.
+      try {
+        await networkProvider.refreshedAuth();
+        cafeApi.clear();
+        response = await start();
+      } on CafePlayException catch (retryError) {
+        if (retryError.statusCode == 401) throw Exception(_scanSignInAgain);
+        throw Exception(retryError.message);
+      } catch (_) {
+        throw Exception(_scanSignInAgain);
+      }
+    } catch (_) {
+      throw Exception(_scanSignInAgain);
+    }
+
+    _logScan(response);
+    final statusCode = response.statusCode ?? 0;
+    if (statusCode >= 200 && statusCode < 300) {
+      return _scanSuccess(response.data);
+    }
+    throw Exception(_scanFailure(response));
+  }
+
+  /// The backend's confirmed session is authoritative; its end time carries
+  /// an explicit offset and is shown in IST.
+  String _scanSuccess(dynamic body) {
+    const started = 'Your session has started.';
+    final session = body is Map && body['data'] is Map ? body['data'] : body;
+    final end = session is Map
+        ? DateTime.tryParse(session['end_time']?.toString() ?? '')
+        : null;
+    if (end == null) return started;
+    final ist = end.toUtc().add(const Duration(hours: 5, minutes: 30));
+    final hour = ist.hour % 12 == 0 ? 12 : ist.hour % 12;
+    final minute = ist.minute.toString().padLeft(2, '0');
+    return '$started It ends at $hour:$minute ${ist.hour < 12 ? 'AM' : 'PM'}.';
+  }
+
+  /// First non-empty [keys] value in a scan response: a map (or a list whose
+  /// first item is one), with error details optionally nested under `error`.
+  String? _scanBodyField(dynamic body, List<String> keys) {
+    final map = body is List && body.isNotEmpty ? body.first : body;
+    if (map is! Map) return null;
+    for (final key in keys) {
+      final value = map[key];
+      if (value is Map || value is List) continue;
+      final text = value?.toString().trim() ?? '';
+      if (text.isNotEmpty) return text;
+    }
+    final nested = map['error'];
+    return nested is Map ? _scanBodyField(nested, keys) : null;
+  }
+
+  String? _scanCode(Response<dynamic> response) =>
+      _scanBodyField(response.data, const ['code', 'error_code']);
+
+  String? _scanRequestId(Response<dynamic> response) =>
+      _scanBodyField(response.data, const ['request_id']) ??
+      response.headers.value('x-request-id') ??
+      response.headers.value('rndr-id');
+
+  /// Backend message, code and request id, so support can trace a failure.
+  String _scanFailure(Response<dynamic> response) {
+    final code = _scanCode(response);
+    final retryAfter = response.headers.value('retry-after');
+    final message =
+        _scanBodyField(response.data, const ['message', 'error', 'detail']) ??
+        switch (code) {
+          'booking_not_owned' => 'This ticket belongs to another account.',
+          'booking_console_mismatch' ||
+          'console_mismatch' ||
+          'booking_scope_mismatch' =>
+            'This ticket isn\'t for this PC. Please ask the cafe staff.',
+          'booking_not_accepted' =>
+            'The cafe hasn\'t accepted this booking yet.',
+          'rate_limited' => 'Too many attempts. Please wait and try again.',
+          'invalid_id' ||
+          'invalid_json' ||
+          'invalid_console_ids' => 'This QR code isn\'t a valid PC code.',
+          _ => switch (response.statusCode) {
+            401 => _scanSignInAgain,
+            403 => 'This ticket can\'t be started on this PC.',
+            409 => 'This booking can\'t be started right now.',
+            429 => 'Too many attempts. Please wait and try again.',
+            _ => 'Failed to scan QR code. Status code: ${response.statusCode}',
+          },
+        };
+    final requestId = _scanRequestId(response);
+    return [
+      message,
+      if (response.statusCode == 429 && int.tryParse(retryAfter ?? '') != null)
+        'Try again in $retryAfter seconds.',
+      if (code != null && code != message) 'Code: $code',
+      if (requestId != null) 'Request ID: $requestId',
+    ].join('\n');
+  }
+
+  /// Diagnostics only: never the token, the QR contents or the access code.
+  void _logScan(Response<dynamic> response) {
+    debugPrint(
+      'scanQrCode -> path=${response.requestOptions.path}, '
+      'status=${response.statusCode}, code=${_scanCode(response)}, '
+      'request_id=${_scanRequestId(response)}',
+    );
+  }
+
+  @override
+  Future<Map<String, dynamic>> createCafeReview({
+    required int vendorId,
+    required int bookingId,
+    required int rating,
+    String? title,
+    String? comment,
+    bool? isAnonymous,
+  }) async {
+    final dio = await networkProvider.auth();
+    final url = ApiEndpoints.createReview;
+    final payload = <String, dynamic>{
+      'vendor_id': vendorId,
+      'booking_id': bookingId,
+      'rating': rating,
+      if ((title ?? '').trim().isNotEmpty) 'title': title!.trim(),
+      if ((comment ?? '').trim().isNotEmpty) 'comment': comment!.trim(),
+      if (isAnonymous != null) 'is_anonymous': isAnonymous,
+    };
+
+    try {
+      debugPrint('createCafeReview request -> url=$url, body=$payload');
       final response = await dio.post(
-        ApiEndpoints.scanQrCode,
-        data: {
-          'console_id': consoleId,
-          'game_id': gameId,
-          'vendor_id': vendorId,
-          'booking_id': bookingId,
-        },
+        url,
+        data: payload,
+        options: Options(contentType: Headers.jsonContentType),
       );
-      if (response.statusCode == 201) {
-        return response.data['message'];
-      } else {
-        // Handle non-201 status codes
-        final responseData = response.data;
-        String errorMessage = 'Failed to scan QR code.';
-        if (responseData is Map<String, dynamic> &&
-            responseData.containsKey('error')) {
-          errorMessage = responseData['error'];
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final body = response.data;
+        debugPrint(
+          'createCafeReview success -> url=$url, status=${response.statusCode}, response=$body',
+        );
+        if (body is Map) {
+          return Map<String, dynamic>.from(body);
         }
-        throw Exception(errorMessage);
+        throw Exception('Invalid review create response format.');
       }
+      debugPrint(
+        'createCafeReview failed -> url=$url, status=${response.statusCode}, body=$payload, response=${response.data}',
+      );
+      throw Exception(
+        'Failed to create review. Status code: ${response.statusCode}',
+      );
     } catch (e) {
-      // Handle DioException specifically to extract error message
-      if (e is DioException && e.response != null) {
-        final statusCode = e.response!.statusCode;
-        final responseData = e.response!.data;
-
-        if (statusCode == 400) {
-          // Extract error message from response data
-          String errorMessage = 'Failed to scan QR code.';
-          if (responseData is Map<String, dynamic> &&
-              responseData.containsKey('error')) {
-            errorMessage = responseData['error'];
-          }
-          throw Exception(errorMessage);
-        } else {
-          throw Exception('Failed to scan QR code. Status code: $statusCode');
-        }
+      if (e is DioException) {
+        debugPrint(
+          'createCafeReview DioException -> url=$url, status=${e.response?.statusCode}, body=$payload, response=${e.response?.data}, message=${e.message}',
+        );
       }
+      debugPrint('Error creating cafe review: $e');
+      rethrow;
+    }
+  }
 
+  @override
+  Future<Map<String, dynamic>> updateCafeReview({
+    required int reviewId,
+    int? rating,
+    String? title,
+    String? comment,
+    bool? isAnonymous,
+  }) async {
+    final dio = await networkProvider.auth();
+    final url = ApiEndpoints.updateReview(reviewId.toString());
+    final payload = <String, dynamic>{
+      if (rating != null) 'rating': rating,
+      if ((title ?? '').trim().isNotEmpty) 'title': title!.trim(),
+      if ((comment ?? '').trim().isNotEmpty) 'comment': comment!.trim(),
+      if (isAnonymous != null) 'is_anonymous': isAnonymous,
+    };
+
+    try {
+      debugPrint(
+        'updateCafeReview request -> url=$url, reviewId=$reviewId, body=$payload',
+      );
+      final response = await dio.patch(
+        url,
+        data: payload,
+        options: Options(contentType: Headers.jsonContentType),
+      );
+      if (response.statusCode == 200) {
+        final body = response.data;
+        debugPrint(
+          'updateCafeReview success -> url=$url, reviewId=$reviewId, status=${response.statusCode}, response=$body',
+        );
+        if (body is Map) {
+          return Map<String, dynamic>.from(body);
+        }
+        throw Exception('Invalid review update response format.');
+      }
+      debugPrint(
+        'updateCafeReview failed -> url=$url, reviewId=$reviewId, status=${response.statusCode}, body=$payload, response=${response.data}',
+      );
+      throw Exception(
+        'Failed to update review. Status code: ${response.statusCode}',
+      );
+    } catch (e) {
+      if (e is DioException) {
+        debugPrint(
+          'updateCafeReview DioException -> url=$url, reviewId=$reviewId, status=${e.response?.statusCode}, body=$payload, response=${e.response?.data}, message=${e.message}',
+        );
+      }
+      debugPrint('Error updating cafe review: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> fetchVendorReviews({
+    required int vendorId,
+    int limit = 20,
+    int offset = 0,
+    int? rating,
+    String sort = 'recent',
+  }) async {
+    final dio = networkProvider.noAuth();
+    final safeLimit = limit.clamp(1, 100);
+    final safeSort = sort.trim().toLowerCase() == 'top' ? 'top' : 'recent';
+    final endpoint = ApiEndpoints.vendorReviews(
+      vendorId.toString(),
+      limit: safeLimit,
+      offset: offset,
+      rating: rating,
+      sort: safeSort,
+    );
+    try {
+      print(
+        'Arena detail API request -> type=vendor_reviews, api=$endpoint, vendor_id=$vendorId',
+      );
+      debugPrint(
+        'Arena detail API request -> type=vendor_reviews, api=$endpoint, vendor_id=$vendorId',
+      );
+      AppLogger.d(
+        'Arena detail API request -> type=vendor_reviews, api=$endpoint, vendor_id=$vendorId',
+      );
+      final response = await dio.get(endpoint);
+      if (response.statusCode == 200) {
+        print(
+          'Arena detail API response -> type=vendor_reviews, api=$endpoint, status=${response.statusCode}, response=${response.data}',
+        );
+        debugPrint(
+          'Arena detail API response -> type=vendor_reviews, api=$endpoint, status=${response.statusCode}, response=${response.data}',
+        );
+        AppLogger.d(
+          'Arena detail API response -> type=vendor_reviews, api=$endpoint, status=${response.statusCode}, response=${response.data}',
+        );
+        final body = response.data;
+        final items = body is Map<String, dynamic> ? body['items'] : null;
+        if (items is List) {
+          return items
+              .whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList();
+        }
+        return const [];
+      }
+      throw Exception(
+        'Failed to fetch vendor reviews. Status code: ${response.statusCode}',
+      );
+    } catch (e) {
+      print(
+        'Arena detail API error -> type=vendor_reviews, api=$endpoint, error=$e',
+      );
+      debugPrint(
+        'Arena detail API error -> type=vendor_reviews, api=$endpoint, error=$e',
+      );
+      AppLogger.d(
+        'Arena detail API error -> type=vendor_reviews, api=$endpoint, error=$e',
+      );
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> fetchVendorReviewsSummary({
+    required int vendorId,
+  }) async {
+    final dio = networkProvider.noAuth();
+    final endpoint = ApiEndpoints.vendorReviewsSummary(vendorId.toString());
+    try {
+      print(
+        'Arena detail API request -> type=vendor_reviews_summary, api=$endpoint, vendor_id=$vendorId',
+      );
+      debugPrint(
+        'Arena detail API request -> type=vendor_reviews_summary, api=$endpoint, vendor_id=$vendorId',
+      );
+      AppLogger.d(
+        'Arena detail API request -> type=vendor_reviews_summary, api=$endpoint, vendor_id=$vendorId',
+      );
+      final response = await dio.get(endpoint);
+      if (response.statusCode == 200) {
+        print(
+          'Arena detail API response -> type=vendor_reviews_summary, api=$endpoint, status=${response.statusCode}, response=${response.data}',
+        );
+        debugPrint(
+          'Arena detail API response -> type=vendor_reviews_summary, api=$endpoint, status=${response.statusCode}, response=${response.data}',
+        );
+        AppLogger.d(
+          'Arena detail API response -> type=vendor_reviews_summary, api=$endpoint, status=${response.statusCode}, response=${response.data}',
+        );
+        return Map<String, dynamic>.from(response.data as Map);
+      }
+      throw Exception(
+        'Failed to fetch review summary. Status code: ${response.statusCode}',
+      );
+    } catch (e) {
+      print(
+        'Arena detail API error -> type=vendor_reviews_summary, api=$endpoint, error=$e',
+      );
+      debugPrint(
+        'Arena detail API error -> type=vendor_reviews_summary, api=$endpoint, error=$e',
+      );
+      AppLogger.d(
+        'Arena detail API error -> type=vendor_reviews_summary, api=$endpoint, error=$e',
+      );
       rethrow;
     }
   }
@@ -875,15 +2125,23 @@ class RemoteRepo implements RemoteRepoInterface {
     required String token,
   }) async {
     final dio = await networkProvider.auth();
+    final payload = {
+      "user_id": userId,
+      "token": token,
+      "platform": Platform.isAndroid ? "android" : "ios",
+    };
     try {
+      debugPrint(
+        'FCM register API request -> api=${ApiEndpoints.registerFCMToken}, payload=$payload',
+      );
       final response = await dio.post(
         ApiEndpoints.registerFCMToken,
-        data: {
-          "token": token,
-          "platform": Platform.isAndroid ? "android" : "ios",
-        },
+        data: payload,
       );
       if (response.statusCode == 200) {
+        debugPrint(
+          'FCM register API response -> status=${response.statusCode}, response=${response.data}',
+        );
         return response.data['message'];
       } else {
         throw Exception(
@@ -891,18 +2149,26 @@ class RemoteRepo implements RemoteRepoInterface {
         );
       }
     } catch (e) {
-      debugPrint('Error registering FCM token: $e');
+      debugPrint(
+        'FCM register API error -> api=${ApiEndpoints.registerFCMToken}, payload=$payload, error=$e',
+      );
       rethrow;
     }
   }
 
   @override
   Future<String> releaseBooking({required BookingModel bookings}) async {
-    final dio = networkProvider.noAuth();
+    // Was `noAuth()`, which the endpoint rejects, and passed the model object
+    // straight into the body - Dio encoded it as "Instance of 'BookingModel'",
+    // so the server answered "A list of bookings is required under the
+    // 'bookings' key." Every abandoned payment therefore left its slot frozen.
+    final dio = await networkProvider.auth();
     try {
       final response = await dio.post(
         ApiEndpoints.releaseBooking,
-        data: {'bookings': bookings},
+        data: {
+          'bookings': [bookings.toJson()],
+        },
       );
       if (response.statusCode == 200) {
         return response.data['message'];
@@ -1057,6 +2323,7 @@ class RemoteRepo implements RemoteRepoInterface {
   Future<void> saveJwtToPreferences(String jwt) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setString('jwt', jwt);
+    await locator<AuthDataRepository>().updateAccessToken(jwt);
   }
 
   @override
@@ -1068,13 +2335,22 @@ class RemoteRepo implements RemoteRepoInterface {
   @override
   Future<void> capturePayment({
     required CapturePaymentModel capturePaymentModel,
+    int? bookingId,
+    int? vendorId,
+    int? gameId,
   }) async {
-    final dio = networkProvider.noAuth();
+    final dio = await networkProvider.auth();
     try {
-      final response = await dio.post(
-        ApiEndpoints.capturePayment,
-        data: capturePaymentModel.toJson(),
-      );
+      // Backend requires cafe context (vendor_id / game_id / booking_id) for
+      // payment-policy validation; without it capture returns 400
+      // `cafe_context_required` after a successful payment.
+      final data = <String, dynamic>{
+        ...capturePaymentModel.toJson(),
+        if (bookingId != null) 'booking_id': bookingId,
+        if (vendorId != null) 'vendor_id': vendorId,
+        if (gameId != null) 'game_id': gameId,
+      };
+      final response = await dio.post(ApiEndpoints.capturePayment, data: data);
       if (response.statusCode == 200) {
         return;
       } else {
@@ -1089,6 +2365,79 @@ class RemoteRepo implements RemoteRepoInterface {
   }
 
   @override
+  Future<String> createRazorpayOrder({
+    required int amountInPaisa,
+    String? receiptPrefix,
+  }) async {
+    final dio = await networkProvider.auth();
+    final receiptBase = (receiptPrefix ?? 'order_rcpt').trim();
+    final payload = {
+      'amount': amountInPaisa,
+      'currency': 'INR',
+      'receipt': '${receiptBase}_${DateTime.now().millisecondsSinceEpoch}',
+    };
+
+    try {
+      final response = await dio.post(
+        ApiEndpoints.createPaymentOrder,
+        data: payload,
+      );
+      if (response.statusCode == 200) {
+        final data = response.data is String
+            ? jsonDecode(response.data as String)
+            : response.data;
+        final orderId = (data['id'] ?? '').toString().trim();
+        if (orderId.isNotEmpty) {
+          return orderId;
+        }
+      }
+      throw Exception(
+        'Failed to create payment order. Status code: ${response.statusCode}',
+      );
+    } catch (e) {
+      debugPrint('Error creating payment order: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> addMealsToBooking({
+    required String bookingId,
+    required List<Map<String, dynamic>> meals,
+    bool settleOnRelease = true,
+    String? modeOfPayment,
+  }) async {
+    final dio = await networkProvider.auth();
+    final payload = <String, dynamic>{
+      'meals': meals,
+      'settle_on_release': settleOnRelease,
+    };
+    final normalizedPaymentMode = modeOfPayment?.trim();
+    if (normalizedPaymentMode != null && normalizedPaymentMode.isNotEmpty) {
+      payload['mode_of_payment'] = normalizedPaymentMode;
+    }
+
+    try {
+      final response = await dio.post(
+        ApiEndpoints.addMealsToBooking(bookingId),
+        data: payload,
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (response.data is Map<String, dynamic>) {
+          return response.data as Map<String, dynamic>;
+        }
+        return {'message': response.data?.toString() ?? 'Meal order added.'};
+      }
+      throw Exception(
+        'Failed to add meals to booking. Status code: ${response.statusCode}',
+      );
+    } catch (e) {
+      debugPrint('Error adding meals to booking: $e');
+      rethrow;
+    }
+  }
+
+  @override
   Future<String> getUIDFromPreferences() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getString('uid') ?? '';
@@ -1098,5 +2447,696 @@ class RemoteRepo implements RemoteRepoInterface {
   Future<void> saveUIDToPreferences(String uid) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setString('uid', uid);
+  }
+
+  @override
+  Future<VendorPassesResponse> getAllAvailablePasses({
+    required String vendorId,
+    bool includeInactive = false,
+  }) async {
+    final dio = networkProvider.noAuth();
+    final endpoint = ApiEndpoints.getAllAvailablePasses(
+      vendorId,
+      includeInactive: includeInactive,
+    );
+    try {
+      print(
+        'Arena detail API request -> type=vendor_passes, api=$endpoint, vendor_id=$vendorId',
+      );
+      debugPrint(
+        'Arena detail API request -> type=vendor_passes, api=$endpoint, vendor_id=$vendorId',
+      );
+      AppLogger.d(
+        'Arena detail API request -> type=vendor_passes, api=$endpoint, vendor_id=$vendorId',
+      );
+      final response = await dio.get(endpoint);
+      if (response.statusCode == 200) {
+        print(
+          'Arena detail API response -> type=vendor_passes, api=$endpoint, status=${response.statusCode}, response=${response.data}',
+        );
+        debugPrint(
+          'Arena detail API response -> type=vendor_passes, api=$endpoint, status=${response.statusCode}, response=${response.data}',
+        );
+        AppLogger.d(
+          'Arena detail API response -> type=vendor_passes, api=$endpoint, status=${response.statusCode}, response=${response.data}',
+        );
+        final data = response.data is Map<String, dynamic>
+            ? response.data as Map<String, dynamic>
+            : <String, dynamic>{};
+
+        List<GetVendorPassesModel> parsePasses(String key, String sourceGroup) {
+          final raw = data[key];
+          if (raw is! List) return const <GetVendorPassesModel>[];
+          return raw
+              .whereType<Map>()
+              .map(
+                (e) => GetVendorPassesModel.fromMap(
+                  Map<String, dynamic>.from(e),
+                  sourceGroup: sourceGroup,
+                ),
+              )
+              .toList();
+        }
+
+        List<GetVendorPassesModel> filterForVendor(
+          List<GetVendorPassesModel> items,
+        ) {
+          final matching = items
+              .where((item) => item.vendorId == vendorId)
+              .toList();
+          return matching.isNotEmpty ? matching : items;
+        }
+
+        final hourBasedPasses = filterForVendor(
+          parsePasses('hour_based_passes', 'hour_based_passes'),
+        );
+        final dateBasedPasses = filterForVendor(
+          parsePasses('date_based_passes', 'date_based_passes'),
+        );
+        final passes = filterForVendor(parsePasses('passes', 'passes'));
+        final allPasses = filterForVendor(
+          parsePasses('all_passes', 'all_passes'),
+        );
+
+        Map<String, int> parseCounts(dynamic rawCounts) {
+          if (rawCounts is! Map) return const <String, int>{};
+          final result = <String, int>{};
+          rawCounts.forEach((key, value) {
+            if (key == null) return;
+            if (value is num) {
+              result[key.toString()] = value.toInt();
+            } else {
+              final parsed = int.tryParse(value.toString());
+              if (parsed != null) result[key.toString()] = parsed;
+            }
+          });
+          return result;
+        }
+
+        return VendorPassesResponse(
+          hourBasedPasses: hourBasedPasses,
+          dateBasedPasses: dateBasedPasses,
+          passes: passes,
+          allPasses: allPasses,
+          counts: parseCounts(data['counts']),
+        );
+      } else {
+        throw Exception(
+          'Failed to get vendor passes. Status code: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      print(
+        'Arena detail API error -> type=vendor_passes, api=$endpoint, error=$e',
+      );
+      debugPrint(
+        'Arena detail API error -> type=vendor_passes, api=$endpoint, error=$e',
+      );
+      AppLogger.d(
+        'Arena detail API error -> type=vendor_passes, api=$endpoint, error=$e',
+      );
+      rethrow;
+    }
+  }
+
+  @override
+  Future<String> makePurchasePassPayment({
+    required PurchasePassModel purchasePassModel,
+  }) async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.post(
+        ApiEndpoints.purchasePass,
+        data: purchasePassModel.toJson(),
+      );
+      if (response.statusCode == 201) {
+        return response.data['payment_id'] as String;
+      } else {
+        throw Exception(
+          'Failed to make purchase pass payment. Status code: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      debugPrint('Error making purchase pass payment: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> fetchPublicEvents() async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.get(ApiEndpoints.eventsPublic);
+      if (response.statusCode == 200) {
+        return _extractDynamicList(
+          response.data,
+          candidateKeys: const ['events', 'data', 'results', 'items'],
+        );
+      }
+      throw Exception(
+        'Failed to fetch events. Status code: ${response.statusCode}',
+      );
+    } catch (e) {
+      debugPrint('Error fetching public events: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> fetchEventById({required String eventId}) async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.get(ApiEndpoints.eventById(eventId));
+      if (response.statusCode == 200) {
+        if (response.data is Map<String, dynamic>) {
+          final map = response.data as Map<String, dynamic>;
+          if (map['event'] is Map<String, dynamic>) {
+            return Map<String, dynamic>.from(map['event'] as Map);
+          }
+          if (map['data'] is Map<String, dynamic>) {
+            return Map<String, dynamic>.from(map['data'] as Map);
+          }
+          return map;
+        }
+        throw Exception('Unexpected event response format');
+      }
+      throw Exception(
+        'Failed to fetch event details. Status code: ${response.statusCode}',
+      );
+    } catch (e) {
+      debugPrint('Error fetching event details: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> fetchEventLeaderboard({
+    required String eventId,
+    String stage = 'auto',
+  }) async {
+    final dio = networkProvider.noAuth();
+    final endpoint = ApiEndpoints.eventLeaderboard(eventId);
+    try {
+      final response = await dio.get(
+        endpoint,
+        queryParameters: {'stage': stage},
+      );
+      if (response.statusCode == 200) {
+        if (response.data is Map) {
+          return Map<String, dynamic>.from(response.data as Map);
+        }
+        throw Exception('Unexpected leaderboard response format');
+      }
+      AppLogger.e(
+        'Leaderboard API non-200 | eventId=$eventId | status=${response.statusCode} | endpoint=$endpoint | body=${response.data}',
+      );
+      throw Exception(
+        'Failed to fetch leaderboard. Status code: ${response.statusCode}',
+      );
+    } on DioException catch (e, st) {
+      AppLogger.e(
+        'Leaderboard API DioException | eventId=$eventId | endpoint=$endpoint | status=${e.response?.statusCode} | data=${e.response?.data}',
+        error: e,
+        stackTrace: st,
+      );
+      rethrow;
+    } catch (e, st) {
+      AppLogger.e(
+        'Leaderboard API unexpected error | eventId=$eventId | endpoint=$endpoint',
+        error: e,
+        stackTrace: st,
+      );
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> fetchGamerProfile({required int userId}) async {
+    final dio = networkProvider.noAuth();
+    final response = await dio.get(ApiEndpoints.gamerProfile(userId));
+    if (response.statusCode == 200 && response.data is Map) {
+      return Map<String, dynamic>.from(response.data as Map);
+    }
+    throw Exception('Failed to fetch gamer profile: ${response.statusCode}');
+  }
+
+  @override
+  Future<Map<String, dynamic>> createEventTeam({
+    required String eventId,
+    required int userId,
+    required String teamName,
+    required bool isIndividual,
+  }) async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.post(
+        ApiEndpoints.eventTeams(eventId),
+        data: {
+          'user_id': userId,
+          'name': teamName,
+          'is_individual': isIndividual,
+        },
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return _asMap(response.data);
+      }
+      throw Exception(
+        'Failed to create team. Status code: ${response.statusCode}',
+      );
+    } catch (e) {
+      debugPrint('Error creating event team: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> joinEventTeam({
+    required String eventId,
+    required String teamId,
+    required int userId,
+  }) async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.post(
+        ApiEndpoints.eventTeamJoin(eventId, teamId),
+        data: {'user_id': userId},
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return _asMap(response.data);
+      }
+      throw Exception(
+        'Failed to join team. Status code: ${response.statusCode}',
+      );
+    } catch (e) {
+      debugPrint('Error joining event team: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> leaveEventTeam({
+    required String eventId,
+    required String teamId,
+    required int userId,
+  }) async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.delete(
+        ApiEndpoints.eventTeamLeave(eventId, teamId),
+        data: {'user_id': userId},
+      );
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return _asMap(response.data);
+      }
+      throw Exception(
+        'Failed to leave team. Status code: ${response.statusCode}',
+      );
+    } catch (e) {
+      debugPrint('Error leaving event team: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> registerEventTeam({
+    required String eventId,
+    required int userId,
+    required String teamId,
+  }) async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.post(
+        ApiEndpoints.eventRegister(eventId),
+        data: {'user_id': userId, 'team_id': teamId},
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return _asMap(response.data);
+      }
+      throw Exception(
+        'Failed to register team. Status code: ${response.statusCode}',
+      );
+    } catch (e) {
+      debugPrint('Error registering event team: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<EventTeamMembersResponse> fetchEventTeamMembers({
+    required String eventId,
+    required String teamId,
+  }) async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.get(
+        ApiEndpoints.eventTeamMembers(eventId, teamId),
+      );
+      if (response.statusCode == 200) {
+        final payload = _asMap(response.data);
+        final tournamentValue = payload['tournament'];
+        final tournament = tournamentValue is Map
+            ? Map<String, dynamic>.from(tournamentValue)
+            : <String, dynamic>{};
+        return EventTeamMembersResponse(
+          eventId: (payload['event_id'] ?? eventId).toString(),
+          tournament: tournament,
+          members: _extractDynamicList(
+            response.data,
+            candidateKeys: const ['members', 'users', 'team_members', 'data'],
+          ),
+        );
+      }
+      throw Exception(
+        'Failed to fetch team members. Status code: ${response.statusCode}',
+      );
+    } catch (e) {
+      debugPrint('Error fetching event team members: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> fetchUserTeams({
+    required int userId,
+  }) async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.get(ApiEndpoints.userTeams(userId));
+      if (response.statusCode == 200) {
+        return _extractDynamicList(
+          response.data,
+          candidateKeys: const ['teams', 'data', 'results', 'items'],
+        );
+      }
+      throw Exception(
+        'Failed to fetch user teams. Status code: ${response.statusCode}',
+      );
+    } catch (e) {
+      debugPrint('Error fetching user teams: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, List<Map<String, dynamic>>>> fetchJoinedTournaments({
+    required int userId,
+  }) async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.get(
+        ApiEndpoints.userJoinedTournaments(userId),
+      );
+      if (response.statusCode == 200) {
+        final payload = _asMap(response.data);
+        List<Map<String, dynamic>> extract(List<String> keys) {
+          dynamic raw;
+          for (final key in keys) {
+            if (payload.containsKey(key)) {
+              raw = payload[key];
+              break;
+            }
+          }
+          if (raw is List) {
+            return raw
+                .whereType<Map>()
+                .map((e) => Map<String, dynamic>.from(e))
+                .toList();
+          }
+          return const <Map<String, dynamic>>[];
+        }
+
+        final live = extract(const ['live', 'Live']);
+        final upcoming = extract(const ['upcoming', 'Upcoming']);
+        final completed = extract(const ['completed', 'Completed']);
+        final directAll = extract(const ['all', 'All', 'joined']);
+
+        final mergedAll = directAll.isNotEmpty
+            ? directAll
+            : [...live, ...upcoming, ...completed];
+
+        final dedupedAll = <String, Map<String, dynamic>>{};
+        for (final item in mergedAll) {
+          final id = (item['id'] ?? item['event_id'] ?? '').toString().trim();
+          final key = id.isNotEmpty ? id : item.toString();
+          dedupedAll[key] = item;
+        }
+
+        return {
+          'all': dedupedAll.values.toList(),
+          'live': live,
+          'upcoming': upcoming,
+          'completed': completed,
+        };
+      }
+      throw Exception(
+        'Failed to fetch joined tournaments. Status code: ${response.statusCode}',
+      );
+    } catch (e) {
+      debugPrint('Error fetching joined tournaments: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> updateEventTeam({
+    required String eventId,
+    required String teamId,
+    required String teamName,
+  }) async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.patch(
+        ApiEndpoints.eventTeam(eventId, teamId),
+        data: {'name': teamName},
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return _asMap(response.data);
+      }
+      throw Exception(
+        'Failed to update team. Status code: ${response.statusCode}',
+      );
+    } catch (e) {
+      debugPrint('Error updating event team: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> addEventTeamMember({
+    required String eventId,
+    required String teamId,
+    required int userId,
+  }) async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.post(
+        ApiEndpoints.eventTeamMembers(eventId, teamId),
+        data: {'user_id': userId},
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return _asMap(response.data);
+      }
+      throw Exception(
+        'Failed to add team member. Status code: ${response.statusCode}',
+      );
+    } catch (e) {
+      debugPrint('Error adding event team member: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> forceRemoveEventTeamMember({
+    required String eventId,
+    required String teamId,
+    required int actingUserId,
+    required int targetUserId,
+  }) async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.delete(
+        ApiEndpoints.eventTeamForceRemoveMember(eventId, teamId, targetUserId),
+        data: {'user_id': actingUserId},
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return _asMap(response.data);
+      }
+      throw Exception(
+        'Failed to remove team member. Status code: ${response.statusCode}',
+      );
+    } on DioException catch (e) {
+      throw Exception(
+        _extractDioMessage(e, fallback: 'Unable to remove member from team.'),
+      );
+    } catch (e) {
+      debugPrint('Error force removing event team member: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> inviteUserToEventTeam({
+    required String eventId,
+    required String teamId,
+    required int inviterUserId,
+    required int invitedUserId,
+  }) async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.post(
+        ApiEndpoints.eventTeamInvite(eventId, teamId),
+        data: {
+          'inviter_user_id': inviterUserId,
+          'invited_user_id': invitedUserId,
+        },
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return _asMap(response.data);
+      }
+      throw Exception(
+        'Failed to invite user. Status code: ${response.statusCode}',
+      );
+    } on DioException catch (e) {
+      throw Exception(
+        _extractDioMessage(e, fallback: 'Unable to invite user.'),
+      );
+    } catch (e) {
+      debugPrint('Error inviting user to team: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> respondToEventTeamInvite({
+    required String eventId,
+    required String teamId,
+    required String inviteId,
+    required int userId,
+    required String action,
+  }) async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.post(
+        ApiEndpoints.eventTeamInviteRespond(eventId, teamId, inviteId),
+        data: {'user_id': userId, 'action': action},
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return _asMap(response.data);
+      }
+      throw Exception(
+        'Failed to respond to invite. Status code: ${response.statusCode}',
+      );
+    } on DioException catch (e) {
+      throw Exception(
+        _extractDioMessage(e, fallback: 'Unable to process invite response.'),
+      );
+    } catch (e) {
+      debugPrint('Error responding to event invite: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> fetchUserNotifications({
+    int limit = 50,
+    bool unreadOnly = false,
+  }) async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.get(
+        ApiEndpoints.userNotifications(limit: limit, unreadOnly: unreadOnly),
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return _asMap(response.data);
+      }
+      throw Exception(
+        'Failed to fetch notifications. Status code: ${response.statusCode}',
+      );
+    } on DioException catch (e) {
+      throw Exception(
+        _extractDioMessage(e, fallback: 'Unable to fetch notifications.'),
+      );
+    } catch (e) {
+      debugPrint('Error fetching notifications: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> markNotificationAsRead({
+    required String notificationId,
+  }) async {
+    final dio = await networkProvider.auth();
+    try {
+      final response = await dio.patch(
+        ApiEndpoints.markNotificationRead(notificationId),
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return _asMap(response.data);
+      }
+      throw Exception(
+        'Failed to mark notification as read. Status code: ${response.statusCode}',
+      );
+    } on DioException catch (e) {
+      throw Exception(
+        _extractDioMessage(e, fallback: 'Unable to mark notification as read.'),
+      );
+    } catch (e) {
+      debugPrint('Error marking notification as read: $e');
+      rethrow;
+    }
+  }
+
+  Map<String, dynamic> _asMap(dynamic value) {
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) {
+      return Map<String, dynamic>.from(value);
+    }
+    return {'data': value};
+  }
+
+  List<Map<String, dynamic>> _extractDynamicList(
+    dynamic payload, {
+    required List<String> candidateKeys,
+  }) {
+    if (payload is List) {
+      return payload
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    }
+
+    if (payload is Map) {
+      for (final key in candidateKeys) {
+        final value = payload[key];
+        if (value is List) {
+          return value
+              .whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList();
+        }
+      }
+    }
+
+    return const <Map<String, dynamic>>[];
+  }
+
+  String _extractDioMessage(DioException error, {required String fallback}) {
+    if (ApiErrorHandler.shouldRetry(error)) {
+      return fallback;
+    }
+    final responseData = error.response?.data;
+    if (responseData is Map) {
+      final map = Map<String, dynamic>.from(responseData);
+      final message =
+          map['message']?.toString().trim() ??
+          map['error']?.toString().trim() ??
+          map['detail']?.toString().trim();
+      if (message != null && message.isNotEmpty) {
+        return message;
+      }
+    }
+    final parsed = ApiErrorHandler.extractErrorMessage(error).trim();
+    return parsed.isEmpty ? fallback : parsed;
   }
 }

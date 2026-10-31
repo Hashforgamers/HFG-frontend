@@ -3,6 +3,9 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID"/>
 
     <application
         android:label="Hash"
@@ -44,39 +47,97 @@
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
+            <!-- app_links (DeepLinkService) routes links. Flutter's own deep
+                 linking would also push the URL path as a route, which GetX
+                 sends to unknownRoute and stacks a second Home on top. -->
+            <meta-data
+              android:name="flutter_deeplinking_enabled"
+              android:value="false"
+              />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-            <!-- Web URL Deep Link -->
+            <!-- Web URL Deep Links -->
+            <!-- Scoped to the paths DeepLinkService can actually resolve: a
+                 host-wide filter would pull every marketing and blog URL on the
+                 domain into the app. -->
+            <!-- Only www verifies: the apex and .co.in hosts 301 here, and
+                 Android app-link verification does not follow redirects. -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data
                     android:scheme="https"
-                    android:host="hashforgamers.com"
+                    android:host="www.hashforgamers.com"
+                    android:pathPrefix="/tournament"/>
+                <data
+                    android:scheme="https"
+                    android:host="www.hashforgamers.com"
+                    android:pathPrefix="/tournaments"/>
+                <data
+                    android:scheme="https"
+                    android:host="www.hashforgamers.com"
                     android:pathPrefix="/contest"/>
+                <data
+                    android:scheme="https"
+                    android:host="www.hashforgamers.com"
+                    android:pathPrefix="/team/join"/>
+                <data
+                    android:scheme="https"
+                    android:host="www.hashforgamers.com"
+                    android:pathPrefix="/cafe"/>
+                <data
+                    android:scheme="https"
+                    android:host="www.hashforgamers.com"
+                    android:pathPrefix="/game"/>
+                <data
+                    android:scheme="https"
+                    android:host="www.hashforgamers.com"
+                    android:pathPrefix="/profile"/>
+                <data
+                    android:scheme="https"
+                    android:host="www.hashforgamers.com"
+                    android:pathPrefix="/host"/>
+                <data
+                    android:scheme="https"
+                    android:host="www.hashforgamers.com"
+                    android:pathPrefix="/referral"/>
+                <data
+                    android:scheme="https"
+                    android:host="www.hashforgamers.com"
+                    android:pathPrefix="/bookings"/>
+                <data
+                    android:scheme="https"
+                    android:host="www.hashforgamers.com"
+                    android:pathPrefix="/wallet"/>
+                <data
+                    android:scheme="https"
+                    android:host="www.hashforgamers.com"
+                    android:pathPrefix="/rewards"/>
+                <data
+                    android:scheme="https"
+                    android:host="www.hashforgamers.com"
+                    android:pathPrefix="/passes"/>
+                <data
+                    android:scheme="https"
+                    android:host="www.hashforgamers.com"
+                    android:pathPrefix="/offer"/>
+                <data
+                    android:scheme="https"
+                    android:host="www.hashforgamers.com"
+                    android:pathPrefix="/shop"/>
             </intent-filter>
 
-            <!-- Custom Scheme Deep Links -->
+            <!-- Custom Scheme Deep Links: every host, matching iOS's
+                 CFBundleURLSchemes; DeepLinkService rejects unknown ones. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="hash" android:host="contest"/>
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW"/>
-                <category android:name="android.intent.category.DEFAULT"/>
-                <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="hash" android:host="offer"/>
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW"/>
-                <category android:name="android.intent.category.DEFAULT"/>
-                <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="hash" android:host="system"/>
+                <data android:scheme="hash"/>
+                <data android:scheme="hashforgamers"/>
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

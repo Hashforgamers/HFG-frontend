@@ -1,0 +1,720 @@
+import 'package:dio/dio.dart';
+import 'package:hash/core/utils/app_snackbar.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/widgets.dart';
+import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
+
+import '../../chat/views/chat_room_view.dart';
+import '../../chat/services/chat_service.dart';
+import '../models/community_entities.dart';
+import '../models/tournament.dart';
+import '../models/tournament_operations.dart';
+import '../services/community_api.dart';
+import '../services/dispute_chat_auth.dart';
+import '../services/tournament_result_evidence_service.dart';
+import '../services/tournament_analytics.dart';
+
+class HostMatchEvidence {
+  const HostMatchEvidence({
+    required this.assetId,
+    required this.evidenceUrl,
+    required this.analysis,
+  });
+  final String? assetId;
+  final String evidenceUrl;
+  final TournamentEvidenceAnalysis analysis;
+}
+
+class ManageTournamentController extends GetxController {
+  final CommunityApi _api = CommunityApi();
+  late final DisputeChatAuth _disputeChatAuth = DisputeChatAuth(api: _api);
+  final ImagePicker _imagePicker = ImagePicker();
+  final TournamentResultEvidenceService _evidenceService =
+      TournamentResultEvidenceService();
+
+  final tournament = Rxn<Tournament>();
+  final registrations = <ManagedRegistration>[].obs;
+  final results = <MatchResult>[].obs;
+  final disputes = <Dispute>[].obs;
+  final payouts = <Payout>[].obs;
+  final teams = <CommunityTeam>[].obs;
+  final matches = <CommunityMatch>[].obs;
+  final leaderboard = <TournamentLeaderboardEntry>[].obs;
+  final resultsOverviewSummary = <String, dynamic>{}.obs;
+  final resultsOverviewItems = <Map<String, dynamic>>[].obs;
+  final readiness = Rxn<TournamentReadiness>();
+  final lifecycleStatus = Rxn<TournamentLifecycleStatus>();
+  final controlRoom = <String, dynamic>{}.obs;
+  final announcements = <Map<String, dynamic>>[].obs;
+  final auditLog = <Map<String, dynamic>>[].obs;
+  final loading = true.obs;
+  final acting = false.obs;
+  final generatingMatches = false.obs;
+  final error = RxnString();
+
+  late final String tournamentId;
+
+  @override
+  void onInit() {
+    super.onInit();
+    final arg = Get.arguments;
+    if (arg is Tournament) {
+      tournamentId = arg.id;
+      tournament.value = arg;
+    } else if (arg is Map) {
+      tournamentId = (arg['id'] ?? '').toString();
+    } else {
+      tournamentId = arg?.toString() ?? '';
+    }
+    load();
+  }
+
+  Future<void> load() async {
+    if (tournamentId.isEmpty) {
+      error.value = 'Tournament is missing.';
+      loading.value = false;
+      return;
+    }
+    loading.value = true;
+    error.value = null;
+    try {
+      final canManage = await _api.canManageTournament(tournamentId);
+      if (!canManage) {
+        error.value =
+            'Only this tournament’s host can open management controls.';
+        tournament.value = null;
+        return;
+      }
+      tournament.value = await _api.getTournament(tournamentId);
+      final lists = await Future.wait([
+        _safe(() => _api.tournamentRegistrations(tournamentId)),
+        _safe(() => _api.tournamentResults(tournamentId)),
+        _safe(() => _api.tournamentDisputes(tournamentId)),
+        _safe(() => _api.tournamentPayouts(tournamentId)),
+        _safe(() => _api.tournamentTeams(tournamentId)),
+        _safe(() => _api.tournamentMatches(tournamentId, private: true)),
+        _safe(() => _api.tournamentLeaderboard(tournamentId)),
+      ]);
+      registrations.assignAll(lists[0].cast<ManagedRegistration>());
+      results.assignAll(lists[1].cast<MatchResult>());
+      disputes.assignAll(lists[2].cast<Dispute>());
+      payouts.assignAll(lists[3].cast<Payout>());
+      teams.assignAll(lists[4].cast<CommunityTeam>());
+      matches.assignAll(lists[5].cast<CommunityMatch>());
+      leaderboard.assignAll(lists[6].cast<TournamentLeaderboardEntry>());
+      try {
+        final overview = await _api.tournamentResultsOverview(tournamentId);
+        resultsOverviewSummary.assignAll(
+          overview['summary'] is Map
+              ? Map<String, dynamic>.from(overview['summary'] as Map)
+              : const <String, dynamic>{},
+        );
+        final rawItems = overview['items'];
+        resultsOverviewItems.assignAll(
+          rawItems is List
+              ? rawItems.whereType<Map>().map(
+                  (item) => Map<String, dynamic>.from(item),
+                )
+              : const <Map<String, dynamic>>[],
+        );
+      } catch (_) {
+        resultsOverviewSummary.clear();
+        resultsOverviewItems.clear();
+      }
+      try {
+        controlRoom.assignAll(await _api.tournamentControlRoom(tournamentId));
+      } catch (_) {
+        controlRoom.clear();
+      }
+      announcements.assignAll(
+        await _safe(() => _api.tournamentAnnouncements(tournamentId)),
+      );
+      auditLog.assignAll(
+        await _safe(() => _api.tournamentAuditLog(tournamentId)),
+      );
+      try {
+        lifecycleStatus.value = await _api.getTournamentStatus(tournamentId);
+      } catch (_) {
+        lifecycleStatus.value = null;
+      }
+      try {
+        readiness.value = await _api.tournamentReadiness(tournamentId);
+      } catch (_) {
+        readiness.value = null;
+      }
+    } on DioException catch (e) {
+      error.value = _message(e, fallback: 'Could not load host controls.');
+    } catch (_) {
+      error.value = 'Could not load host controls.';
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  Future<List<T>> _safe<T>(Future<List<T>> Function() request) async {
+    try {
+      return await request();
+    } catch (_) {
+      return <T>[];
+    }
+  }
+
+  Future<void> publish() async {
+    try {
+      final state = await _api.tournamentReadiness(tournamentId);
+      readiness.value = state;
+      if (!state.readyToPublish) {
+        error.value = state.blockers.isEmpty
+            ? 'Tournament is not ready to publish.'
+            : state.blockers.join('\n');
+        return;
+      }
+    } on DioException catch (e) {
+      error.value = _message(e, fallback: 'Could not validate readiness.');
+      return;
+    }
+    await _mutate(() async {
+      final updated = await _api.updateTournament(tournamentId, {
+        'status': 'published',
+      });
+      await TournamentAnalytics.log(
+        'tournament_published',
+        updated,
+        sourceScreen: 'manage_tournament',
+        teamStatus: 'host',
+      );
+      return updated;
+    }, success: 'Tournament published');
+  }
+
+  Future<void> generateMatches() async {
+    if (generatingMatches.value || acting.value) return;
+    generatingMatches.value = true;
+    try {
+      await _mutate(
+        () async {
+          final generated = await _api.generateMatches(tournamentId);
+          await _bestEffortAnnouncement(
+            message:
+                'The tournament bracket is ready. Open the tournament arena to see your match path.',
+            audience: 'all_participants',
+          );
+          return generated;
+        },
+        success: 'Schedule and bracket generated',
+        errorTitle: 'Could not generate bracket',
+        errorFallback: 'Bracket generation failed. Please try again.',
+      );
+    } finally {
+      if (!isClosed) generatingMatches.value = false;
+    }
+  }
+
+  Future<void> closeRegistration() => _mutate(
+    () => _api.closeRegistration(tournamentId),
+    success: 'Registration closed',
+  );
+
+  Future<void> startTournament() => _mutate(() async {
+    final started = await _api.startTournament(tournamentId);
+    await _bestEffortAnnouncement(
+      message:
+          'The tournament is now live. Check the bracket and be ready for your match.',
+      audience: 'all_participants',
+    );
+    return started;
+  }, success: 'Tournament is now live');
+
+  Future<void> startMatch(CommunityMatch match) => _mutate(() async {
+    final started = await _api.operateMatch(
+      tournamentId,
+      match.id,
+      action: 'start',
+    );
+    final teamIds = [
+      if (match.teamA?.id.isNotEmpty == true) match.teamA!.id,
+      if (match.teamB?.id.isNotEmpty == true) match.teamB!.id,
+    ];
+    if (teamIds.isNotEmpty) {
+      await _bestEffortAnnouncement(
+        message:
+            '${match.teamA?.name ?? 'Team A'} vs ${match.teamB?.name ?? 'Team B'} is starting now.',
+        audience: 'specific_teams',
+        teamIds: teamIds,
+      );
+    }
+    return started;
+  }, success: 'Match started');
+
+  Future<void> openDisputeChat(Dispute dispute) async {
+    var current = dispute;
+    var roomId = current.chatRoomId?.trim() ?? '';
+    if (roomId.isEmpty) {
+      try {
+        final refreshed = await _api.tournamentDisputes(tournamentId);
+        disputes.assignAll(refreshed);
+        current =
+            refreshed.where((item) => item.id == dispute.id).firstOrNull ??
+            dispute;
+        roomId = current.chatRoomId?.trim() ?? '';
+      } catch (_) {}
+    }
+    if (roomId.isEmpty) {
+      _showSnackbar(
+        'Group chat is not ready',
+        'The backend is still preparing the match dispute room.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+    acting.value = true;
+    try {
+      final disputeSession = await _disputeChatAuth.authenticate();
+      final participantAccounts = _disputeParticipantAccounts(current);
+      final chat = disputeSession.chatService;
+      await Get.to<void>(
+        () => ChatRoomView(
+          roomId: roomId,
+          participantAccounts: participantAccounts,
+          chatService: chat,
+        ),
+      );
+    } catch (error) {
+      debugPrint('[DISPUTE_CHAT_ERROR] dispute=${current.id} error=$error');
+      _showSnackbar(
+        'Could not open group chat',
+        error is DioException
+            ? _message(error, fallback: 'The dispute chat could not be opened.')
+            : 'The dispute chat could not be opened.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } finally {
+      acting.value = false;
+    }
+  }
+
+  Future<void> openTournamentChat() async {
+    final currentTournament = tournament.value;
+    if (currentTournament == null) return;
+    acting.value = true;
+    try {
+      final chat = Get.isRegistered<ChatService>()
+          ? Get.find<ChatService>()
+          : Get.put(ChatService(), permanent: true);
+      final accounts = _tournamentParticipantAccounts();
+      final hostUid = currentTournament.hostFirebaseUid?.trim() ?? '';
+      final roomId = await chat.ensureTournamentRoom(
+        tournamentId: tournamentId,
+        tournamentName: currentTournament.title,
+        memberIds: accounts.map((account) => account.firebaseUid).toList(),
+        adminIds: [if (hostUid.isNotEmpty) hostUid],
+        memberNames: {
+          for (final account in accounts) account.firebaseUid: account.name,
+        },
+        memberUsernames: {
+          for (final account in accounts) account.firebaseUid: account.username,
+        },
+      );
+      await Get.to<void>(
+        () => ChatRoomView(roomId: roomId, participantAccounts: accounts),
+      );
+    } catch (error) {
+      debugPrint(
+        '[TOURNAMENT_CHAT_ERROR] tournament=$tournamentId error=$error',
+      );
+      _showSnackbar(
+        'Could not open tournament chat',
+        'The tournament conversation could not be opened.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } finally {
+      acting.value = false;
+    }
+  }
+
+  List<ChatParticipantAccount> _tournamentParticipantAccounts() {
+    final accounts = <String, ChatParticipantAccount>{};
+    final hostUid = tournament.value?.hostFirebaseUid?.trim() ?? '';
+    if (hostUid.isNotEmpty) {
+      accounts[hostUid] = ChatParticipantAccount(
+        firebaseUid: hostUid,
+        name: tournament.value?.organizationName ?? 'Tournament Host',
+        username: 'host',
+      );
+    }
+    for (final registration in registrations) {
+      if (!{
+        'confirmed',
+        'checked_in',
+        'active',
+      }.contains(registration.status)) {
+        continue;
+      }
+      final uid = registration.firebaseUid?.trim() ?? '';
+      if (uid.isEmpty) continue;
+      accounts[uid] = ChatParticipantAccount(
+        firebaseUid: uid,
+        name: registration.gamer.displayName,
+        username: registration.gamer.gameUsername,
+      );
+    }
+    return accounts.values.toList();
+  }
+
+  CommunityMatch? matchForDispute(Dispute dispute) {
+    for (final item in resultsOverviewItems) {
+      final rawDisputes = item['disputes'];
+      final containsDispute =
+          rawDisputes is List &&
+          rawDisputes.whereType<Map>().any(
+            (raw) => (raw['id'] ?? raw['dispute_id']).toString() == dispute.id,
+          );
+      if (!containsDispute || item['match'] is! Map) continue;
+      final payload = Map<String, dynamic>.from(item['match'] as Map);
+      final id = (payload['id'] ?? payload['match_id'] ?? '').toString();
+      return matches.where((match) => match.id == id).firstOrNull ??
+          CommunityMatch.fromJson(payload);
+    }
+    return null;
+  }
+
+  String matchLabel(CommunityMatch? match) {
+    if (match == null) return '';
+    final round = match.roundName?.trim().isNotEmpty == true
+        ? match.roundName!.trim()
+        : match.round == null
+        ? 'Match'
+        : 'Round ${match.round}';
+    return '$round · ${match.teamA?.name ?? 'TBD'} vs ${match.teamB?.name ?? 'TBD'}';
+  }
+
+  List<ChatParticipantAccount> _disputeParticipantAccounts(Dispute dispute) {
+    final accounts = <String, ChatParticipantAccount>{};
+    final hostUid = tournament.value?.hostFirebaseUid?.trim() ?? '';
+    if (hostUid.isNotEmpty) {
+      final uid = hostUid;
+      accounts[uid] = ChatParticipantAccount(
+        firebaseUid: uid,
+        name: tournament.value?.organizationName ?? 'Tournament Host',
+        username: 'host',
+      );
+    }
+
+    CommunityMatch? disputedMatch;
+    for (final item in resultsOverviewItems) {
+      final disputes = item['disputes'];
+      final containsDispute =
+          disputes is List &&
+          disputes.whereType<Map>().any(
+            (raw) => (raw['id'] ?? raw['dispute_id']).toString() == dispute.id,
+          );
+      if (!containsDispute || item['match'] is! Map) continue;
+      final matchPayload = Map<String, dynamic>.from(item['match'] as Map);
+      final matchId = (matchPayload['id'] ?? matchPayload['match_id'] ?? '')
+          .toString();
+      disputedMatch = matches.where((match) => match.id == matchId).firstOrNull;
+      disputedMatch ??= CommunityMatch.fromJson(matchPayload);
+      break;
+    }
+
+    for (final team in [disputedMatch?.teamA, disputedMatch?.teamB]) {
+      if (team == null) continue;
+      for (final member in team.members) {
+        final uid = member.firebaseUid?.trim() ?? '';
+        if (uid.isEmpty) continue;
+        accounts[uid] = ChatParticipantAccount(
+          firebaseUid: uid,
+          name: member.displayName,
+          username: member.gameId,
+        );
+      }
+    }
+    return accounts.values.toList();
+  }
+
+  Future<HostMatchEvidence?> uploadMatchEvidence(CommunityMatch match) async {
+    final picked = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 90,
+      maxWidth: 2200,
+    );
+    if (picked == null) return null;
+    if (FirebaseAuth.instance.currentUser == null) {
+      throw StateError('Sign in to upload match evidence.');
+    }
+    final analysis = await _evidenceService.analyze(
+      picked.path,
+      match,
+      game: tournament.value?.game,
+    );
+    await _evidenceService.store(
+      tournamentId: tournamentId,
+      match: match,
+      submittedAs: 'host',
+      analysis: analysis,
+    );
+    final mimeType = picked.mimeType ?? 'image/jpeg';
+    final upload = await _api.uploadCommunityEvidence(
+      tournamentId: tournamentId,
+      purpose: 'result_evidence',
+      filePath: picked.path,
+      fileName: picked.name,
+      mimeType: mimeType,
+      metadata: {'match_id': match.id, 'submitter_type': 'host'},
+    );
+    return HostMatchEvidence(
+      assetId: upload.asset.id,
+      evidenceUrl: upload.secureUrl,
+      analysis: analysis,
+    );
+  }
+
+  Future<void> completeMatch({
+    required CommunityMatch match,
+    required String winnerTeamId,
+    required int teamAScore,
+    required int teamBScore,
+    required String reason,
+    required HostMatchEvidence evidence,
+  }) => _mutate(
+    () async {
+      return _api.submitHostResultProposal(
+        tournamentId,
+        match.id,
+        winnerTeamId: winnerTeamId,
+        teamAScore: teamAScore,
+        teamBScore: teamBScore,
+        evidenceAssetIds: [
+          if (evidence.assetId != null && evidence.assetId!.isNotEmpty)
+            evidence.assetId!,
+        ],
+        evidenceUrls: [evidence.evidenceUrl],
+        ocrData: {
+          'text': evidence.analysis.rawText,
+          'detected_teams': [
+            if (evidence.analysis.detectedTeamA != null)
+              evidence.analysis.detectedTeamA,
+            if (evidence.analysis.detectedTeamB != null)
+              evidence.analysis.detectedTeamB,
+          ],
+          'scores': {'team_a': teamAScore, 'team_b': teamBScore},
+          'confidence': evidence.analysis.confidence,
+          'submitter_type': 'host',
+          'consensus': '$teamAScore-$teamBScore',
+          if (reason.trim().isNotEmpty) 'note': reason.trim(),
+        },
+      );
+    },
+    success: 'Result uploaded · 15-minute dispute window started',
+    errorTitle: 'Could not complete match',
+  );
+
+  Future<void> createManualMatch({
+    required String teamAId,
+    required String teamBId,
+    DateTime? scheduledAt,
+  }) => _mutate(
+    () => _api.createMatch(tournamentId, {
+      'team_a_id': teamAId,
+      'team_b_id': teamBId,
+      if (scheduledAt != null)
+        'scheduled_at': scheduledAt.toUtc().toIso8601String(),
+    }),
+    success: 'Match created',
+    errorTitle: 'Could not create match',
+  );
+
+  Future<void> publishAnnouncement({
+    required String message,
+    required String audience,
+  }) => _mutate(
+    () => _api.publishAnnouncement(
+      tournamentId,
+      message: message,
+      audience: audience,
+    ),
+    success: 'Announcement published',
+    errorTitle: 'Could not publish announcement',
+  );
+
+  Future<void> _bestEffortAnnouncement({
+    required String message,
+    required String audience,
+    List<String> teamIds = const [],
+  }) async {
+    try {
+      await _api.publishAnnouncement(
+        tournamentId,
+        message: message,
+        audience: audience,
+        teamIds: teamIds,
+      );
+    } catch (_) {
+      // The lifecycle mutation remains authoritative if communication fails.
+    }
+  }
+
+  Future<void> teamAction(
+    CommunityTeam team,
+    String action, {
+    String? reason,
+    int? seed,
+  }) => _mutate(
+    () => _api.manageTeam(
+      tournamentId,
+      team.id,
+      action: action,
+      reason: reason,
+      seed: seed,
+    ),
+    success: 'Team updated',
+  );
+
+  Future<void> saveRoomDetails({
+    required String summary,
+    required RoomDetailsData data,
+  }) => _mutate(
+    () => _api.updateTournament(tournamentId, {
+      'room_details': summary.trim().isEmpty ? null : summary.trim(),
+      'room_details_data': data.toJson(),
+    }),
+    success: 'Room details updated',
+  );
+
+  Future<void> cancel(String reason) => _mutate(
+    () => _api.cancelTournament(tournamentId, reason: reason.trim()),
+    success: 'Tournament cancelled',
+  );
+
+  Future<void> registrationAction(
+    ManagedRegistration registration,
+    String action, {
+    String? paymentReference,
+  }) => _mutate(() async {
+    final result = await _api.updateTournamentRegistration(
+      tournamentId,
+      registration.id,
+      action: action,
+      paymentReference: paymentReference,
+    );
+    final current = tournament.value;
+    if (action == 'check_in' && current != null) {
+      await TournamentAnalytics.log(
+        'match_checked_in',
+        current,
+        sourceScreen: 'manage_tournament',
+        teamStatus: 'participant',
+      );
+    }
+    return result;
+  }, success: 'Participant updated');
+
+  Future<void> resultAction(MatchResult result, String status) => _mutate(
+    () => _api.verifyResult(tournamentId, result.id, status: status),
+    success: status == 'verified' ? 'Result verified' : 'Result rejected',
+  );
+
+  Future<void> submitVerifiedWinners() async {
+    final unresolvedDisputes = disputes.where(
+      (item) => {'open', 'under_review'}.contains(item.status),
+    );
+    if (unresolvedDisputes.isNotEmpty) {
+      error.value =
+          'Winners cannot be submitted while a dispute is open or under review.';
+      _showSnackbar('Winners blocked', error.value!);
+      return;
+    }
+    final verified =
+        results
+            .where(
+              (item) =>
+                  (item.status == 'verified' ||
+                      item.status == 'admin_overridden') &&
+                  item.winnerUserId != null &&
+                  item.rank != null,
+            )
+            .toList()
+          ..sort((a, b) => a.rank!.compareTo(b.rank!));
+    final seenUsers = <int>{};
+    final seenRanks = <int>{};
+    final winners = <Map<String, dynamic>>[];
+    for (final result in verified) {
+      if (!seenUsers.add(result.winnerUserId!) ||
+          !seenRanks.add(result.rank!)) {
+        continue;
+      }
+      winners.add({
+        'user_id': result.winnerUserId,
+        'rank': result.rank,
+        // The Play build records winners without triggering money movement.
+        'amount': 0,
+      });
+    }
+    if (winners.isEmpty) {
+      error.value = 'Verify ranked results before submitting winners.';
+      return;
+    }
+    await _mutate(
+      () => _api.submitWinners(tournamentId, winners),
+      success: 'Winners submitted',
+    );
+  }
+
+  Future<void> _mutate(
+    Future<Object?> Function() request, {
+    required String success,
+    String errorTitle = 'Could not update tournament',
+    String errorFallback = 'Action could not be completed.',
+  }) async {
+    if (acting.value) return;
+    acting.value = true;
+    error.value = null;
+    try {
+      await request();
+      if (isClosed) return;
+      await load();
+      if (isClosed) return;
+      _showSnackbar(success, '', snackPosition: SnackPosition.BOTTOM);
+    } on DioException catch (e) {
+      if (isClosed) return;
+      debugPrint(
+        '[TOURNAMENT_ACTION_ERROR] status=${e.response?.statusCode} data=${e.response?.data}',
+      );
+      error.value = _message(e, fallback: errorFallback);
+      _showSnackbar(errorTitle, error.value!);
+    } catch (_) {
+      if (isClosed) return;
+      error.value = errorFallback;
+    } finally {
+      if (!isClosed) acting.value = false;
+    }
+  }
+
+  void _showSnackbar(
+    String title,
+    String message, {
+    SnackPosition snackPosition = SnackPosition.TOP,
+  }) {
+    final overlayContext = Get.overlayContext;
+    if (isClosed ||
+        overlayContext == null ||
+        Overlay.maybeOf(overlayContext) == null) {
+      return;
+    }
+    AppSnackbar.show(title, message, snackPosition: snackPosition);
+  }
+
+  String _message(DioException e, {required String fallback}) {
+    final data = e.response?.data;
+    if (data is Map) {
+      for (final key in ['message', 'detail', 'error']) {
+        final value = data[key];
+        if (value != null && value.toString().trim().isNotEmpty) {
+          return value.toString();
+        }
+      }
+    }
+    return fallback;
+  }
+}

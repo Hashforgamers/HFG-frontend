@@ -1,17 +1,25 @@
 import 'package:get/get.dart';
+import 'package:hash/config/feature_flags.dart';
 import 'package:flutter/material.dart';
 import 'package:hash/app/modules/arena/views/past_booking_screen.dart';
-import 'package:hash/app/modules/shop/views/shop_view.dart';
+import 'package:hash/core/utils/haptics.dart';
+import 'package:hash/app/modules/tournaments_section/pages/tournaments_home_view.dart';
 import '../../arena/views/arena_view.dart';
 import '../../profile/user_profile_view.dart';
+import '../views/feature_coming_soon_view.dart';
 import '../views/home_content_view.dart';
 
 class HomeController extends GetxController {
+  // Keep feature implementations in code, route through flags until release.
+  static const bool isHashShopReleased = true;
+  static const bool isTournamentReleased = FeatureFlags.tournamentsEnabled;
+
   // --- Reactive states ---
   final selectedIndex = 0.obs;
   final currentScreen = Rx<Widget>(const HomeContentView());
   final isShopOpen = false.obs;
   final isScreenTransitioning = false.obs;
+  int _transitionStartedAt = 0;
 
   // --- Performance & Cache ---
   final Map<int, Widget> _screenCache = {};
@@ -33,53 +41,61 @@ class HomeController extends GetxController {
 
   // --- Initialize Pre-cache ---
   void _initializeScreenCache() {
+    // Keep initial home load light; lazily create other heavy tabs on demand.
     _screenCache[0] = const HomeContentView();
-    _screenCache[1] = const ArenaView();
-    _screenCache[2] = PastBookingsScreen();
-    _screenCache[3] = const ShopView();
-    _screenCache[4] = const UserProfileView();
   }
 
   // --- Handle Bottom Navigation Tap ---
   void onItemTapped(int index) {
-    // --- Debounce to avoid flicker ---
     final now = DateTime.now().millisecondsSinceEpoch;
+
+    // Failsafe: if transition flag got stuck, recover automatically.
+    if (isScreenTransitioning.value && _transitionStartedAt > 0) {
+      if (now - _transitionStartedAt > 900) {
+        isScreenTransitioning.value = false;
+      }
+    }
+
+    // --- Debounce to avoid flicker ---
     if (now - lastScreenChangeTime < 300) return;
 
-    // --- Prevent double-tap on same tab ---
-    if (selectedIndex.value == index) return;
-    lastScreenChangeTime = now;
-
-    // --- Hash Shop Handling (Middle Icon) ---
-    // if (index == 2) {
-    //   // Toggle slide bar instead of switching screen
-    //   toggleShop();
-    //   return;
-    // }
-
-    // --- Close Shop bar when navigating elsewhere ---
+    // Any main navigation action exits the independent Hash Shop overlay.
     if (isShopOpen.value) {
       isShopOpen.value = false;
     }
 
+    // Tournaments tab is removed from the bar while the feature is off;
+    // stray callers (tab arguments, old links) land on home instead.
+    if (index == 2 && !FeatureFlags.tournamentsEnabled) index = 0;
+
+    // --- Prevent double-tap on same tab ---
+    if (selectedIndex.value == index) return;
+    lastScreenChangeTime = now;
+    Haptics.navigation();
+
     // --- Begin transition ---
     isScreenTransitioning.value = true;
+    _transitionStartedAt = now;
     selectedIndex.value = index;
 
-    // --- Use cached screen or build new ---
-    if (_screenCache.containsKey(index)) {
-      currentScreen.value = _screenCache[index]!;
-    } else {
-      final newScreen = _createScreenForIndex(index);
-      _screenCache[index] = newScreen;
-      currentScreen.value = newScreen;
-      _manageCacheSize();
+    try {
+      // --- Use cached screen or build new ---
+      if (_screenCache.containsKey(index)) {
+        currentScreen.value = _screenCache[index]!;
+      } else {
+        final newScreen = _createScreenForIndex(index);
+        _screenCache[index] = newScreen;
+        currentScreen.value = newScreen;
+        _manageCacheSize();
+      }
+    } finally {
+      // --- End transition after animation ---
+      Future.delayed(const Duration(milliseconds: 120), () {
+        if (!isClosed) {
+          isScreenTransitioning.value = false;
+        }
+      });
     }
-
-    // --- End transition after animation ---
-    Future.delayed(const Duration(milliseconds: 100), () {
-      isScreenTransitioning.value = false;
-    });
   }
 
   // --- Create new screen if not cached ---
@@ -90,14 +106,24 @@ class HomeController extends GetxController {
       case 1:
         return const ArenaView();
       case 2:
-        return PastBookingsScreen();
+        return _buildTournamentScreen();
       case 3:
-        return const ShopView();
+        return PastBookingsScreen();
       case 4:
         return const UserProfileView();
       default:
         return const HomeContentView();
     }
+  }
+
+  Widget _buildTournamentScreen() {
+    if (isTournamentReleased) return const TournamentsHomeView();
+    return const FeatureComingSoonView(
+      title: 'Tournaments Coming Soon',
+      description:
+          'Tournament mode is being prepared and will be enabled in a later release.',
+      icon: Icons.emoji_events_outlined,
+    );
   }
 
   // --- Limit cache size ---

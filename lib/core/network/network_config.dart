@@ -1,11 +1,23 @@
+import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:hash/core/network/api_endpoints.dart';
+import 'package:hash/core/network/interceptors/api_timing_interceptor.dart';
 import 'package:hash/core/network/interceptors/auth_interceptor.dart';
 import 'package:hash/core/network/interceptors/retry_interceptor.dart';
 import 'package:hash/core/repositories/local/auth_data_repo.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
+import 'package:hash/utils/encrypt_util.dart';
+
+// Request logs include auth headers, so never enable them in release builds.
+const bool _enableVerboseNetworkLog = kDebugMode;
+
+bool _shouldSkipVerboseNetworkLog(RequestOptions options) {
+  if (!_enableVerboseNetworkLog) return true;
+  return false;
+}
 
 class NetworkConfig {
   final String baseUrl;
@@ -16,28 +28,30 @@ class NetworkConfig {
   Dio get dio {
     var options = BaseOptions(
       baseUrl: baseUrl,
-      connectTimeout: const Duration(seconds: 15),
-      receiveTimeout: const Duration(seconds: 30),
+      connectTimeout: const Duration(seconds: 45),
+      receiveTimeout: const Duration(seconds: 45),
       headers: baseHeaders,
     );
 
     final dio = Dio(options);
 
-    dio.interceptors.add(
-      PrettyDioLogger(
-        requestHeader: true,
-        requestBody: true,
-        responseBody: true,
-        responseHeader: true,
-        error: true,
-        compact: true,
-        maxWidth: 90,
-      ),
-    );
+    if (_enableVerboseNetworkLog) {
+      dio.interceptors.add(
+        PrettyDioLogger(
+          requestHeader: true,
+          requestBody: true,
+          responseBody: true,
+          responseHeader: true,
+          error: true,
+          compact: true,
+          maxWidth: 90,
+          filter: (options, args) => !_shouldSkipVerboseNetworkLog(options),
+        ),
+      );
+    }
 
-    // Add retry interceptor for 500 errors
-    dio.interceptors.add(RetryInterceptor());
-
+    dio.interceptors.add(ApiTimingInterceptor());
+    dio.interceptors.add(RetryInterceptor(dio: dio));
     dio.interceptors.add(AuthInterceptor(dio));
 
     return dio;
@@ -91,44 +105,53 @@ class NetworkConfig {
 
 class NetworkProvider {
   late final Dio _dio;
+  Future<String?>? _jwtRefresh;
 
   NetworkProvider() {
     var options = BaseOptions(
       baseUrl: ApiEndpoints.baseUrl,
-      connectTimeout: const Duration(seconds: 15),
-      receiveTimeout: const Duration(seconds: 30),
+      connectTimeout: const Duration(seconds: 45),
+      receiveTimeout: const Duration(seconds: 45),
     );
 
     _dio = Dio(options);
 
-    _dio.interceptors.add(
-      PrettyDioLogger(
-        requestHeader: true,
-        requestBody: true,
-        responseBody: true,
-        responseHeader: true,
-        error: true,
-        compact: true,
-        maxWidth: 90,
-      ),
-    );
+    if (_enableVerboseNetworkLog) {
+      _dio.interceptors.add(
+        PrettyDioLogger(
+          requestHeader: true,
+          requestBody: true,
+          responseBody: true,
+          responseHeader: true,
+          error: true,
+          compact: true,
+          maxWidth: 90,
+          filter: (options, args) => !_shouldSkipVerboseNetworkLog(options),
+        ),
+      );
+    }
 
-    // Add retry interceptor for 500 errors
-    _dio.interceptors.add(RetryInterceptor());
+    _dio.interceptors.add(ApiTimingInterceptor());
+    _dio.interceptors.add(RetryInterceptor(dio: _dio));
   }
 
   Future<Dio> auth() async {
     try {
       final remoteRepo = locator<RemoteRepoInterface>();
-      final jwt = await remoteRepo.getJwtFromPreferences();
-      if (jwt == null) {
+      var jwt = await remoteRepo.getJwtFromPreferences();
+      if (jwt == null || jwt.isEmpty || isJwtExpired(jwt)) {
+        _jwtRefresh ??= _refreshBackendJwt(
+          remoteRepo,
+        ).whenComplete(() => _jwtRefresh = null);
+        jwt = await _jwtRefresh;
+      }
+      if (jwt == null || jwt.isEmpty || isJwtExpired(jwt)) {
         throw Exception('No auth token available');
       }
-      final token = jwt;
 
       _dio.options.headers = {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
+        'Authorization': 'Bearer $jwt',
       };
       return _dio;
     } catch (e) {
@@ -136,8 +159,48 @@ class NetworkProvider {
     }
   }
 
+  /// Like [auth], but always fetches a new backend JWT first. For recovering
+  /// from a 401 on a token that still looked valid locally.
+  Future<Dio> refreshedAuth() async {
+    final remoteRepo = locator<RemoteRepoInterface>();
+    _jwtRefresh ??= _refreshBackendJwt(
+      remoteRepo,
+    ).whenComplete(() => _jwtRefresh = null);
+    final jwt = await _jwtRefresh;
+    if (jwt == null || jwt.isEmpty || isJwtExpired(jwt)) {
+      throw Exception('No auth token available');
+    }
+    _dio.options.headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $jwt',
+    };
+    return _dio;
+  }
+
+  Future<String?> _refreshBackendJwt(RemoteRepoInterface remoteRepo) async {
+    final firebaseUser = firebase_auth.FirebaseAuth.instance.currentUser;
+    if (firebaseUser == null) return null;
+    await firebaseUser.getIdToken(true);
+    await remoteRepo.checkUserExistsInAPI(firebaseUser.uid);
+    return remoteRepo.getJwtFromPreferences();
+  }
+
   Dio noAuth({Map<String, dynamic>? headers}) {
     _dio.options.headers = headers ?? {'Content-Type': 'application/json'};
     return _dio;
+  }
+
+  Dio noAuthQuiet({Map<String, dynamic>? headers}) {
+    final options = BaseOptions(
+      baseUrl: ApiEndpoints.baseUrl,
+      connectTimeout: const Duration(seconds: 45),
+      receiveTimeout: const Duration(seconds: 45),
+      headers: headers ?? {'Content-Type': 'application/json'},
+    );
+
+    final dio = Dio(options);
+    dio.interceptors.add(ApiTimingInterceptor());
+    dio.interceptors.add(RetryInterceptor(dio: dio));
+    return dio;
   }
 }

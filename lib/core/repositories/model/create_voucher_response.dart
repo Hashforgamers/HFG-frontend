@@ -46,4 +46,3 @@ class CreateVoucherResponse {
         voucherCode.hashCode;
   }
 }
-

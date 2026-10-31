@@ -37,7 +37,7 @@ class __HashCoinPageState extends State<_HashCoinPage> {
       builder: (context, state) {
         if (state is HashCoinLoading) {
           return Scaffold(
-            body: Center(child: RainbowLoadingBar()),
+            body: Center(child: AppLinearLoader()),
           );
         } else if (state is HashCoinLoaded) {
           return HashCoinWidget(

@@ -1,0 +1,35 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": [
+          "B5GC6C37H8.com.hashforgamers.app",
+          "B5GC6C37H8.com.hashforgamers.app.dev"
+        ],
+        "components": [
+          { "/": "/tournament/*", "comment": "Tournament detail" },
+          { "/": "/tournaments", "comment": "Tournament list" },
+          { "/": "/tournaments/*", "comment": "Shared tournament / poster links" },
+          { "/": "/contest/*", "comment": "Contest detail" },
+          {
+            "/": "/team/join",
+            "?": { "event_id": "?*", "team_id": "?*" },
+            "comment": "Team invite: /team/join?event_id=..&team_id=.."
+          },
+          { "/": "/cafe/*", "comment": "Cafe detail" },
+          { "/": "/game/*", "comment": "Game, arcade and match invites" },
+          { "/": "/profile/*", "comment": "Shared gamer profile" },
+          { "/": "/host/*", "comment": "Host program" },
+          { "/": "/referral/*", "comment": "Referral code" },
+          { "/": "/bookings", "comment": "My bookings" },
+          { "/": "/bookings/*", "comment": "Booking detail" },
+          { "/": "/wallet", "comment": "Wallet" },
+          { "/": "/rewards", "comment": "Rewards" },
+          { "/": "/passes", "comment": "Game passes" },
+          { "/": "/offer", "comment": "Offers" },
+          { "/": "/offer/*", "comment": "Offer detail" }
+        ]
+      }
+    ]
+  }
+}

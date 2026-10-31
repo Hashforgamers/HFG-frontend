@@ -1,0 +1,1471 @@
+import 'package:hash/core/utils/share_origin.dart';
+import 'package:hash/config/web_links.dart';
+import 'dart:async';
+import 'dart:ui';
+
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/app/modules/tournaments_section/models/tournament_model.dart';
+import 'package:hash/app/modules/tournaments_section/models/tournament_team_model.dart';
+import 'package:hash/app/modules/tournaments_section/pages/tournaments_join_team_view.dart';
+import 'package:hash/app/modules/tournaments_section/pages/tournaments_register_view.dart';
+import 'package:hash/app/modules/tournaments_section/pages/tournaments_team_members_view.dart';
+import 'package:hash/app/modules/tournaments_section/widgets/tournaments_loader.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:hash/core/service/fb_events_service.dart';
+import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service_locator.dart';
+
+import '../../../data/services/user_controller.dart';
+import '../cubit/tournaments_details_cubit.dart';
+import '../cubit/tournaments_leaderboard_cubit.dart';
+import 'package:hash/core/utils/app_logger.dart';
+
+class TournamentsDetailsView extends StatefulWidget {
+  final TournamentModel tournament;
+
+  const TournamentsDetailsView({super.key, required this.tournament});
+
+  @override
+  State<TournamentsDetailsView> createState() => _TournamentsDetailsViewState();
+}
+
+class _TournamentsDetailsViewState extends State<TournamentsDetailsView> {
+  late final TournamentsDetailsCubit _cubit;
+  late final TournamentsLeaderboardCubit _leaderboardCubit;
+  final userController = Get.find<UserController>();
+  final SegmentSdkService _segmentService = locator<SegmentSdkService>();
+  final FbEventsService _fbEventsService = locator<FbEventsService>();
+  bool _leaderboardViewTracked = false;
+  bool _leaderboardRequested = false;
+  Timer? _countdownTimer;
+  DateTime _countdownNow = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    _cubit = TournamentsDetailsCubit(widget.tournament);
+    _leaderboardCubit = TournamentsLeaderboardCubit();
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() => _countdownNow = DateTime.now());
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _segmentService.onCustomEvent('Tournament Viewed', {
+        'event_id': widget.tournament.id,
+      });
+      _fbEventsService.onTournamentViewed(eventId: widget.tournament.id);
+    });
+  }
+
+  @override
+  void dispose() {
+    _countdownTimer?.cancel();
+    _leaderboardCubit.close();
+    _cubit.close();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocProvider.value(
+      value: _cubit,
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: CustomScrollView(
+          physics: const BouncingScrollPhysics(),
+          slivers: [
+            SliverToBoxAdapter(
+              child:
+                  BlocBuilder<TournamentsDetailsCubit, TournamentsDetailsState>(
+                    builder: (context, state) {
+                      if (state is TournamentsDetailsLoaded) {
+                        return _buildBodyContent(state.tournament);
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  bool _isFull(TournamentModel t) {
+    final parts = t.players.split('/');
+    if (parts.length != 2) return false;
+    final current = int.tryParse(parts[0].trim());
+    final max = int.tryParse(parts[1].trim());
+    return current != null && max != null && max > 0 && current >= max;
+  }
+
+  bool _isRegistrationClosed(TournamentModel t) {
+    final deadline = t.registrationEndDate;
+    return deadline != null && DateTime.now().isAfter(deadline);
+  }
+
+  bool _canRegister(TournamentModel t) =>
+      !t.isJoined &&
+      t.status == TournamentStatus.upcoming &&
+      !_isRegistrationClosed(t) &&
+      !_isFull(t);
+
+  String _closedLabel(TournamentModel t) {
+    if (t.isJoined) return 'Already Joined';
+    switch (t.status) {
+      case TournamentStatus.live:
+        return 'Tournament is live';
+      case TournamentStatus.completed:
+        return 'Tournament ended';
+      default:
+        if (_isFull(t)) return 'Tournament full';
+        if (_isRegistrationClosed(t)) return 'Registration closed';
+        return 'Registration unavailable';
+    }
+  }
+
+  Widget _buildBodyContent(TournamentModel t) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildHeaderBanner(t.banner.isNotEmpty ? t.banner : t.imageUrl),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Title
+              Text(
+                t.title,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.orbitron(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              // Entry Fee + Status + Time Left
+              Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.white38),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      t.entryFee,
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+
+                  // STATUS BADGE – ALWAYS GREEN
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.transparent,
+                      border: Border.all(
+                        color: const Color(0xff00DC00),
+                        width: 1.5,
+                      ),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      t.statusLabel.toLowerCase(),
+                      style: GoogleFonts.inter(
+                        color: const Color(0xff00DC00),
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(width: 8),
+                  if (t.startDate != null)
+                    Text(
+                      _startCountdown(t.startDate!),
+                      style: GoogleFonts.inter(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
+                    ),
+                ],
+              ),
+
+              // if (dateRange.isNotEmpty) ...[
+              //   const SizedBox(height: 4),
+              //   Text(
+              //     dateRange,
+              //     style: GoogleFonts.inter(color: Colors.white54, fontSize: 12),
+              //   ),
+              // ],
+              const SizedBox(height: 25),
+
+              // Stats Row
+              Container(
+                padding: EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(15),
+                  color: Color(0x0fffffff),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildStatItem(
+                      t.prizePool,
+                      'assets/hash_store_images/points.png',
+                    ),
+                    _buildStatItem(
+                      t.players,
+                      'assets/hash_store_images/points.png',
+                    ),
+                    _buildStatItem(
+                      t.teamMode,
+                      'assets/hash_store_images/points.png',
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 30),
+
+              // Tabs
+              _buildTabs(t),
+              const SizedBox(height: 20),
+              _buildTabContent(t),
+
+              const SizedBox(height: 25),
+
+              if (_canRegister(t))
+                Column(
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: const Color(0xFFC06701)),
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: ElevatedButton(
+                        onPressed: () => _handleRegisterNow(t),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          minimumSize: const Size(double.infinity, 50),
+                        ),
+                        child: Text(
+                          'Register Now',
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    if (t.source != 'community')
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton(
+                          onPressed: () {
+                            Get.to(
+                              () => TournamentsJoinTeamView(tournament: t),
+                            );
+                          },
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.white24),
+                            minimumSize: const Size(double.infinity, 46),
+                          ),
+                          child: Text(
+                            'Join Team with ID',
+                            style: GoogleFonts.inter(color: Colors.white),
+                          ),
+                        ),
+                      ),
+                  ],
+                )
+              else
+                Container(
+                  width: double.infinity,
+                  alignment: Alignment.center,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF161616),
+                    border: Border.all(color: Colors.white12),
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Text(
+                    _closedLabel(t),
+                    style: GoogleFonts.inter(
+                      color: t.isJoined
+                          ? const Color(0xff00DC00)
+                          : Colors.white54,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+
+              // const SizedBox(height: 40),
+
+              // Your Position (Footer)
+              // _buildFooterPlayerInfo(),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _startCountdown(DateTime startDate) {
+    final remaining = startDate.difference(_countdownNow);
+    if (remaining <= Duration.zero) return 'Starting now';
+    final days = remaining.inDays;
+    final hours = remaining.inHours.remainder(24).toString().padLeft(2, '0');
+    final minutes = remaining.inMinutes
+        .remainder(60)
+        .toString()
+        .padLeft(2, '0');
+    final seconds = remaining.inSeconds
+        .remainder(60)
+        .toString()
+        .padLeft(2, '0');
+    return days > 0
+        ? 'Starts in ${days}d $hours:$minutes:$seconds'
+        : 'Starts in $hours:$minutes:$seconds';
+  }
+
+  Widget _buildHeaderBanner(String? bannerPath) {
+    final imagePath =
+        (bannerPath ?? 'assets/hash_store_images/tournament_banner.png').trim();
+    final isNetwork = imagePath.startsWith('http');
+    return Stack(
+      children: [
+        ClipRRect(
+          child: isNetwork
+              ? Image.network(
+                  imagePath,
+                  height: 220,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                )
+              : Image.asset(
+                  imagePath,
+                  height: 220,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                ),
+        ),
+        Container(
+          height: 220,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.black.withOpacity(0.7), Colors.transparent],
+              begin: Alignment.bottomCenter,
+              end: Alignment.topCenter,
+            ),
+          ),
+        ),
+        Positioned(
+          top: 40,
+          left: 10,
+          child: CircleAvatar(
+            backgroundColor: Colors.black45,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back_ios_rounded,
+                color: Colors.white,
+                size: 18,
+              ),
+              onPressed: () => Get.back(),
+            ),
+          ),
+        ),
+        Positioned(
+          top: 40,
+          right: 10,
+          child: CircleAvatar(
+            backgroundColor: Colors.black45,
+            child: IconButton(
+              icon: const Icon(Icons.share, color: Colors.white, size: 18),
+              onPressed: () {
+                final shareText =
+                    '${widget.tournament.title}\nJoin this tournament on Hash Hub.';
+                Share.share(shareText, sharePositionOrigin: shareOriginRect(),);
+              },
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatItem(String value, String assetPath) {
+    return Column(
+      children: [
+        Image.asset(assetPath, height: 50, width: 50, fit: BoxFit.contain),
+        const SizedBox(height: 8),
+        Text(
+          value,
+          style: GoogleFonts.inter(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+
+  int selectedTabIndex =
+      0; // Add this in your _TournamentsDetailsViewState class
+
+  Widget _buildTabs(TournamentModel tournament) {
+    final List<String> tabs = [
+      "Overview",
+      "Teams",
+      "Rules",
+      "Technical",
+      "Leaderboard",
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2.0),
+      child: Stack(
+        children: [
+          // Base divider line (always visible)
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              height: 2,
+              color: Colors.white12, // subtle divider color
+            ),
+          ),
+
+          // Tabs row with gradient underline on selected one
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: List.generate(tabs.length, (index) {
+              final isActive = selectedTabIndex == index;
+              return Expanded(
+                child: InkWell(
+                  onTap: () {
+                    setState(() {
+                      selectedTabIndex = index;
+                    });
+                    if (index == 4) {
+                      _loadLeaderboardIfEligible(tournament);
+                    }
+                  },
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            tabs[index],
+                            maxLines: 1,
+                            style: GoogleFonts.inter(
+                              color: isActive ? Colors.white : Colors.white54,
+                              fontWeight: isActive
+                                  ? FontWeight.bold
+                                  : FontWeight.w500,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // Gradient underline
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 250),
+                        height: 2.5,
+                        decoration: BoxDecoration(
+                          gradient: isActive
+                              ? const LinearGradient(
+                                  colors: [
+                                    Color(0xFFFBA544),
+                                    Color(0xff00DC00),
+                                  ],
+                                  begin: Alignment.centerLeft,
+                                  end: Alignment.centerRight,
+                                )
+                              : const LinearGradient(
+                                  colors: [
+                                    Colors.transparent,
+                                    Colors.transparent,
+                                  ],
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTabContent(TournamentModel t) {
+    switch (selectedTabIndex) {
+      case 0:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Overview',
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Battle against top squads, climb ranks, and secure your spot on the leaderboard. Join before slots are filled and be ready at match time.',
+              textAlign: TextAlign.start,
+              style: GoogleFonts.inter(
+                color: const Color(0xFFC9C9C9),
+                fontSize: 13,
+                height: 1.55,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              t.description,
+              textAlign: TextAlign.start,
+              style: GoogleFonts.inter(
+                color: const Color(0xFFC9C9C9),
+                fontSize: 13,
+                height: 1.6,
+              ),
+            ),
+            SizedBox(height: 15),
+            Text(
+              "Hosted by ${t.hostedBy}",
+              style: GoogleFonts.inter(color: Colors.grey, fontSize: 13),
+            ),
+          ],
+        );
+      case 1:
+        final teams = t.teams;
+
+        return Column(
+          children: [
+            // LIMITED HEIGHT LIST (shows ~3 items)
+            Container(
+              height: 200, // adjust to match exact Figma height if needed
+              child: Stack(
+                children: [
+                  ListView.builder(
+                    padding: EdgeInsets.only(bottom: 60),
+                    itemCount: teams.length,
+                    itemBuilder: (context, index) {
+                      final team = teams[index];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 10.0),
+                        child: GestureDetector(
+                          onTap: () => _openTeamMembersFromDetails(team),
+                          child: _buildGlassContainer(team),
+                        ),
+                      );
+                    },
+                  ),
+
+                  // EXPAND BUTTON (bottom-right)
+                  Positioned(
+                    bottom: 10,
+                    right: 10,
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ExpandedTeamListView(
+                              tournament: t,
+                              teams: teams,
+                            ),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        padding: EdgeInsets.all(3),
+                        decoration: BoxDecoration(shape: BoxShape.circle),
+                        child: Image.asset(
+                          "assets/hash_store_images/expand_icon.png",
+                          height: 32,
+                          width: 32,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      case 2:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Rules',
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Fair play is mandatory. No cheating, abusive behavior, account sharing, or exploit usage. Team composition and reporting must follow organizer instructions.',
+              style: GoogleFonts.inter(
+                color: Colors.white70,
+                fontSize: 13,
+                height: 1.55,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Event-specific rules:\n${t.rules}',
+              style: GoogleFonts.inter(color: Colors.white70, fontSize: 13),
+            ),
+          ],
+        );
+      case 3:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Technical',
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Ensure stable internet, updated game version, and valid in-game identity before check-in. Late check-ins and disconnected teams may be disqualified.',
+              style: GoogleFonts.inter(
+                color: Colors.white70,
+                fontSize: 13,
+                height: 1.55,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Event-specific technical details:\n${t.technical}',
+              style: GoogleFonts.inter(color: Colors.white70, fontSize: 13),
+            ),
+          ],
+        );
+      case 4:
+        if (t.status == TournamentStatus.upcoming) {
+          return _buildLeaderboardShell(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                'Leaderboard will be available after the tournament starts.',
+                style: GoogleFonts.inter(color: Colors.white70, fontSize: 13),
+              ),
+            ),
+          );
+        }
+        return _buildLeaderboardSection();
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  void _loadLeaderboardIfEligible(TournamentModel tournament) {
+    if (_leaderboardRequested ||
+        tournament.status == TournamentStatus.upcoming) {
+      return;
+    }
+    _leaderboardRequested = true;
+    _leaderboardCubit.fetchLeaderboard(eventId: tournament.id);
+  }
+
+  Widget _buildLeaderboardSection() {
+    return BlocProvider.value(
+      value: _leaderboardCubit,
+      child:
+          BlocBuilder<TournamentsLeaderboardCubit, TournamentsLeaderboardState>(
+            builder: (context, state) {
+              if (state is TournamentsLeaderboardLoading) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: TournamentsLoader.button(),
+                );
+              }
+
+              if (state is TournamentsLeaderboardError) {
+                return _buildLeaderboardShell(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 16,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Unable to load leaderboard',
+                          style: GoogleFonts.inter(
+                            color: Colors.white70,
+                            fontSize: 13,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          state.message,
+                          style: GoogleFonts.inter(
+                            color: Colors.white38,
+                            fontSize: 11,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        OutlinedButton(
+                          onPressed: () {
+                            _leaderboardCubit.fetchLeaderboard(
+                              eventId: widget.tournament.id,
+                            );
+                          },
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.white24),
+                          ),
+                          child: const Text(
+                            'Retry',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              if (state is! TournamentsLeaderboardLoaded ||
+                  !state.isAvailable ||
+                  state.leaderboard.isEmpty) {
+                return _buildLeaderboardShell(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 16,
+                    ),
+                    child: Text(
+                      'Results are being prepared. Check back after the matches.',
+                      style: GoogleFonts.inter(
+                        color: Colors.white70,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                );
+              }
+
+              final items = state.leaderboard;
+              if (!_leaderboardViewTracked) {
+                _leaderboardViewTracked = true;
+                _segmentService.onCustomEvent('Leaderboard Viewed', {
+                  'event_id': widget.tournament.id,
+                  'leaderboard_type': 'event',
+                });
+                _fbEventsService.onLeaderboardViewed(
+                  leaderboardType: 'event',
+                  eventId: widget.tournament.id,
+                );
+              }
+              return _buildLeaderboardShell(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: items.length,
+                  separatorBuilder: (context, index) =>
+                      const Divider(color: Colors.white10, height: 10),
+                  itemBuilder: (context, index) {
+                    final row = items[index];
+                    final rank = row['rank'] ?? (index + 1);
+                    final name = (row['team_name'] ?? 'Team ${index + 1}')
+                        .toString();
+                    final score = row['score'];
+                    final amount = row['amount'];
+                    return Row(
+                      children: [
+                        Container(
+                          width: 28,
+                          height: 28,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: rank == 1
+                                ? Colors.amber
+                                : rank == 2
+                                ? Colors.grey
+                                : rank == 3
+                                ? Colors.brown
+                                : Colors.white12,
+                          ),
+                          child: Text(
+                            '$rank',
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            name,
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          amount != null
+                              ? '${row['currency'] ?? ''} $amount'
+                              : score?.toString() ??
+                                    (state.stage == 'winners' ? 'Winner' : '—'),
+                          style: GoogleFonts.orbitron(
+                            color: const Color(0xff00DC00),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              );
+            },
+          ),
+    );
+  }
+
+  Widget _buildLeaderboardShell({required Widget child}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF151515),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Leaderboard',
+            style: GoogleFonts.orbitron(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 10),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRegisterButton() {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFF8A241), Color(0xFFC06701)],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: ElevatedButton(
+        onPressed: () {
+          // TODO: Register action
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          minimumSize: const Size(double.infinity, 50),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'Register Now',
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(Icons.north_east, color: Colors.white, size: 22),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFooterPlayerInfo() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E1E1E),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          _buildOptimizedUserAvatar(userController.user.value.photoUrl),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: const [
+              Text(
+                'You',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                'Registered Player',
+                style: TextStyle(color: Colors.grey, fontSize: 12),
+              ),
+            ],
+          ),
+          const Spacer(),
+          const Icon(Icons.check_circle, color: Color(0xff00DC00), size: 28),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOptimizedUserAvatar(String? photoUrl) {
+    const double size = 40;
+    final effectivePhoto = (photoUrl ?? '').trim().isNotEmpty
+        ? photoUrl!.trim()
+        : (firebase_auth.FirebaseAuth.instance.currentUser?.photoURL ?? '')
+              .trim();
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white38, width: 2),
+      ),
+      child: CircleAvatar(
+        radius: size / 2,
+        backgroundImage: effectivePhoto.isNotEmpty
+            ? CachedNetworkImageProvider(
+                effectivePhoto,
+                errorListener: (error) => AppLogger.d('Avatar error: $error'),
+              )
+            : null,
+        backgroundColor: Colors.white,
+        child: effectivePhoto.isEmpty
+            ? const Icon(Icons.person_rounded, color: Colors.black54)
+            : null,
+      ),
+    );
+  }
+
+  Widget _buildGlassContainer(TournamentTeamModel team) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          width: MediaQuery.of(context).size.width,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.white12,
+                Colors.white24,
+                Colors.white30.withOpacity(0.3),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(width: 0.5, color: Colors.white30),
+          ),
+          child: Row(
+            children: [
+              Text(
+                team.rank,
+                style: GoogleFonts.inter(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              SizedBox(width: 10),
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white38, width: 2),
+                ),
+                child: CircleAvatar(
+                  radius: 20,
+                  backgroundImage: team.photoUrl.isNotEmpty
+                      ? _teamPhotoProvider(team.photoUrl)
+                      : const AssetImage(
+                              'assets/hash_store_images/team_fallback.png',
+                            )
+                            as ImageProvider,
+                ),
+              ),
+              SizedBox(width: 15),
+              Text(
+                team.name,
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Spacer(),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.star,
+                        color: const Color(0xff00DC00),
+                        size: 10,
+                      ),
+                      SizedBox(width: 5),
+                      Text(
+                        "${team.points} Points",
+                        style: GoogleFonts.inter(fontSize: 12),
+                      ),
+                    ],
+                  ),
+                  Text(
+                    "${team.matchesWon} Matches Won",
+                    style: GoogleFonts.inter(fontSize: 12),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleRegisterNow(TournamentModel tournament) async {
+    if (tournament.status != TournamentStatus.upcoming) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Registration is only available for upcoming tournaments.',
+          ),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    if (tournament.isJoined) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You have already joined this tournament.'),
+          backgroundColor: Color(0xff00DC00),
+        ),
+      );
+      return;
+    }
+
+    Get.to(() => TournamentsRegisterView(tournament: tournament));
+  }
+
+  void _openTeamMembersFromDetails(TournamentTeamModel team) {
+    if (team.id.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Team ID unavailable for members'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+    Get.to(
+      () => TournamentsTeamMembersView(
+        eventId: widget.tournament.id,
+        teamId: team.id,
+        teamName: team.name,
+      ),
+    );
+  }
+
+  ImageProvider _teamPhotoProvider(String value) {
+    final photo = value.trim();
+    if (photo.startsWith('http://') || photo.startsWith('https://')) {
+      return CachedNetworkImageProvider(photo);
+    }
+    return AssetImage(photo);
+  }
+}
+
+class ExpandedTeamListView extends StatelessWidget {
+  final TournamentModel tournament;
+  final List<TournamentTeamModel> teams;
+
+  const ExpandedTeamListView({
+    super.key,
+    required this.tournament,
+    required this.teams,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        elevation: 0,
+        leading: IconButton(
+          onPressed: () {
+            Navigator.pop(context);
+          },
+          icon: Icon(Icons.arrow_back_ios_rounded, color: Colors.white),
+        ),
+        title: Text(
+          'Teams',
+          style: GoogleFonts.inter(
+            color: Colors.white,
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        iconTheme: IconThemeData(color: Colors.white),
+        actions: [IconButton(icon: Icon(Icons.share), onPressed: () {})],
+      ),
+
+      body: Stack(
+        children: [
+          // THE TEAM LIST
+          ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: teams.length,
+            itemBuilder: (context, index) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12.0),
+                child: GestureDetector(
+                  onTap: () => _openMembers(context, teams[index]),
+                  child: _buildExpandedTeamGlassContainer(
+                    context,
+                    teams[index],
+                  ),
+                ),
+              );
+            },
+          ),
+
+          // SHRINK BUTTON (bottom-right)
+          Positioned(
+            bottom: 20,
+            right: 20,
+            child: GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Container(
+                padding: const EdgeInsets.all(3),
+                decoration: const BoxDecoration(shape: BoxShape.circle),
+                child: Image.asset(
+                  "assets/hash_store_images/shrink_icon.png",
+                  height: 32,
+                  width: 32,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          children: [
+            Expanded(
+              child: Container(
+                height: 50,
+                decoration: BoxDecoration(
+                  border: Border.all(color: Color(0xFFC06701)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: ElevatedButton(
+                  onPressed: () {
+                    Get.to(
+                      () => TournamentsRegisterView(tournament: tournament),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    "+ Create Team",
+                    style: TextStyle(color: Colors.white, fontSize: 16),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Container(
+                height: 50,
+                decoration: BoxDecoration(
+                  border: Border.all(color: const Color(0xff00DC00)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: ElevatedButton(
+                  onPressed: () {
+                    Get.to(
+                      () => TournamentsJoinTeamView(tournament: tournament),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    "Join Team",
+                    style: TextStyle(color: Colors.white, fontSize: 16),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _shareTeam(BuildContext context, TournamentTeamModel team) {
+    if (team.id.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Team ID unavailable'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+    SharePlus.instance.share(
+      ShareParams(sharePositionOrigin: shareOriginRect(), 
+        text:
+            'Join my team "${team.name}" on HashForGamers.\n'
+            'hashforgamers://team/join?event_id=${tournament.id}&team_id=${team.id}\n'
+            '$kWebOrigin/team/join?event_id=${tournament.id}&team_id=${team.id}',
+      ),
+    );
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Team ID shared'),
+        backgroundColor: Color(0xff00DC00),
+      ),
+    );
+  }
+
+  void _openMembers(BuildContext context, TournamentTeamModel team) {
+    if (team.id.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Team ID unavailable for members'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    Get.to(
+      () => TournamentsTeamMembersView(
+        eventId: tournament.id,
+        teamId: team.id,
+        teamName: team.name,
+      ),
+    );
+  }
+
+  Widget _buildExpandedTeamGlassContainer(
+    BuildContext context,
+    TournamentTeamModel team,
+  ) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(14),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          width: MediaQuery.of(context).size.width,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.white12,
+                Colors.white24,
+                Colors.white30.withOpacity(0.3),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(width: 0.6, color: Colors.white24),
+          ),
+          child: Row(
+            children: [
+              Text(
+                team.rank,
+                style: GoogleFonts.inter(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              SizedBox(width: 14),
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white30, width: 2),
+                ),
+                child: CircleAvatar(
+                  radius: 25,
+                  backgroundImage: team.photoUrl.isNotEmpty
+                      ? _teamPhotoProvider(team.photoUrl)
+                      : const AssetImage(
+                              'assets/hash_store_images/team_fallback.png',
+                            )
+                            as ImageProvider,
+                ),
+              ),
+              SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      team.name,
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'ID: ${team.id.isEmpty ? 'N/A' : team.id}',
+                      style: const TextStyle(
+                        color: Colors.white60,
+                        fontSize: 11,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.star,
+                          color: const Color(0xff00DC00),
+                          size: 11,
+                        ),
+                        SizedBox(width: 2),
+                        Text(
+                          "${team.points} Points",
+                          style: GoogleFonts.inter(
+                            color: Colors.white70,
+                            fontSize: 11,
+                          ),
+                        ),
+                        SizedBox(width: 6),
+                        Text(
+                          "${team.matchesWon} Matches Won",
+                          style: GoogleFonts.inter(
+                            color: Colors.white70,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        TextButton(
+                          onPressed: () => _openMembers(context, team),
+                          child: const Text('View Members'),
+                        ),
+                        TextButton(
+                          onPressed: () => _shareTeam(context, team),
+                          child: const Text('Share Team ID'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  ImageProvider _teamPhotoProvider(String value) {
+    final photo = value.trim();
+    if (photo.startsWith('http://') || photo.startsWith('https://')) {
+      return CachedNetworkImageProvider(photo);
+    }
+    return AssetImage(photo);
+  }
+}

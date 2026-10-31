@@ -6,7 +6,7 @@ enum LudoGameState { throwDice, pickPawn, moving, finish }
 
 ///Ludo colors constant class
 class LudoColor {
-  static const Color green = Color(0xFF1aaa30);
+  static const Color green = Color(0xff00DC00);
   static const Color yellow = Color(0xFFffcd1d);
   static const Color blue = Color(0xFF4a5fd1);
   static const Color red = Color(0xFFf84700);

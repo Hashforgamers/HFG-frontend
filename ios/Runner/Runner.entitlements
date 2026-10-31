@@ -8,5 +8,12 @@
 	<array>
 		<string>Default</string>
 	</array>
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:hashforgamers.com</string>
+		<string>applinks:www.hashforgamers.com</string>
+		<string>applinks:hashforgamers.co.in</string>
+		<string>applinks:www.hashforgamers.co.in</string>
+	</array>
 </dict>
 </plist>

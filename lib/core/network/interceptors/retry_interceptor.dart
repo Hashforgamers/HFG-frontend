@@ -1,13 +1,13 @@
-import 'dart:async';
 import 'package:dio/dio.dart';
-import 'package:hash/core/network/error_handler.dart';
 
 class RetryInterceptor extends QueuedInterceptorsWrapper {
+  final Dio dio;
   final int maxRetries;
   final Duration retryDelay;
   final List<int> retryStatusCodes;
 
   RetryInterceptor({
+    required this.dio,
     this.maxRetries = 3,
     this.retryDelay = const Duration(seconds: 2),
     this.retryStatusCodes = const [500, 502, 503, 504],
@@ -18,65 +18,78 @@ class RetryInterceptor extends QueuedInterceptorsWrapper {
     DioException err,
     ErrorInterceptorHandler handler,
   ) async {
-    // Check if this is a retryable error
-    if (_shouldRetry(err)) {
-      final requestOptions = err.requestOptions;
-      final retryCount = _getRetryCount(requestOptions);
+    final requestOptions = err.requestOptions;
+    final retryCount = _getRetryCount(requestOptions);
 
-      if (retryCount < maxRetries) {
-        // Increment retry count
-        requestOptions.extra['retryCount'] = retryCount + 1;
+    if (_shouldRetry(err) && retryCount < maxRetries) {
+      requestOptions.extra['retryCount'] = retryCount + 1;
 
-        // Wait before retrying
-        await Future.delayed(retryDelay * (retryCount + 1));
+      final delay = retryDelay * (retryCount + 1);
+      await Future.delayed(delay);
 
-        try {
-          // Retry the request
-          final response = await _retryRequest(requestOptions);
-          return handler.resolve(response);
-        } catch (retryError) {
-          // If retry also fails, continue with the original error
-          return handler.next(err);
-        }
-      } else {}
+      try {
+        final response = await dio.request(
+          requestOptions.path,
+          data: requestOptions.data,
+          queryParameters: requestOptions.queryParameters,
+          options: Options(
+            method: requestOptions.method,
+            headers: requestOptions.headers,
+            responseType: requestOptions.responseType,
+            contentType: requestOptions.contentType,
+            validateStatus: requestOptions.validateStatus,
+            receiveDataWhenStatusError:
+                requestOptions.receiveDataWhenStatusError,
+            extra: requestOptions.extra,
+            followRedirects: requestOptions.followRedirects,
+            maxRedirects: requestOptions.maxRedirects,
+            requestEncoder: requestOptions.requestEncoder,
+            responseDecoder: requestOptions.responseDecoder,
+            listFormat: requestOptions.listFormat,
+          ),
+        );
+
+        return handler.resolve(response);
+      } catch (_) {
+        return handler.next(err);
+      }
     }
 
-    // Continue with normal error handling for non-retryable errors
     return handler.next(err);
   }
 
   bool _shouldRetry(DioException err) {
-    return ApiErrorHandler.shouldRetry(err);
+    if (_isDecimalBackendError(err)) {
+      return false;
+    }
+
+    if (err.type == DioExceptionType.connectionTimeout ||
+        err.type == DioExceptionType.receiveTimeout ||
+        err.type == DioExceptionType.sendTimeout) {
+      return true;
+    }
+
+    final statusCode = err.response?.statusCode;
+    if (statusCode != null && retryStatusCodes.contains(statusCode)) {
+      return true;
+    }
+
+    return false;
+  }
+
+  bool _isDecimalBackendError(DioException err) {
+    final data = err.response?.data;
+    if (data is Map<String, dynamic>) {
+      final msg = (data['error'] ?? data['message'] ?? '').toString();
+      return msg.contains("name 'Decimal' is not defined");
+    }
+    if (data is String) {
+      return data.contains("name 'Decimal' is not defined");
+    }
+    return false;
   }
 
   int _getRetryCount(RequestOptions options) {
     return options.extra['retryCount'] as int? ?? 0;
-  }
-
-  Future<Response> _retryRequest(RequestOptions options) async {
-    final dio = Dio();
-
-    // Copy the original request options
-    final retryOptions = Options(
-      method: options.method,
-      headers: options.headers,
-      responseType: options.responseType,
-      contentType: options.contentType,
-      validateStatus: options.validateStatus,
-      receiveDataWhenStatusError: options.receiveDataWhenStatusError,
-      extra: options.extra,
-      followRedirects: options.followRedirects,
-      maxRedirects: options.maxRedirects,
-      requestEncoder: options.requestEncoder,
-      responseDecoder: options.responseDecoder,
-      listFormat: options.listFormat,
-    );
-
-    return await dio.request(
-      options.path,
-      data: options.data,
-      queryParameters: options.queryParameters,
-      options: retryOptions,
-    );
   }
 }

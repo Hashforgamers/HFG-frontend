@@ -1,0 +1,1895 @@
+import 'dart:async';
+import 'package:hash/config/web_links.dart';
+import 'dart:math' as math;
+import 'package:flutter/widgets.dart';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:dio/dio.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:get/get.dart';
+import 'package:hash/app/data/services/user_controller.dart';
+import 'package:hash/app/modules/chat/models/chat_message_model.dart';
+import 'package:hash/app/modules/chat/models/chat_room_model.dart';
+import 'package:hash/app/modules/chat/models/chat_user_model.dart';
+import 'package:hash/core/network/api_endpoints.dart';
+import 'package:hash/core/network/network_config.dart';
+import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
+import 'package:hash/core/service/fb_events_service.dart';
+import 'package:hash/core/service/notification_service.dart';
+import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service_locator.dart';
+import 'package:hash/features/mini_games/score/mini_game_leaderboard_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+class ChatService extends GetxService with WidgetsBindingObserver {
+  static const _usersCollection = 'chat_users';
+  static const primaryRoomsCollection = 'chat_rooms';
+  static const _messagesCollection = 'messages';
+  static const _hiddenRecentUsersKeyPrefix = 'chat_hidden_recent_users_';
+
+  ChatService({
+    FirebaseFirestore? firestore,
+    firebase_auth.FirebaseAuth? auth,
+    String roomsCollection = primaryRoomsCollection,
+  }) : _firestore = firestore ?? FirebaseFirestore.instance,
+       _auth = auth ?? firebase_auth.FirebaseAuth.instance,
+       _roomsCollection = roomsCollection;
+
+  final FirebaseFirestore _firestore;
+  final firebase_auth.FirebaseAuth _auth;
+  final String _roomsCollection;
+  final RemoteRepoInterface _remoteRepo = locator<RemoteRepoInterface>();
+  final SegmentSdkService _segmentService = locator<SegmentSdkService>();
+  final FbEventsService _fbEventsService = locator<FbEventsService>();
+  final SharedPreferences _prefs = locator<SharedPreferences>();
+  StreamSubscription<firebase_auth.User?>? _authSub;
+  StreamSubscription<List<ChatRoomModel>>? _roomListSub;
+  final Map<String, StreamSubscription<ChatMessageModel?>> _roomMessageSubs =
+      {};
+  final Map<String, String> _lastSeenMessageIdByRoom = {};
+  final Set<String> _primedRooms = {};
+  final Map<String, bool> _unreadRoomById = {};
+  final RxMap<String, bool> unreadRoomState = <String, bool>{}.obs;
+  String? _activeNotificationUid;
+  Timer? _presenceHeartbeat;
+  static const Duration _presenceHeartbeatInterval = Duration(seconds: 30);
+  final RxInt unreadRoomCount = 0.obs;
+  DateTime _sessionStartedAt = DateTime.now();
+
+  CollectionReference<Map<String, dynamic>> get _usersRef =>
+      _firestore.collection(_usersCollection);
+
+  CollectionReference<Map<String, dynamic>> get _roomsRef =>
+      _firestore.collection(_roomsCollection);
+
+  String? get currentUid => _auth.currentUser?.uid;
+
+  bool get isLoggedIn => currentUid != null;
+
+  @override
+  void onInit() {
+    super.onInit();
+    _sessionStartedAt = DateTime.now();
+    WidgetsBinding.instance.addObserver(this);
+    _trackInactivityIfNeeded();
+    _authSub = _auth.authStateChanges().listen((user) {
+      if (user == null) {
+        stopChatNotifications();
+      } else {
+        startChatNotifications();
+      }
+    });
+    if (currentUid != null) {
+      startChatNotifications();
+      _startPresenceHeartbeat();
+      unawaited(updatePresence(isOnline: true));
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (currentUid == null) return;
+    if (state == AppLifecycleState.resumed) {
+      _sessionStartedAt = DateTime.now();
+      _startPresenceHeartbeat();
+      unawaited(updatePresence(isOnline: true));
+    } else if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached ||
+        state == AppLifecycleState.hidden) {
+      final uid = currentUid ?? '';
+      final durationSeconds = DateTime.now()
+          .difference(_sessionStartedAt)
+          .inSeconds;
+      _segmentService.onCustomEvent('App Backgrounded', {
+        'current_screen': 'chat_service',
+      });
+      _fbEventsService.onAppBackgrounded(currentScreen: 'chat_service');
+      _segmentService.onCustomEvent('Session Duration', {
+        'user_id': uid,
+        'duration_seconds': durationSeconds,
+      });
+      _fbEventsService.onSessionDuration(
+        userId: uid,
+        durationSeconds: durationSeconds,
+      );
+      _segmentService.onCustomEvent('Session Ended', {
+        'user_id': uid,
+        'source': 'background',
+      });
+      _fbEventsService.onSessionEnded(userId: uid, source: 'background');
+      _prefs.setInt('last_active_at_ms', DateTime.now().millisecondsSinceEpoch);
+      _stopPresenceHeartbeat();
+      unawaited(updatePresence(isOnline: false));
+    }
+  }
+
+  void _trackInactivityIfNeeded() {
+    final uid = currentUid ?? '';
+    if (uid.isEmpty) return;
+    final lastActiveMs = _prefs.getInt('last_active_at_ms');
+    if (lastActiveMs == null || lastActiveMs <= 0) return;
+    final inactiveFor = DateTime.now().difference(
+      DateTime.fromMillisecondsSinceEpoch(lastActiveMs),
+    );
+    if (inactiveFor >= const Duration(days: 7)) {
+      _segmentService.onCustomEvent('User Inactive 7d', {'user_id': uid});
+      _fbEventsService.onUserInactive7d(userId: uid);
+      return;
+    }
+    if (inactiveFor >= const Duration(days: 3)) {
+      _segmentService.onCustomEvent('User Inactive 3d', {'user_id': uid});
+      _fbEventsService.onUserInactive3d(userId: uid);
+      return;
+    }
+    if (inactiveFor >= const Duration(hours: 24)) {
+      _segmentService.onCustomEvent('User Inactive 24h', {'user_id': uid});
+      _fbEventsService.onUserInactive24h(userId: uid);
+    }
+  }
+
+  void _startPresenceHeartbeat() {
+    _presenceHeartbeat?.cancel();
+    _presenceHeartbeat = Timer.periodic(_presenceHeartbeatInterval, (_) {
+      unawaited(updatePresence(isOnline: true));
+    });
+  }
+
+  void _stopPresenceHeartbeat() {
+    _presenceHeartbeat?.cancel();
+    _presenceHeartbeat = null;
+  }
+
+  Future<void> ensureCurrentUserProfile() async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return;
+
+    final displayName = _resolveCurrentDisplayName(currentUser);
+    final username = _resolveCurrentUsername(currentUser);
+    final userEmail = currentUser.email ?? '';
+    final photoUrl = currentUser.photoURL ?? '';
+    final backendUserId = await _resolveCurrentBackendUserId();
+
+    await _usersRef.doc(currentUser.uid).set({
+      'uid': currentUser.uid,
+      'display_name': displayName,
+      'username': username,
+      'email': userEmail,
+      'photo_url': photoUrl,
+      'backend_user_id': backendUserId,
+      'is_online': true,
+      'last_seen_at': FieldValue.serverTimestamp(),
+      'updated_at': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> updatePresence({required bool isOnline}) async {
+    final uid = currentUid;
+    if (uid == null) return;
+    await _usersRef.doc(uid).set({
+      'is_online': isOnline,
+      'last_seen_at': FieldValue.serverTimestamp(),
+      'updated_at': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Stream<ChatUserModel?> streamUserById(String uid) {
+    if (uid.trim().isEmpty) return Stream.value(null);
+    return _usersRef.doc(uid).snapshots().map((doc) {
+      if (!doc.exists) return null;
+      return ChatUserModel.fromDoc(doc);
+    });
+  }
+
+  Future<void> startChatNotifications() async {
+    final uid = currentUid;
+    if (uid == null) return;
+
+    await ensureCurrentUserProfile();
+    if (_activeNotificationUid == uid && _roomListSub != null) return;
+
+    stopChatNotifications();
+    _activeNotificationUid = uid;
+
+    _roomListSub = streamCurrentUserRooms().listen((rooms) {
+      final roomIds = rooms.map((room) => room.id).toSet();
+
+      for (final room in rooms) {
+        _listenForRoomLatestMessage(uid, room);
+      }
+
+      final staleRoomIds = _roomMessageSubs.keys
+          .where((roomId) => !roomIds.contains(roomId))
+          .toList();
+      for (final roomId in staleRoomIds) {
+        _roomMessageSubs.remove(roomId)?.cancel();
+        _lastSeenMessageIdByRoom.remove(roomId);
+        _primedRooms.remove(roomId);
+        _unreadRoomById.remove(roomId);
+        unreadRoomState.remove(roomId);
+      }
+      _recomputeUnreadRoomCount();
+    });
+  }
+
+  void stopChatNotifications() {
+    _roomListSub?.cancel();
+    _roomListSub = null;
+    _activeNotificationUid = null;
+    for (final sub in _roomMessageSubs.values) {
+      sub.cancel();
+    }
+    _roomMessageSubs.clear();
+    _lastSeenMessageIdByRoom.clear();
+    _primedRooms.clear();
+    _unreadRoomById.clear();
+    unreadRoomState.clear();
+    unreadRoomCount.value = 0;
+  }
+
+  Future<List<ChatUserModel>> searchUsers(
+    String query, {
+    int limit = 60,
+  }) async {
+    final uid = currentUid;
+    if (uid == null) return const [];
+
+    final normalizedQuery = query.trim().toLowerCase();
+    if (normalizedQuery.isEmpty) return const [];
+
+    final backendUsers = await _searchUsersFromBackend(
+      query.trim(),
+      limit: limit,
+    );
+
+    final users =
+        backendUsers
+            .where((user) => user.uid != uid)
+            .where((user) => _matchesUserQuery(user, normalizedQuery))
+            .toList()
+          ..sort(
+            (a, b) => a.displayName.toLowerCase().compareTo(
+              b.displayName.toLowerCase(),
+            ),
+          );
+
+    return users.take(limit).toList();
+  }
+
+  Future<ChatUserModel?> userByBackendId(int backendUserId) async {
+    String? profileDisplayName;
+    try {
+      final dio = await locator<NetworkProvider>().auth();
+      final response = await dio.get(ApiEndpoints.gamerProfile(backendUserId));
+      if (response.data is Map) {
+        final payload = Map<String, dynamic>.from(response.data as Map);
+        final raw = payload['data'] is Map
+            ? Map<String, dynamic>.from(payload['data'] as Map)
+            : payload['gamer'] is Map
+            ? Map<String, dynamic>.from(payload['gamer'] as Map)
+            : payload;
+        if (payload['user'] is Map) {
+          raw.addAll(Map<String, dynamic>.from(payload['user'] as Map));
+        }
+        profileDisplayName = _firstNonEmpty([
+          raw['display_name']?.toString(),
+          raw['name']?.toString(),
+          raw['game_username']?.toString(),
+        ], fallback: '');
+        raw['id'] ??= backendUserId;
+        final user = _chatUserFromBackendMap(raw);
+        if (user != null) return user;
+      }
+    } catch (_) {}
+    if (profileDisplayName?.isNotEmpty == true) {
+      final namedUsers = await _searchUsersFromBackend(
+        profileDisplayName!,
+        limit: 50,
+      );
+      final exact = namedUsers
+          .where((user) => user.backendUserId == backendUserId)
+          .firstOrNull;
+      if (exact != null) return exact;
+    }
+    final users = await _searchUsersFromBackend(
+      backendUserId.toString(),
+      limit: 20,
+    );
+    return users
+        .where((user) => user.backendUserId == backendUserId)
+        .firstOrNull;
+  }
+
+  Future<List<ChatUserModel>> recentChatUsers({int limit = 60}) async {
+    final uid = currentUid;
+    if (uid == null) return const [];
+
+    await ensureCurrentUserProfile();
+
+    try {
+      final snapshot = await _roomsRef
+          .where('members', arrayContains: uid)
+          .limit(limit * 3)
+          .get();
+
+      final rooms = snapshot.docs.map(ChatRoomModel.fromDoc).toList()
+        ..sort((a, b) {
+          final aTime = a.lastMessageAt ?? a.updatedAt;
+          final bTime = b.lastMessageAt ?? b.updatedAt;
+          return bTime.compareTo(aTime);
+        });
+
+      final orderedUserIds = <String>[];
+      final fallbackNames = <String, String>{};
+
+      for (final room in rooms) {
+        if (room.type != 'direct') continue;
+        if (room.deletedForUserIds.contains(uid)) continue;
+
+        final hasMessage =
+            room.lastMessage.trim().isNotEmpty || room.lastMessageAt != null;
+        if (!hasMessage) continue;
+
+        final otherUserId = room.members.firstWhere(
+          (memberId) => memberId != uid,
+          orElse: () => '',
+        );
+        if (otherUserId.isEmpty) continue;
+
+        if (!orderedUserIds.contains(otherUserId)) {
+          orderedUserIds.add(otherUserId);
+          final fallbackName = (room.memberNames[otherUserId] ?? '').trim();
+          if (fallbackName.isNotEmpty) {
+            fallbackNames[otherUserId] = fallbackName;
+          }
+        }
+
+        if (orderedUserIds.length >= limit) break;
+      }
+
+      if (orderedUserIds.isEmpty) return const [];
+
+      final hiddenUserIds = await _hiddenRecentUserIds();
+      final visibleUserIds = orderedUserIds
+          .where((id) => !hiddenUserIds.contains(id))
+          .toList();
+
+      if (visibleUserIds.isEmpty) return const [];
+
+      final usersById = <String, ChatUserModel>{};
+      const chunkSize = 10; // Firestore whereIn supports max 10 values.
+
+      for (var i = 0; i < visibleUserIds.length; i += chunkSize) {
+        final end = math.min(i + chunkSize, visibleUserIds.length);
+        final chunk = visibleUserIds.sublist(i, end);
+        final usersSnapshot = await _usersRef
+            .where(FieldPath.documentId, whereIn: chunk)
+            .get();
+
+        for (final doc in usersSnapshot.docs) {
+          final user = ChatUserModel.fromDoc(doc);
+          if (user.uid == uid) continue;
+          usersById[user.uid] = user;
+        }
+      }
+
+      final now = DateTime.now();
+      final users = <ChatUserModel>[];
+      for (final userId in visibleUserIds) {
+        if (userId == uid) continue;
+
+        final storedUser = usersById[userId];
+        if (storedUser != null) {
+          users.add(storedUser);
+          continue;
+        }
+
+        final fallbackName = fallbackNames[userId] ?? 'Player';
+        users.add(
+          ChatUserModel(
+            uid: userId,
+            displayName: fallbackName,
+            username: _usernameFromDisplayName(fallbackName),
+            email: '',
+            phoneNumber: '',
+            photoUrl: '',
+            isOnline: false,
+            updatedAt: now,
+            lastSeenAt: null,
+          ),
+        );
+      }
+
+      return users.take(limit).toList();
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  Future<void> removeUserFromRecentSearchHistory(String targetUid) async {
+    final uid = currentUid;
+    final target = targetUid.trim();
+    if (uid == null || target.isEmpty) return;
+
+    final key = _hiddenRecentUsersKey(uid);
+    final current = _prefs.getStringList(key) ?? const <String>[];
+    if (current.contains(target)) return;
+    await _prefs.setStringList(key, <String>[...current, target]);
+  }
+
+  Future<void> clearRecentSearchHistory() async {
+    final uid = currentUid;
+    if (uid == null) return;
+    await _prefs.remove(_hiddenRecentUsersKey(uid));
+  }
+
+  Future<Set<String>> _hiddenRecentUserIds() async {
+    final uid = currentUid;
+    if (uid == null) return const <String>{};
+    final values = _prefs.getStringList(_hiddenRecentUsersKey(uid)) ?? const [];
+    return values.map((e) => e.trim()).where((e) => e.isNotEmpty).toSet();
+  }
+
+  String _hiddenRecentUsersKey(String uid) =>
+      '$_hiddenRecentUsersKeyPrefix$uid';
+
+  Stream<List<ChatUserModel>> streamAllUsers() {
+    final uid = currentUid;
+    if (uid == null) return const Stream.empty();
+
+    return _usersRef.snapshots().map((snapshot) {
+      final users = snapshot.docs
+          .map(ChatUserModel.fromDoc)
+          .where((user) => user.uid != uid)
+          .toList();
+
+      users.sort(
+        (a, b) =>
+            a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()),
+      );
+      return users;
+    });
+  }
+
+  Stream<List<ChatRoomModel>> streamCurrentUserRooms() {
+    final uid = currentUid;
+    if (uid == null) return const Stream.empty();
+
+    return _roomsRef.where('members', arrayContains: uid).snapshots().map((s) {
+      final rooms = s.docs
+          .map(
+            (doc) => ChatRoomModel.fromDoc(doc, collection: _roomsCollection),
+          )
+          .where((room) => !room.deletedForUserIds.contains(uid))
+          .toList();
+      rooms.sort((a, b) {
+        final aTime = a.lastMessageAt ?? a.updatedAt;
+        final bTime = b.lastMessageAt ?? b.updatedAt;
+        return bTime.compareTo(aTime);
+      });
+      return rooms;
+    });
+  }
+
+  Stream<List<ChatRoomModel>> streamCurrentUserRoomsIncludingDisputes() {
+    return streamCurrentUserRooms();
+  }
+
+  Future<void> deleteRoomForCurrentUser(String roomId) async {
+    final uid = currentUid;
+    if (uid == null) {
+      throw Exception('Please sign in to manage chats.');
+    }
+
+    await _roomsRef.doc(roomId).set({
+      'deleted_for_uids': FieldValue.arrayUnion([uid]),
+      'updated_at': FieldValue.serverTimestamp(),
+      'client_updated_at': DateTime.now().toIso8601String(),
+    }, SetOptions(merge: true));
+
+    _unreadRoomById.remove(roomId);
+    _recomputeUnreadRoomCount();
+  }
+
+  Future<void> restoreRoomForCurrentUser(String roomId) async {
+    final uid = currentUid;
+    if (uid == null) {
+      throw Exception('Please sign in to manage chats.');
+    }
+
+    await _roomsRef.doc(roomId).set({
+      'deleted_for_uids': FieldValue.arrayRemove([uid]),
+      'updated_at': FieldValue.serverTimestamp(),
+      'client_updated_at': DateTime.now().toIso8601String(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> setRoomMutedForCurrentUser({
+    required String roomId,
+    required bool muted,
+  }) async {
+    final uid = currentUid;
+    if (uid == null) {
+      throw Exception('Please sign in to manage chats.');
+    }
+    await _roomsRef.doc(roomId).set({
+      'muted_uids': muted
+          ? FieldValue.arrayUnion([uid])
+          : FieldValue.arrayRemove([uid]),
+      'updated_at': FieldValue.serverTimestamp(),
+      'client_updated_at': DateTime.now().toIso8601String(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> setRoomArchivedForCurrentUser({
+    required String roomId,
+    required bool archived,
+  }) async {
+    final uid = currentUid;
+    if (uid == null) {
+      throw Exception('Please sign in to manage chats.');
+    }
+    await _roomsRef.doc(roomId).set({
+      'archived_uids': archived
+          ? FieldValue.arrayUnion([uid])
+          : FieldValue.arrayRemove([uid]),
+      'updated_at': FieldValue.serverTimestamp(),
+      'client_updated_at': DateTime.now().toIso8601String(),
+    }, SetOptions(merge: true));
+  }
+
+  CollectionReference<Map<String, dynamic>> _roomCollection(String? name) =>
+      name == null ? _roomsRef : _firestore.collection(name);
+
+  Stream<ChatRoomModel?> streamRoom(String roomId, {String? collection}) {
+    return _roomCollection(collection).doc(roomId).snapshots().map((doc) {
+      if (!doc.exists) return null;
+      return ChatRoomModel.fromDoc(
+        doc,
+        collection: collection ?? ChatRoomModel.primaryCollection,
+      );
+    });
+  }
+
+  Future<ChatRoomModel> requireAccessibleRoom(
+    String roomId, {
+    String? collection,
+  }) async {
+    final uid = currentUid;
+    if (uid == null) throw Exception('Please sign in to open this chat.');
+    final doc = await _roomCollection(
+      collection,
+    ).doc(roomId).get().timeout(const Duration(seconds: 12));
+    if (!doc.exists) throw Exception('This chat room is not available yet.');
+    final room = ChatRoomModel.fromDoc(
+      doc,
+      collection: collection ?? _roomsCollection,
+    );
+    if (room.members.isNotEmpty && !room.members.contains(uid)) {
+      throw Exception('You do not have access to this chat room.');
+    }
+    return room;
+  }
+
+  Future<String> ensureTournamentRoom({
+    required String tournamentId,
+    required String tournamentName,
+    required List<String> memberIds,
+    required List<String> adminIds,
+    required Map<String, String> memberNames,
+    required Map<String, String> memberUsernames,
+  }) async {
+    final uid = currentUid;
+    if (uid == null) throw Exception('Please sign in to prepare this chat.');
+    final roomId = 'community-tournament-$tournamentId';
+    final members = <String>{uid, ...memberIds.where((id) => id.isNotEmpty)};
+    await _roomsRef.doc(roomId).set({
+      'id': roomId,
+      'type': 'tournament',
+      'name': tournamentName.isEmpty
+          ? 'Tournament Chat'
+          : '$tournamentName · Tournament Chat',
+      'tournament_id': tournamentId,
+      'tournament_name': tournamentName,
+      'members': members.toList(),
+      'admins': <String>{...adminIds.where((id) => id.isNotEmpty)}.toList(),
+      'member_names': memberNames,
+      'member_usernames': memberUsernames,
+      'updated_at': FieldValue.serverTimestamp(),
+      'client_updated_at': DateTime.now().toIso8601String(),
+    }, SetOptions(merge: true));
+    return roomId;
+  }
+
+  Stream<List<ChatMessageModel>> streamRoomMessages(
+    String roomId, {
+    int limit = 200,
+    String? collection,
+  }) {
+    return _roomCollection(collection)
+        .doc(roomId)
+        .collection(_messagesCollection)
+        .limit(limit)
+        .snapshots()
+        .map((snapshot) {
+          final messages = snapshot.docs.map(ChatMessageModel.fromDoc).toList();
+          messages.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          unawaited(markRoomMessagesSeen(roomId, collection: collection));
+          return messages;
+        });
+  }
+
+  Stream<ChatMessageModel?> streamRoomLatestMessage(String roomId) {
+    return _roomsRef
+        .doc(roomId)
+        .collection(_messagesCollection)
+        .orderBy('created_at', descending: true)
+        .limit(1)
+        .snapshots()
+        .map((snapshot) {
+          if (snapshot.docs.isEmpty) return null;
+          return ChatMessageModel.fromDoc(snapshot.docs.first);
+        });
+  }
+
+  Stream<int> streamUnreadCountForRoom(String roomId, {int limit = 80}) {
+    final uid = currentUid;
+    if (uid == null || roomId.trim().isEmpty) {
+      return Stream<int>.value(0);
+    }
+
+    return _roomsRef
+        .doc(roomId)
+        .collection(_messagesCollection)
+        .orderBy('created_at', descending: true)
+        .limit(limit)
+        .snapshots()
+        .map((snapshot) {
+          var count = 0;
+          for (final doc in snapshot.docs) {
+            final message = ChatMessageModel.fromDoc(doc);
+            if (message.senderId == uid) continue;
+            if (message.seenBy.contains(uid)) continue;
+            count++;
+          }
+          return count;
+        });
+  }
+
+  Future<ChatRoomModel?> getRoomById(String roomId) async {
+    final doc = await _roomsRef.doc(roomId).get();
+    if (!doc.exists) return null;
+    return ChatRoomModel.fromDoc(doc, collection: _roomsCollection);
+  }
+
+  Future<String> getOrCreateDirectRoom({
+    required ChatUserModel otherUser,
+  }) async {
+    final uid = currentUid;
+    if (uid == null) {
+      throw Exception('Please sign in to continue chatting.');
+    }
+    if (uid == otherUser.uid) {
+      throw Exception('Cannot create a chat with yourself.');
+    }
+
+    await ensureCurrentUserProfile();
+
+    final sortedMembers = [uid, otherUser.uid]..sort();
+
+    final existingSnapshot = await _roomsRef
+        .where('members', arrayContains: uid)
+        .limit(150)
+        .get();
+
+    ChatRoomModel? activeDirectRoom;
+    final candidates = existingSnapshot.docs.map(ChatRoomModel.fromDoc);
+    for (final room in candidates) {
+      if (room.type != 'direct') continue;
+      if (!room.members.contains(otherUser.uid)) continue;
+      if (room.deletedForUserIds.contains(uid)) continue;
+
+      if (activeDirectRoom == null) {
+        activeDirectRoom = room;
+        continue;
+      }
+      final currentTime =
+          activeDirectRoom.lastMessageAt ?? activeDirectRoom.updatedAt;
+      final roomTime = room.lastMessageAt ?? room.updatedAt;
+      if (roomTime.isAfter(currentTime)) {
+        activeDirectRoom = room;
+      }
+    }
+
+    final meName = await _resolveCurrentUserNameFromStore(uid);
+
+    if (activeDirectRoom != null) {
+      await _roomsRef.doc(activeDirectRoom.id).set({
+        'member_names': {uid: meName, otherUser.uid: otherUser.displayName},
+        'updated_at': FieldValue.serverTimestamp(),
+        'client_updated_at': DateTime.now().toIso8601String(),
+      }, SetOptions(merge: true));
+      return activeDirectRoom.id;
+    }
+
+    final roomRef = _roomsRef.doc();
+    await roomRef.set({
+      'id': roomRef.id,
+      'type': 'direct',
+      'name': '',
+      'image_url': '',
+      'members': sortedMembers,
+      'admins': [uid],
+      'member_names': {uid: meName, otherUser.uid: otherUser.displayName},
+      'created_by': uid,
+      'created_at': FieldValue.serverTimestamp(),
+      'updated_at': FieldValue.serverTimestamp(),
+      'client_created_at': DateTime.now().toIso8601String(),
+      'client_updated_at': DateTime.now().toIso8601String(),
+      'last_message': '',
+      'last_message_sender_id': '',
+      'last_message_at': null,
+      'muted_uids': const <String>[],
+      'archived_uids': const <String>[],
+      'deleted_for_uids': const <String>[],
+    });
+
+    return roomRef.id;
+  }
+
+  Future<String> createGroupRoom({
+    required String name,
+    required List<ChatUserModel> selectedUsers,
+  }) async {
+    final uid = currentUid;
+    if (uid == null) {
+      throw Exception('Please sign in to continue chatting.');
+    }
+
+    await ensureCurrentUserProfile();
+
+    final trimmedName = name.trim();
+    if (trimmedName.isEmpty) {
+      throw Exception('Group name is required.');
+    }
+
+    final uniqueMembers = <String>{uid};
+    final memberNames = <String, String>{};
+    memberNames[uid] = await _resolveCurrentUserNameFromStore(uid);
+
+    for (final user in selectedUsers) {
+      uniqueMembers.add(user.uid);
+      memberNames[user.uid] = user.displayName;
+    }
+
+    if (uniqueMembers.length < 2) {
+      throw Exception('Select at least one participant.');
+    }
+
+    final roomRef = _roomsRef.doc();
+    await roomRef.set({
+      'id': roomRef.id,
+      'type': 'group',
+      'name': trimmedName,
+      'image_url': '',
+      'members': uniqueMembers.toList(),
+      'admins': [uid],
+      'member_names': memberNames,
+      'created_by': uid,
+      'created_at': FieldValue.serverTimestamp(),
+      'updated_at': FieldValue.serverTimestamp(),
+      'client_created_at': DateTime.now().toIso8601String(),
+      'client_updated_at': DateTime.now().toIso8601String(),
+      'last_message': '',
+      'last_message_sender_id': '',
+      'last_message_at': null,
+    });
+
+    return roomRef.id;
+  }
+
+  Future<void> updateGroupName({
+    required String roomId,
+    required String newName,
+  }) async {
+    final uid = currentUid;
+    if (uid == null) {
+      throw Exception('Please sign in to continue chatting.');
+    }
+
+    final trimmedName = newName.trim();
+    if (trimmedName.isEmpty) {
+      throw Exception('Group name cannot be empty.');
+    }
+
+    final roomRef = _roomsRef.doc(roomId);
+    await _firestore.runTransaction<void>((transaction) async {
+      final roomDoc = await transaction.get(roomRef);
+      if (!roomDoc.exists) {
+        throw Exception('Group not found.');
+      }
+
+      final room = ChatRoomModel.fromDoc(roomDoc);
+      if (!room.isGroup) {
+        throw Exception('This chat is not a group.');
+      }
+      if (!room.admins.contains(uid)) {
+        throw Exception('Only group admins can edit the group name.');
+      }
+
+      transaction.set(roomRef, {
+        'name': trimmedName,
+        'updated_at': FieldValue.serverTimestamp(),
+        'client_updated_at': DateTime.now().toIso8601String(),
+      }, SetOptions(merge: true));
+    });
+  }
+
+  Future<int> addGroupMembers({
+    required String roomId,
+    required List<ChatUserModel> users,
+  }) async {
+    final uid = currentUid;
+    if (uid == null) {
+      throw Exception('Please sign in to continue chatting.');
+    }
+    if (users.isEmpty) return 0;
+
+    final dedupedUsers = <String, ChatUserModel>{};
+    for (final user in users) {
+      final memberId = user.uid.trim();
+      if (memberId.isEmpty || memberId == uid) continue;
+      dedupedUsers[memberId] = user;
+    }
+    if (dedupedUsers.isEmpty) return 0;
+
+    final meName = await _resolveCurrentUserNameFromStore(uid);
+    final roomRef = _roomsRef.doc(roomId);
+    return _firestore.runTransaction<int>((transaction) async {
+      final roomDoc = await transaction.get(roomRef);
+      if (!roomDoc.exists) {
+        throw Exception('Group not found.');
+      }
+
+      final room = ChatRoomModel.fromDoc(roomDoc);
+      if (!room.isGroup) {
+        throw Exception('This chat is not a group.');
+      }
+      if (!room.admins.contains(uid)) {
+        throw Exception('Only group admins can invite members.');
+      }
+
+      final members = room.members.toSet();
+      final memberNames = Map<String, String>.from(room.memberNames);
+      memberNames[uid] = meName;
+
+      final addableIds = dedupedUsers.keys
+          .where((memberId) => !members.contains(memberId))
+          .toList();
+      if (addableIds.isEmpty) return 0;
+
+      for (final memberId in addableIds) {
+        members.add(memberId);
+        memberNames[memberId] = dedupedUsers[memberId]!.displayName.trim();
+      }
+
+      transaction.set(roomRef, {
+        'members': members.toList(),
+        'member_names': memberNames,
+        'updated_at': FieldValue.serverTimestamp(),
+        'client_updated_at': DateTime.now().toIso8601String(),
+      }, SetOptions(merge: true));
+
+      return addableIds.length;
+    });
+  }
+
+  Future<void> removeGroupMember({
+    required String roomId,
+    required String memberId,
+  }) async {
+    final uid = currentUid;
+    if (uid == null) {
+      throw Exception('Please sign in to continue chatting.');
+    }
+
+    final targetId = memberId.trim();
+    if (targetId.isEmpty) {
+      throw Exception('Invalid member selected.');
+    }
+
+    final roomRef = _roomsRef.doc(roomId);
+    await _firestore.runTransaction<void>((transaction) async {
+      final roomDoc = await transaction.get(roomRef);
+      if (!roomDoc.exists) {
+        throw Exception('Group not found.');
+      }
+
+      final room = ChatRoomModel.fromDoc(roomDoc);
+      if (!room.isGroup) {
+        throw Exception('This chat is not a group.');
+      }
+
+      final isSelfRemoval = targetId == uid;
+      final isCurrentUserAdmin = room.admins.contains(uid);
+      if (!isSelfRemoval && !isCurrentUserAdmin) {
+        throw Exception('Only group admins can remove members.');
+      }
+
+      if (!room.members.contains(targetId)) return;
+
+      final members = room.members.where((id) => id != targetId).toList();
+      if (members.isEmpty) {
+        transaction.delete(roomRef);
+        return;
+      }
+
+      final admins = room.admins.where((id) => id != targetId).toSet();
+      if (admins.isEmpty) {
+        admins.add(members.first);
+      }
+
+      final memberNames = Map<String, String>.from(room.memberNames)
+        ..remove(targetId);
+
+      transaction.set(roomRef, {
+        'members': members,
+        'admins': admins.toList(),
+        'member_names': memberNames,
+        'updated_at': FieldValue.serverTimestamp(),
+        'client_updated_at': DateTime.now().toIso8601String(),
+      }, SetOptions(merge: true));
+    });
+  }
+
+  Future<void> leaveGroup(String roomId) async {
+    final uid = currentUid;
+    if (uid == null) {
+      throw Exception('Please sign in to continue chatting.');
+    }
+    await removeGroupMember(roomId: roomId, memberId: uid);
+  }
+
+  /// [replyTo] quotes an earlier message of the same room; [forwarded] marks
+  /// a copy sent on from another chat. Both travel in the message's `meta`.
+  Future<void> sendTextMessage({
+    required String roomId,
+    required String text,
+    String? collection,
+    ChatMessageModel? replyTo,
+    bool forwarded = false,
+  }) async {
+    final uid = currentUid;
+    if (uid == null) {
+      throw Exception('Please sign in to send messages.');
+    }
+
+    final trimmedText = text.trim();
+    if (trimmedText.isEmpty) return;
+
+    final senderName = await _resolveCurrentUserNameFromStore(uid);
+    final isBackendManagedDispute =
+        (collection ?? _roomsCollection) == 'communityDisputeRooms';
+    final roomRef = _roomCollection(collection).doc(roomId);
+    final messageRef = roomRef.collection(_messagesCollection).doc();
+    final now = DateTime.now().toIso8601String();
+
+    final batch = _firestore.batch();
+    batch.set(messageRef, {
+      'id': messageRef.id,
+      'room_id': roomId,
+      'sender_id': uid,
+      'sender_name': senderName,
+      'text': trimmedText,
+      'type': 'text',
+      'message_type': 'user',
+      if (replyTo != null || forwarded)
+        'meta': {
+          if (replyTo != null)
+            'reply_to': {
+              'id': replyTo.id,
+              'sender_id': replyTo.senderId,
+              'sender_name': replyTo.senderName,
+              'text': replyTo.text.length > 160
+                  ? '${replyTo.text.substring(0, 160)}…'
+                  : replyTo.text,
+            },
+          if (forwarded) 'forwarded': true,
+        },
+      'seen_by': [uid],
+      'created_at': FieldValue.serverTimestamp(),
+      'client_created_at': now,
+    });
+
+    if (!isBackendManagedDispute) {
+      batch.set(roomRef, {
+        'updated_at': FieldValue.serverTimestamp(),
+        'client_updated_at': now,
+        'last_message': trimmedText,
+        'last_message_sender_id': uid,
+        'last_message_at': FieldValue.serverTimestamp(),
+        'client_last_message_at': now,
+      }, SetOptions(merge: true));
+    }
+
+    await batch.commit();
+  }
+
+  /// Sends a Ludo match invite into the direct room with [friend]. The message
+  /// carries a `ludo_invite` type + `deep_link` so tapping it (or its
+  /// notification) opens the match lobby via [DeepLinkService].
+  Future<void> sendLudoInviteMessage({
+    required ChatUserModel friend,
+    required String matchId,
+  }) => _sendGameInviteMessage(
+    friend: friend,
+    matchId: matchId,
+    type: 'ludo_invite',
+    pathPrefix: 'ludomatch_',
+    gameName: 'Ludo',
+    emoji: '🎲',
+  );
+
+  /// Snakes & Ladders counterpart of [sendLudoInviteMessage] (`snl_invite`).
+  Future<void> sendSnlInviteMessage({
+    required ChatUserModel friend,
+    required String matchId,
+  }) => _sendGameInviteMessage(
+    friend: friend,
+    matchId: matchId,
+    type: 'snl_invite',
+    pathPrefix: 'snlmatch_',
+    gameName: 'Snakes & Ladders',
+    emoji: '🐍',
+  );
+
+  /// Laggy Bird race counterpart of [sendLudoInviteMessage] (`bird_invite`).
+  Future<void> sendBirdInviteMessage({
+    required ChatUserModel friend,
+    required String matchId,
+  }) => _sendGameInviteMessage(
+    friend: friend,
+    matchId: matchId,
+    type: 'bird_invite',
+    pathPrefix: 'birdmatch_',
+    gameName: 'Laggy Bird',
+    emoji: '🐦',
+  );
+
+  /// Wordly race counterpart of [sendLudoInviteMessage] (`wordly_invite`).
+  Future<void> sendWordlyInviteMessage({
+    required ChatUserModel friend,
+    required String matchId,
+  }) => _sendGameInviteMessage(
+    friend: friend,
+    matchId: matchId,
+    type: 'wordly_invite',
+    pathPrefix: 'wordlymatch_',
+    gameName: 'Wordly',
+    emoji: '🟩',
+  );
+
+  /// Arrow Escape race counterpart of [sendLudoInviteMessage]
+  /// (`arrow_invite`).
+  Future<void> sendArrowEscapeInviteMessage({
+    required ChatUserModel friend,
+    required String matchId,
+  }) => _sendGameInviteMessage(
+    friend: friend,
+    matchId: matchId,
+    type: 'arrow_invite',
+    pathPrefix: 'arrowmatch_',
+    gameName: 'Arrow Escape',
+    emoji: '🏹',
+  );
+
+  /// Leaderboard board id for a match-invite [game] key, or null when the game
+  /// has no leaderboard of its own (its invites go to the lounge only).
+  static String? leaderboardGameIdFor(String game) => switch (game) {
+    'ludo' => 'ludo',
+    'bird' => 'laggy_bird',
+    'wordly' => 'wordly',
+    'arrow' => 'arrow_escape',
+    _ => null,
+  };
+
+  /// Posts a match invite for [game] (`ludo`, `snl`, `bird`, `wordly` or
+  /// `arrow`) in the leaderboard chats, where any player can join: the shared
+  /// Hash Arcade Lounge and, when the game has its own board, that game's
+  /// leaderboard chat too.
+  Future<void> sendGameInviteToLounge({
+    required String game,
+    required String matchId,
+  }) async {
+    final spec = switch (game) {
+      'snl' => ('snl_invite', 'snlmatch_', 'Snakes & Ladders', '🐍'),
+      'bird' => ('bird_invite', 'birdmatch_', 'Laggy Bird', '🐦'),
+      'wordly' => ('wordly_invite', 'wordlymatch_', 'Wordly', '🟩'),
+      'arrow' => ('arrow_invite', 'arrowmatch_', 'Arrow Escape', '🏹'),
+      _ => ('ludo_invite', 'ludomatch_', 'Ludo', '🎲'),
+    };
+    final roomId = await MiniGameLeaderboardService()
+        .ensureLeaderboardChatRoom();
+    await _sendGameInviteMessage(
+      roomId: roomId,
+      matchId: matchId,
+      type: spec.$1,
+      pathPrefix: spec.$2,
+      gameName: spec.$3,
+      emoji: spec.$4,
+    );
+    final boardId = leaderboardGameIdFor(game);
+    if (boardId == null) return;
+    try {
+      final boardRoomId = await MiniGameLeaderboardService()
+          .ensureLeaderboardChatRoom(gameId: boardId);
+      if (boardRoomId == roomId) return;
+      await _sendGameInviteMessage(
+        roomId: boardRoomId,
+        matchId: matchId,
+        type: spec.$1,
+        pathPrefix: spec.$2,
+        gameName: spec.$3,
+        emoji: spec.$4,
+      );
+    } catch (_) {
+      // the lounge post already went out; the game's own chat is a bonus
+    }
+  }
+
+  /// Posts a "beat my score" challenge for [gameId] in the leaderboard chats
+  /// (the game's own chat and the shared lounge). Each message carries the
+  /// game id, so the card in chat can open the game.
+  Future<void> sendScoreChallenge({
+    required String gameId,
+    required String gameName,
+    required int score,
+  }) async {
+    final uid = currentUid;
+    if (uid == null) {
+      throw Exception('Please sign in to send a challenge.');
+    }
+    final safeGameId = gameId.trim();
+    if (safeGameId.isEmpty || score <= 0) {
+      throw Exception('Play a game first, then challenge the chat.');
+    }
+    final senderName = await _resolveCurrentUserNameFromStore(uid);
+    final boards = MiniGameLeaderboardService();
+    final roomIds = <String>{
+      await boards.ensureLeaderboardChatRoom(gameId: safeGameId),
+      await boards.ensureLeaderboardChatRoom(),
+    };
+    final text = '$senderName scored $score in $gameName 🏆 Can you beat it?';
+    for (final roomId in roomIds) {
+      final roomRef = _roomsRef.doc(roomId);
+      final messageRef = roomRef.collection(_messagesCollection).doc();
+      await messageRef.set({
+        'id': messageRef.id,
+        'room_id': roomId,
+        'sender_id': uid,
+        'sender_name': senderName,
+        'text': text,
+        'type': 'score_challenge',
+        'meta': {
+          'game_id': safeGameId,
+          'game_name': gameName,
+          'score': score,
+          'challenger_uid': uid,
+          'challenger_name': senderName,
+        },
+        'seen_by': [uid],
+        'created_at': FieldValue.serverTimestamp(),
+        'client_created_at': DateTime.now().toIso8601String(),
+      });
+      await roomRef.set({
+        'last_message': '$gameName score challenge 🏆',
+        'last_message_sender_id': uid,
+        'last_message_at': FieldValue.serverTimestamp(),
+        'updated_at': FieldValue.serverTimestamp(),
+        'client_updated_at': DateTime.now().toIso8601String(),
+      }, SetOptions(merge: true));
+    }
+  }
+
+  /// Posts the invite in the direct room with [friend], or in [roomId] (a
+  /// group room) when given.
+  Future<void> _sendGameInviteMessage({
+    ChatUserModel? friend,
+    String? roomId,
+    required String matchId,
+    required String type,
+    required String pathPrefix,
+    required String gameName,
+    required String emoji,
+  }) async {
+    final uid = currentUid;
+    if (uid == null) {
+      throw Exception('Please sign in to send invites.');
+    }
+    final safeMatchId = matchId.trim();
+    if (safeMatchId.isEmpty) {
+      throw Exception('Invalid match.');
+    }
+
+    final open = roomId != null;
+    final targetRoomId =
+        roomId ?? await getOrCreateDirectRoom(otherUser: friend!);
+    final senderName = await _resolveCurrentUserNameFromStore(uid);
+    final deepLink = Uri(
+      scheme: 'hashforgamers',
+      host: 'game',
+      path: '/$pathPrefix$safeMatchId',
+    ).toString();
+    final webLink = Uri.https(
+      kWebHost,
+      '/game/$pathPrefix$safeMatchId',
+    ).toString();
+    final previewText = open
+        ? '$senderName is looking for players for a $gameName match $emoji\nTap to join: $deepLink'
+        : '$senderName invited you to a $gameName match $emoji\nTap to join: $deepLink';
+
+    final roomRef = _roomsRef.doc(targetRoomId);
+    final messageRef = roomRef.collection(_messagesCollection).doc();
+    await messageRef.set({
+      'id': messageRef.id,
+      'room_id': targetRoomId,
+      'sender_id': uid,
+      'sender_name': senderName,
+      'text': previewText,
+      'type': type,
+      'meta': {
+        'match_id': safeMatchId,
+        'inviter_uid': uid,
+        'inviter_name': senderName,
+        'deep_link': deepLink,
+        'web_link': webLink,
+      },
+      'seen_by': [uid],
+      'created_at': FieldValue.serverTimestamp(),
+      'client_created_at': DateTime.now().toIso8601String(),
+    });
+    await roomRef.set({
+      'last_message': '$gameName match invite $emoji',
+      'last_message_sender_id': uid,
+      'last_message_at': FieldValue.serverTimestamp(),
+      'updated_at': FieldValue.serverTimestamp(),
+      'client_updated_at': DateTime.now().toIso8601String(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> sendTeamInviteMessage({
+    required String roomId,
+    required String eventId,
+    required String teamId,
+    required String teamName,
+    bool communityTeam = false,
+  }) async {
+    final uid = currentUid;
+    if (uid == null) {
+      throw Exception('Please sign in to send invites.');
+    }
+
+    final safeEventId = eventId.trim();
+    final safeTeamId = teamId.trim();
+    final safeTeamName = teamName.trim().isEmpty ? 'Team' : teamName.trim();
+    if (safeEventId.isEmpty || safeTeamId.isEmpty) {
+      throw Exception('Invalid team details for sharing.');
+    }
+
+    final senderName = await _resolveCurrentUserNameFromStore(uid);
+    final roomRef = _roomsRef.doc(roomId);
+    final messageRef = roomRef.collection(_messagesCollection).doc();
+    final linkMessageRef = roomRef.collection(_messagesCollection).doc();
+    final now = DateTime.now().toIso8601String();
+    final deepLink = Uri(
+      scheme: 'hashforgamers',
+      host: 'tournaments',
+      path: '/$safeEventId',
+      queryParameters: {'team_id': safeTeamId},
+    ).toString();
+    final webLink = Uri.https(
+      kWebHost,
+      '/tournaments/$safeEventId',
+      {'team_id': safeTeamId},
+    ).toString();
+    final previewText =
+        '$senderName shared a team invite: $safeTeamName\n$deepLink\n$webLink';
+
+    final batch = _firestore.batch();
+    batch.set(messageRef, {
+      'id': messageRef.id,
+      'room_id': roomId,
+      'sender_id': uid,
+      'sender_name': senderName,
+      'text': previewText,
+      'type': 'team_invite',
+      'meta': {
+        'event_id': safeEventId,
+        'team_id': safeTeamId,
+        'team_name': safeTeamName,
+        'inviter_uid': uid,
+        'deep_link': deepLink,
+        'web_link': webLink,
+        if (communityTeam) 'community_team': true,
+      },
+      'seen_by': [uid],
+      'created_at': FieldValue.serverTimestamp(),
+      'client_created_at': now,
+    });
+    batch.set(linkMessageRef, {
+      'id': linkMessageRef.id,
+      'room_id': roomId,
+      'sender_id': uid,
+      'sender_name': senderName,
+      'text': deepLink,
+      'type': 'tournament_deep_link',
+      'meta': {
+        'event_id': safeEventId,
+        'team_id': safeTeamId,
+        'deep_link': deepLink,
+        'web_link': webLink,
+        if (communityTeam) 'community_team': true,
+      },
+      'seen_by': [uid],
+      'created_at': FieldValue.serverTimestamp(),
+      'client_created_at': now,
+    });
+
+    batch.set(roomRef, {
+      'updated_at': FieldValue.serverTimestamp(),
+      'client_updated_at': now,
+      'last_message': deepLink,
+      'last_message_sender_id': uid,
+      'last_message_at': FieldValue.serverTimestamp(),
+      'client_last_message_at': now,
+    }, SetOptions(merge: true));
+
+    await batch.commit();
+    debugPrint(
+      '[TournamentInvite][Chat] sent room=$roomId event=$safeEventId '
+      'team=$safeTeamId deepLink=$deepLink',
+    );
+  }
+
+  Future<void> sendArenaBookingInviteMessage({
+    required String roomId,
+    required String cafeName,
+    required String consoleType,
+    required String bookingDate,
+    required int playerCount,
+    required List<int> bookingIds,
+    required List<Map<String, dynamic>> slots,
+  }) async {
+    final uid = currentUid;
+    if (uid == null) {
+      throw Exception('Please sign in to share bookings.');
+    }
+
+    final safeCafeName = cafeName.trim().isEmpty
+        ? 'Gaming Cafe'
+        : cafeName.trim();
+    final safeConsoleType = consoleType.trim().isEmpty
+        ? 'Setup'
+        : consoleType.trim();
+    final safeBookingDate = bookingDate.trim();
+    if (safeBookingDate.isEmpty || bookingIds.isEmpty) {
+      throw Exception('Invalid booking details for sharing.');
+    }
+
+    final senderName = await _resolveCurrentUserNameFromStore(uid);
+    final roomRef = _roomsRef.doc(roomId);
+    final messageRef = roomRef.collection(_messagesCollection).doc();
+    final now = DateTime.now().toIso8601String();
+
+    final slotLabels = slots
+        .map((slot) {
+          final start = (slot['start_time'] ?? '').toString().trim();
+          final end = (slot['end_time'] ?? '').toString().trim();
+          if (start.isEmpty || end.isEmpty) return '';
+          return '$start - $end';
+        })
+        .where((label) => label.isNotEmpty)
+        .toSet()
+        .toList();
+
+    final previewText = '$senderName shared a squad booking for $safeCafeName';
+
+    final batch = _firestore.batch();
+    batch.set(messageRef, {
+      'id': messageRef.id,
+      'room_id': roomId,
+      'sender_id': uid,
+      'sender_name': senderName,
+      'text': previewText,
+      'type': 'arena_booking_invite',
+      'meta': {
+        'cafe_name': safeCafeName,
+        'console_type': safeConsoleType,
+        'booking_date': safeBookingDate,
+        'player_count': playerCount,
+        'booking_ids': bookingIds,
+        'slots': slots,
+        'slot_labels': slotLabels,
+        'shared_by_uid': uid,
+      },
+      'seen_by': [uid],
+      'created_at': FieldValue.serverTimestamp(),
+      'client_created_at': now,
+    });
+
+    batch.set(roomRef, {
+      'updated_at': FieldValue.serverTimestamp(),
+      'client_updated_at': now,
+      'last_message': 'Squad booking: $safeCafeName',
+      'last_message_sender_id': uid,
+      'last_message_at': FieldValue.serverTimestamp(),
+      'client_last_message_at': now,
+    }, SetOptions(merge: true));
+
+    await batch.commit();
+  }
+
+  Future<void> markRoomMessagesSeen(String roomId, {String? collection}) async {
+    final uid = currentUid;
+    if (uid == null) return;
+    if ((collection ?? _roomsCollection) == 'communityDisputeRooms') return;
+    final snap = await _roomCollection(collection)
+        .doc(roomId)
+        .collection(_messagesCollection)
+        .orderBy('created_at', descending: true)
+        .limit(40)
+        .get();
+    final batch = _firestore.batch();
+    var changed = false;
+    for (final doc in snap.docs) {
+      final data = doc.data();
+      final senderId = (data['sender_id'] ?? '').toString();
+      if (senderId == uid) continue;
+      final seenBy = ((data['seen_by'] as List?) ?? const [])
+          .map((e) => e.toString())
+          .toList();
+      if (seenBy.contains(uid)) continue;
+      batch.set(doc.reference, {
+        'seen_by': FieldValue.arrayUnion([uid]),
+      }, SetOptions(merge: true));
+      changed = true;
+    }
+    if (changed) {
+      await batch.commit();
+    }
+    if (_unreadRoomById[roomId] == true) {
+      _unreadRoomById[roomId] = false;
+      _recomputeUnreadRoomCount();
+    }
+  }
+
+  Future<void> setTyping({
+    required String roomId,
+    required bool isTyping,
+    String? collection,
+  }) async {
+    final uid = currentUid;
+    if (uid == null) return;
+    if ((collection ?? _roomsCollection) == 'communityDisputeRooms') return;
+    await _roomCollection(collection).doc(roomId).set({
+      'typing_uids': isTyping
+          ? FieldValue.arrayUnion([uid])
+          : FieldValue.arrayRemove([uid]),
+      'updated_at': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<int?> resolveCurrentBackendUserId() async {
+    if (Get.isRegistered<UserController>()) {
+      final controller = Get.find<UserController>();
+      final fromController = _parseInt(controller.userId);
+      if (fromController != null && fromController > 0) {
+        return fromController;
+      }
+    }
+
+    final fid = firebase_auth.FirebaseAuth.instance.currentUser?.uid ?? '';
+    if (fid.isNotEmpty) {
+      final apiUser = await _remoteRepo.checkUserExistsInAPI(fid);
+      final fromApi = _parseInt(
+        _readNested(apiUser ?? const <String, dynamic>{}, ['id']) ??
+            _readNested(apiUser ?? const <String, dynamic>{}, ['user_id']),
+      );
+      if (fromApi != null && fromApi > 0) {
+        return fromApi;
+      }
+    }
+
+    final userData = await _remoteRepo.getUserFromPreferences();
+    final fromUserData = _parseInt(
+      _readNested(userData ?? const <String, dynamic>{}, ['id']) ??
+          _readNested(userData ?? const <String, dynamic>{}, ['user_id']),
+    );
+    if (fromUserData != null && fromUserData > 0) {
+      return fromUserData;
+    }
+
+    return null;
+  }
+
+  void _listenForRoomLatestMessage(String currentUidValue, ChatRoomModel room) {
+    if (_roomMessageSubs.containsKey(room.id)) return;
+
+    _roomMessageSubs[room.id] = streamRoomLatestMessage(room.id).listen((
+      message,
+    ) {
+      if (message == null) return;
+
+      final isUnreadForCurrentUser =
+          message.senderId != currentUidValue &&
+          !message.seenBy.contains(currentUidValue);
+      _unreadRoomById[room.id] = isUnreadForCurrentUser;
+      unreadRoomState[room.id] = isUnreadForCurrentUser;
+      _recomputeUnreadRoomCount();
+
+      final previousMessageId = _lastSeenMessageIdByRoom[room.id];
+      final alreadyPrimed = _primedRooms.contains(room.id);
+
+      _lastSeenMessageIdByRoom[room.id] = message.id;
+      if (!alreadyPrimed) {
+        _primedRooms.add(room.id);
+        if (_shouldNotifyPrimedMessage(
+          room: room,
+          message: message,
+          currentUidValue: currentUidValue,
+        )) {
+          _notifyIncomingMessage(
+            room: room,
+            message: message,
+            currentUidValue: currentUidValue,
+          );
+        }
+        return;
+      }
+      if (previousMessageId == message.id) return;
+      if (message.senderId == currentUidValue) return;
+
+      _notifyIncomingMessage(
+        room: room,
+        message: message,
+        currentUidValue: currentUidValue,
+      );
+    });
+  }
+
+  bool _shouldNotifyPrimedMessage({
+    required ChatRoomModel room,
+    required ChatMessageModel message,
+    required String currentUidValue,
+  }) {
+    if (message.senderId == currentUidValue) return false;
+    if (message.seenBy.contains(currentUidValue)) return false;
+    final age = DateTime.now().difference(message.createdAt);
+    if (age > const Duration(seconds: 30)) return false;
+    return room.lastMessageSenderId == message.senderId;
+  }
+
+  void _recomputeUnreadRoomCount() {
+    unreadRoomCount.value = _unreadRoomById.values.where((v) => v).length;
+  }
+
+  bool isRoomUnread(String roomId) {
+    return unreadRoomState[roomId] == true;
+  }
+
+  void _notifyIncomingMessage({
+    required ChatRoomModel room,
+    required ChatMessageModel message,
+    required String currentUidValue,
+  }) {
+    if (room.mutedUserIds.contains(currentUidValue)) return;
+    if (!Get.isRegistered<NotificationController>()) return;
+    final notificationController = Get.find<NotificationController>();
+
+    final title = room.displayTitleFor(currentUidValue);
+    final body = _notificationBodyForMessage(message);
+    notificationController.showChatNotification(
+      title: title,
+      body: body,
+      payload: 'chat:${room.id}',
+    );
+  }
+
+  String _notificationBodyForMessage(ChatMessageModel message) {
+    if (message.type == 'arena_booking_invite') {
+      final cafeName = (message.meta['cafe_name'] ?? '').toString().trim();
+      if (cafeName.isNotEmpty) {
+        return '${message.senderName} shared a squad booking for $cafeName';
+      }
+      return '${message.senderName} shared a squad booking with you';
+    }
+    final body = message.text.trim();
+    return body.isEmpty ? 'New message' : body;
+  }
+
+  Future<int?> _resolveCurrentBackendUserId() async {
+    if (Get.isRegistered<UserController>()) {
+      final cached = Get.find<UserController>().id.value.trim();
+      final parsed = int.tryParse(cached);
+      if (parsed != null) {
+        return parsed;
+      }
+    }
+
+    final storedUser = await _remoteRepo.getUserFromPreferences();
+    final raw = (storedUser?['id'] ?? storedUser?['user_id'] ?? '')
+        .toString()
+        .trim();
+    return int.tryParse(raw);
+  }
+
+  Future<List<ChatUserModel>> _searchUsersFromBackend(
+    String query, {
+    required int limit,
+  }) async {
+    final q = query.trim();
+    if (q.isEmpty) return const [];
+    final safeLimit = limit.clamp(1, 50);
+    try {
+      final dio = await locator<NetworkProvider>().auth();
+      final response = await dio.get(
+        ApiEndpoints.userSearch,
+        queryParameters: {'q': q, 'limit': safeLimit, 'page': 1},
+      );
+
+      final usersRaw = _extractUsersPayload(response.data);
+      final users = <ChatUserModel>[];
+      for (final raw in usersRaw) {
+        final user = _chatUserFromBackendMap(raw);
+        if (user != null) {
+          users.add(user);
+        }
+      }
+
+      return users;
+    } on DioException {
+      return const [];
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  List<Map<String, dynamic>> _extractUsersPayload(dynamic payload) {
+    if (payload is List) {
+      return payload.whereType<Map>().map(Map<String, dynamic>.from).toList();
+    }
+
+    if (payload is! Map) return const [];
+
+    final map = Map<String, dynamic>.from(payload);
+    for (final key in ['users', 'data', 'results', 'items']) {
+      final value = map[key];
+      if (value is List) {
+        return value.whereType<Map>().map(Map<String, dynamic>.from).toList();
+      }
+    }
+
+    final singleUser = map['user'];
+    if (singleUser is Map) {
+      return [Map<String, dynamic>.from(singleUser)];
+    }
+
+    return const [];
+  }
+
+  ChatUserModel? _chatUserFromBackendMap(Map<String, dynamic> raw) {
+    final uid = _firstNonEmpty([
+      _readNested(raw, ['fid'])?.toString(),
+      _readNested(raw, ['uid'])?.toString(),
+      _readNested(raw, ['firebase_uid'])?.toString(),
+      _readNested(raw, ['firebaseUid'])?.toString(),
+      _readNested(raw, ['firebase_id'])?.toString(),
+      _readNested(raw, ['firebaseId'])?.toString(),
+    ], fallback: '');
+
+    if (uid == 'Player' || uid.trim().isEmpty) {
+      return null;
+    }
+
+    final username = _firstNonEmpty([
+      _readNested(raw, ['gameUserName'])?.toString(),
+      _readNested(raw, ['username'])?.toString(),
+      _readNested(raw, ['user_name'])?.toString(),
+      _readNested(raw, ['displayName'])?.toString(),
+      _readNested(raw, ['display_name'])?.toString(),
+      _readNested(raw, ['name'])?.toString(),
+    ], fallback: '');
+
+    final displayName = _firstNonEmpty([
+      _readNested(raw, ['name'])?.toString(),
+      _readNested(raw, ['display_name'])?.toString(),
+      _readNested(raw, ['displayName'])?.toString(),
+      username,
+      _readNested(raw, [
+        'contact',
+        'electronicAddress',
+        'emailId',
+      ])?.toString().split('@').first,
+    ], fallback: 'Player');
+
+    final email = _firstNonEmpty([
+      _readNested(raw, ['email'])?.toString(),
+      _readNested(raw, ['contact', 'electronicAddress', 'emailId'])?.toString(),
+    ], fallback: '');
+    final phoneNumber = _firstNonEmpty([
+      _readNested(raw, ['phone'])?.toString(),
+      _readNested(raw, ['phone_number'])?.toString(),
+      _readNested(raw, ['mobile'])?.toString(),
+      _readNested(raw, ['mobileNo'])?.toString(),
+      _readNested(raw, ['mobile_number'])?.toString(),
+      _readNested(raw, [
+        'contact',
+        'electronicAddress',
+        'mobileNo',
+      ])?.toString(),
+    ], fallback: '');
+
+    final photoUrl = _firstNonEmpty([
+      _readNested(raw, ['photoUrl'])?.toString(),
+      _readNested(raw, ['photo_url'])?.toString(),
+      _readNested(raw, ['avatarUrl'])?.toString(),
+      _readNested(raw, ['avatar_url'])?.toString(),
+      _readNested(raw, ['avatar_path'])?.toString(),
+    ], fallback: '');
+
+    return ChatUserModel(
+      uid: uid.trim(),
+      displayName: displayName.trim(),
+      username: username.trim().isEmpty
+          ? _usernameFromDisplayName(displayName)
+          : username.trim(),
+      email: email.trim(),
+      phoneNumber: phoneNumber.trim(),
+      photoUrl: photoUrl.trim(),
+      backendUserId: _parseInt(
+        _readNested(raw, ['id']) ?? _readNested(raw, ['user_id']),
+      ),
+      isOnline: false,
+      updatedAt: DateTime.now(),
+      lastSeenAt: null,
+    );
+  }
+
+  dynamic _readNested(Map<String, dynamic> map, List<String> keys) {
+    dynamic current = map;
+    for (final key in keys) {
+      if (current is! Map) return null;
+      current = current[key];
+    }
+    return current;
+  }
+
+  int? _parseInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString().trim());
+  }
+
+  bool _matchesUserQuery(ChatUserModel user, String normalizedQuery) {
+    if (normalizedQuery.isEmpty) return true;
+    final needle = _normalizeSearchToken(normalizedQuery);
+    if (needle.isEmpty) return true;
+
+    final candidates = [user.displayName, user.username, user.email];
+    for (final candidate in candidates) {
+      if (_normalizeSearchToken(candidate).contains(needle)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  String _normalizeSearchToken(String value) {
+    return value.trim().toLowerCase().replaceAll('@', '');
+  }
+
+  String _usernameFromDisplayName(String displayName) {
+    final cleaned = displayName
+        .trim()
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9_]'), '_')
+        .replaceAll(RegExp(r'_+'), '_')
+        .replaceAll(RegExp(r'^_|_$'), '');
+    return cleaned;
+  }
+
+  Future<String> _resolveCurrentUserNameFromStore(String uid) async {
+    try {
+      final profileDoc = await _usersRef.doc(uid).get();
+      if (profileDoc.exists) {
+        final fromProfile = (profileDoc.data()?['display_name'] ?? '')
+            .toString();
+        if (fromProfile.trim().isNotEmpty) {
+          return fromProfile.trim();
+        }
+      }
+    } catch (_) {}
+
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return 'Player';
+    return _resolveCurrentDisplayName(currentUser);
+  }
+
+  String _resolveCurrentDisplayName(firebase_auth.User currentUser) {
+    String? gameName;
+    String? fullName;
+
+    if (Get.isRegistered<UserController>()) {
+      final userController = Get.find<UserController>();
+      gameName = userController.user.value.gameUserName;
+      fullName = userController.user.value.name;
+    }
+
+    final fallbackFromEmail = currentUser.email?.split('@').first;
+
+    return _firstNonEmpty([
+      gameName,
+      fullName,
+      currentUser.displayName,
+      fallbackFromEmail,
+      'Player',
+    ]);
+  }
+
+  String _resolveCurrentUsername(firebase_auth.User currentUser) {
+    String? gameName;
+    if (Get.isRegistered<UserController>()) {
+      final userController = Get.find<UserController>();
+      gameName = userController.user.value.gameUserName;
+    }
+
+    final fallbackFromEmail = currentUser.email?.split('@').first;
+    return _firstNonEmpty([
+      gameName,
+      currentUser.displayName,
+      fallbackFromEmail,
+    ], fallback: '');
+  }
+
+  String _firstNonEmpty(List<String?> values, {String fallback = 'Player'}) {
+    for (final value in values) {
+      if (value == null) continue;
+      final trimmed = value.trim();
+      if (trimmed.isNotEmpty) {
+        return trimmed;
+      }
+    }
+    return fallback;
+  }
+
+  @override
+  void onClose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _stopPresenceHeartbeat();
+    unawaited(updatePresence(isOnline: false));
+    _authSub?.cancel();
+    stopChatNotifications();
+    super.onClose();
+  }
+}

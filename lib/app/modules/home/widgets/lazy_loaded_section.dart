@@ -25,7 +25,7 @@ class _LazyLoadedSectionState extends State<LazyLoadedSection>
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
-  
+
   bool _isVisible = false;
   bool _isLoaded = false;
 
@@ -36,23 +36,22 @@ class _LazyLoadedSectionState extends State<LazyLoadedSection>
       duration: widget.animationDuration,
       vsync: this,
     );
-    
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: widget.animationCurve,
-    ));
-    
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.1),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: widget.animationCurve,
-    ));
-    
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: widget.animationCurve,
+      ),
+    );
+
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: widget.animationCurve,
+          ),
+        );
+
     if (widget.initiallyVisible) {
       _showSection();
     }
@@ -60,18 +59,18 @@ class _LazyLoadedSectionState extends State<LazyLoadedSection>
 
   void _showSection() {
     if (_isVisible) return;
-    
+
     setState(() {
       _isVisible = true;
       _isLoaded = true;
     });
-    
+
     _animationController.forward();
   }
 
   void _hideSection() {
     if (!_isVisible) return;
-    
+
     _animationController.reverse().then((_) {
       if (mounted) {
         setState(() {
@@ -93,10 +92,7 @@ class _LazyLoadedSectionState extends State<LazyLoadedSection>
         builder: (context, child) {
           return FadeTransition(
             opacity: _fadeAnimation,
-            child: SlideTransition(
-              position: _slideAnimation,
-              child: child,
-            ),
+            child: SlideTransition(position: _slideAnimation, child: child),
           );
         },
         child: widget.child,

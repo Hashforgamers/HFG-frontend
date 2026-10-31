@@ -3,7 +3,11 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
-import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart';
+import 'package:hash/config/app_keys.dart';
+import 'package:hash/core/network/network_config.dart';
+import 'package:hash/core/service_locator.dart';
+import 'package:hash/core/utils/app_logger.dart';
 
 /// Minimal model
 class GameNewsItem {
@@ -33,15 +37,11 @@ class GameNewsItem {
 }
 
 class NewsController extends GetxController {
-  // static const List<String> _apiKeys = [
-  //   '51a460406b4c42c49acf3b06fd7aebcb',
-  //   '8e619f80f675482fa9d9a7428ab8a3cd',
-  //   '25f277808858445e9ad83230a2af5c4b',
-  //   'ce0ee2717a214c128e7bb8bce624578d',
-  // ];
-
   final isLoading = false.obs;
   final items = <GameNewsItem>[].obs;
+  static List<GameNewsItem>? _cachedItems;
+  static DateTime? _cacheTime;
+  static const Duration _cacheTtl = Duration(minutes: 10);
 
   int _page = 1;
   final int _pageSize = 20;
@@ -49,17 +49,14 @@ class NewsController extends GetxController {
   bool _busy = false;
 
   final Set<String> _seen = <String>{};
-  final _client = http.Client();
-  static const List<String> _apiKeys = [
-    '51a460406b4c42c49acf3b06fd7aebcb',
-    '8e619f80f675482fa9d9a7428ab8a3cd',
-    '25f277808858445e9ad83230a2af5c4b',
-    'ce0ee2717a214c128e7bb8bce624578d',
-  ];
+  final Map<int, List<GameNewsItem>> _prefetchedByPage = <int, List<GameNewsItem>>{};
+  final Dio _dio = locator<NetworkProvider>().noAuth();
+  final List<String> _apiKeys = AppKeys.newsApiKeys;
 
   final _rnd = Random();
 
-  String _getRandomKey() {
+  String? _getRandomKey() {
+    if (_apiKeys.isEmpty) return null;
     return _apiKeys[_rnd.nextInt(_apiKeys.length)];
   }
 
@@ -72,16 +69,33 @@ class NewsController extends GetxController {
 
   Future<void> loadInitial() async {
     if (_busy) return;
+    final now = DateTime.now();
+    final hasFreshCache =
+        _cachedItems != null &&
+        _cacheTime != null &&
+        now.difference(_cacheTime!) < _cacheTtl;
+    if (hasFreshCache) {
+      items.assignAll(_cachedItems!);
+      _seen
+        ..clear()
+        ..addAll(items.map((item) => item.url));
+      _hasMore = true;
+      return;
+    }
+
     _busy = true;
     isLoading.value = true;
     _page = 1;
     _hasMore = true;
     _seen.clear();
     items.clear();
+    _prefetchedByPage.clear();
 
     try {
       final batch = await _fetchPage(_page);
       items.addAll(batch);
+      _cachedItems = items.toList(growable: false);
+      _cacheTime = now;
       _silentPrefetchNext();
     } finally {
       isLoading.value = false;
@@ -94,12 +108,19 @@ class NewsController extends GetxController {
     _busy = true;
     try {
       final next = _page + 1;
-      final batch = await _fetchPage(next);
+      List<GameNewsItem> batch = _prefetchedByPage.remove(next) ?? const <GameNewsItem>[];
+      if (batch.isEmpty) {
+        batch = await _fetchPage(next);
+      } else {
+        batch = batch.where((a) => _seen.add(a.url)).toList(growable: false);
+      }
       if (batch.isEmpty) {
         _hasMore = false;
       } else {
         _page = next;
         items.addAll(batch);
+        _cachedItems = items.toList(growable: false);
+        _cacheTime = DateTime.now();
         _silentPrefetchNext();
       }
     } finally {
@@ -107,7 +128,7 @@ class NewsController extends GetxController {
     }
   }
 
-  Future<List<GameNewsItem>> _fetchPage(int page) async {
+  Future<List<GameNewsItem>> _fetchPage(int page, {bool markSeen = true}) async {
     final uri = Uri.parse(
       'https://newsapi.org/v2/everything'
           '?q=(gaming OR "video game" OR esports)'
@@ -118,24 +139,36 @@ class NewsController extends GetxController {
     );
 
     final key = _getRandomKey(); // pick a random key each call
-
-    final res = await _client.get(uri, headers: {'X-Api-Key': key});
-    if (res.statusCode != 200) {
+    if (key == null) {
       if (kDebugMode) {
-        debugPrint('NewsAPI error ${res.statusCode}: ${res.body}');
-
+        AppLogger.w(
+          'NEWS_API_KEYS not set; skipping news fetch. Set AppKeys.newsApiKeys in lib/config/app_keys.dart.',
+        );
       }
-      print(res.body);
       return const [];
     }
 
-    final data = json.decode(res.body) as Map<String, dynamic>;
+    final res = await _dio.get(
+      uri.toString(),
+      options: Options(headers: {'X-Api-Key': key}),
+    );
+    if (res.statusCode != 200) {
+      if (kDebugMode) {
+        debugPrint('NewsAPI error ${res.statusCode}: ${res.data}');
+      }
+      AppLogger.d(res.data);
+      return const [];
+    }
+
+    final data = res.data is String
+        ? json.decode(res.data as String) as Map<String, dynamic>
+        : res.data as Map<String, dynamic>;
     if (data['status'] != 'ok') return const [];
 
     final list = (data['articles'] as List? ?? const [])
         .map((e) => GameNewsItem.fromJson(e as Map<String, dynamic>))
         .where((a) => a.title.isNotEmpty && a.url.isNotEmpty)
-        .where((a) => _seen.add(a.url))
+        .where((a) => markSeen ? _seen.add(a.url) : true)
         .toList();
 
     return list;
@@ -145,7 +178,10 @@ class NewsController extends GetxController {
     Future.microtask(() async {
       if (_hasMore && !_busy) {
         try {
-          await _fetchPage(_page + 1);
+          final nextPage = _page + 1;
+          if (_prefetchedByPage.containsKey(nextPage)) return;
+          final prefetched = await _fetchPage(nextPage, markSeen: false);
+          _prefetchedByPage[nextPage] = prefetched;
         } catch (_) {}
       }
     });
@@ -153,4 +189,3 @@ class NewsController extends GetxController {
 
   bool get hasMore => _hasMore;
 }
-

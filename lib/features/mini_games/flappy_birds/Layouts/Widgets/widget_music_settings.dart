@@ -20,22 +20,27 @@ class _MusicSettingsState extends State<MusicSettings> {
       margin: EdgeInsets.only(bottom: 10),
       child: Column(
         children: [
-          Container(margin: EdgeInsets.symmetric(vertical: 10),
-              child: myText("Music",Colors.black,20),
+          Container(
+            margin: EdgeInsets.symmetric(vertical: 10),
+            child: myText("Music", Colors.black, 20),
           ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              GestureDetector(onTap: () async {
-                write("audio", true);
-                await player.resume();
-              },
-                  child: Icon(Icons.music_note_rounded,size: 40,)),
-              GestureDetector(onTap: () async {
-                write("audio", false);
-                await player.pause();
-              },
-                  child: Icon(Icons.music_off_rounded,size: 40)),
+              GestureDetector(
+                onTap: () async {
+                  write("audio", true);
+                  await player.resume();
+                },
+                child: Icon(Icons.music_note_rounded, size: 40),
+              ),
+              GestureDetector(
+                onTap: () async {
+                  write("audio", false);
+                  await player.pause();
+                },
+                child: Icon(Icons.music_off_rounded, size: 40),
+              ),
             ],
           ),
         ],

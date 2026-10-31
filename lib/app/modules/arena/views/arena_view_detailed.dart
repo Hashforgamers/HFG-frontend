@@ -1,20 +1,41 @@
+import 'package:hash/core/utils/share_origin.dart';
+import 'dart:async';
+import 'package:hash/core/utils/app_snackbar.dart';
+import 'dart:math' as math;
+import 'dart:ui';
+
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/app/modules/arena/utils/arena_games_extractor.dart';
+import 'package:hash/app/modules/chat/models/chat_user_model.dart';
+import 'package:hash/app/modules/chat/services/chat_service.dart';
+import 'package:hash/app/modules/game_pass/model/get_vendor_passes_model.dart';
+import 'package:hash/app/modules/game_pass/widgets/game_pass_widget.dart';
+import 'package:hash/app/modules/arena/views/arena_detail/arena_detail_consoles_section.dart';
+import 'package:hash/app/modules/arena/views/arena_detail/arena_detail_header.dart';
+import 'package:hash/app/modules/arena/views/arena_detail/arena_detail_info_section.dart';
+import 'package:hash/app/modules/arena/views/arena_detail/arena_detail_quick_actions.dart';
+import 'package:hash/app/modules/arena/views/arena_detail/arena_detail_reviews_section.dart';
+import 'package:hash/app/modules/arena/views/booking_design.dart';
 import 'package:hash/app/modules/arena/views/booking_screen.dart';
-import 'package:hash/app/modules/arena/views/menu_view.dart';
-import 'dart:ui';
+import 'package:hash/app/modules/cafe_play/views/cafe_wallet_balance_banner.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
+import 'package:hash/core/service/funnel_notification_service.dart';
+import 'package:hash/core/service/analytics_service.dart';
 import 'package:hash/core/service_locator.dart';
+import 'package:hash/utils/widgets/bounce_tap_widget.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
-
-import '../../../../utils/widgets/loader.dart';
+import 'package:hash/utils/widgets/loader.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:hash/app/modules/home/widgets/home_design.dart';
 import '../controllers/games_controller.dart';
+import 'package:hash/core/localization/app_region.dart';
+import 'package:hash/utils/widgets/home_section_title.dart';
 
 class ArenaDetailView extends StatefulWidget {
   final String title;
@@ -49,41 +70,102 @@ class ArenaDetailView extends StatefulWidget {
 }
 
 class _ArenaDetailViewState extends State<ArenaDetailView> {
-  final CafeGamesController _gamesController = Get.put(CafeGamesController());
+
+  late final CafeGamesController _gamesController;
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
-
-  int currentPage = 0;
-  late PageController pageController;
+  final funnelNotificationService = locator<FunnelNotificationService>();
+  final AnalyticsService _analytics = locator<AnalyticsService>();
+  late final ConfettiController _squadConfettiController;
+  bool _isBookingFlowLaunching = false;
+  final Set<String> _activeModalGuards = <String>{};
+  int _selectedPassTabIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    pageController = PageController();
-    _gamesController.fetchGames(widget.vendorId);
+    _squadConfettiController = ConfettiController(
+      duration: const Duration(milliseconds: 850),
+    );
+    _gamesController = Get.put(
+      CafeGamesController(),
+      tag: 'vendor_${widget.vendorId}',
+    );
+    _gamesController.fetchGames(widget.vendorId, forceRefresh: false);
+    _gamesController.fetchPasses(widget.vendorId, forceRefresh: false);
 
     // Track cafe images viewed event
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(
+        _analytics.log(
+          AnalyticsEvent.venueViewed,
+          parameters: {
+            'venue_id': widget.vendorId.toString(),
+            'entry_point': 'arena_detail',
+          },
+          deduplicationKey: widget.vendorId.toString(),
+        ),
+      );
+      funnelNotificationService.trackEvent(
+        'cafe_viewed',
+        payload: {
+          'cafe_id': widget.vendorId.toString(),
+          'cafe_name': widget.title,
+        },
+      );
       segmentService.onCafeImagesViewed(cafeId: widget.vendorId.toString());
       fbEventsService.onCafeImagesViewed(cafeId: widget.vendorId.toString());
+      segmentService.onCustomEvent('Cafe Amenities Viewed', {
+        'cafe_id': widget.vendorId.toString(),
+      });
+      fbEventsService.onCafeAmenitiesViewed(cafeId: widget.vendorId.toString());
+      segmentService.onCustomEvent('Cafe Timings Viewed', {
+        'cafe_id': widget.vendorId.toString(),
+      });
+      fbEventsService.onCafeTimingsViewed(cafeId: widget.vendorId.toString());
+      segmentService.onCustomEvent('Cafe Location Viewed', {
+        'cafe_id': widget.vendorId.toString(),
+      });
+      fbEventsService.onCafeLocationViewed(cafeId: widget.vendorId.toString());
+      segmentService.onCustomEvent('Cafe Reviews Viewed', {
+        'cafe_id': widget.vendorId.toString(),
+      });
+      fbEventsService.onCafeReviewsViewed(cafeId: widget.vendorId.toString());
     });
   }
 
   @override
   void dispose() {
-    pageController.dispose();
+    _squadConfettiController.dispose();
+    Get.delete<CafeGamesController>(tag: 'vendor_${widget.vendorId}');
     super.dispose();
   }
 
   bool _hasFoodAmenity(List<dynamic> amenities) {
     return amenities.any((a) {
-      if (a is! Map) return false;
-      final available = a['available'] == true;
-      final name = (a['name'] ?? '')
+      dynamic rawName;
+      dynamic rawAvailable = true;
+
+      if (a is Map) {
+        rawName =
+            a['name'] ??
+            a['title'] ??
+            a['label'] ??
+            a['amenity'] ??
+            a['facility'];
+        rawAvailable = a['available'] ?? a['is_available'] ?? a['isAvailable'];
+      } else {
+        rawName = a;
+      }
+
+      final available = _truthy(rawAvailable);
+      final name = (rawName ?? '')
           .toString()
           .toLowerCase()
           .replaceAll('_', ' ')
           .trim();
+      if (name.isEmpty) return false;
+
       // robust match
       final isFood =
           name == 'food' ||
@@ -96,613 +178,1526 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
     });
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final hasFood = _hasFoodAmenity(widget.amenities);
+  bool _truthy(dynamic value) {
+    if (value == null) return true;
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) {
+      final v = value.toLowerCase().trim();
+      return v == 'true' || v == '1' || v == 'yes';
+    }
+    return true;
+  }
 
-    final List<String> imageUrls = widget.images
-        .map((image) => image['url']?.toString() ?? '')
-        .toList()
-        .cast<String>();
+  Future<T?> _openModalOnce<T>(
+    String key,
+    Future<T?> Function() openModal,
+  ) async {
+    if (_activeModalGuards.contains(key)) {
+      debugPrint('Skipping duplicate modal open -> $key');
+      return null;
+    }
 
-    return Scaffold(
-      backgroundColor: const Color(0xff0F0F0F),
-      body: Stack(
-        children: [
-          ListView(
-            padding: EdgeInsets.zero,
-            children: [
-              SizedBox(
-                height: 260,
-                child: Stack(
-                  children: [
-                    PageView.builder(
-                      controller: pageController,
-                      itemCount: imageUrls.length,
-                      onPageChanged: (index) {
-                        setState(() {
-                          currentPage = index;
-                        });
-                      },
-                      itemBuilder: (context, index) => CachedNetworkImage(
-                        imageUrl: imageUrls[index],
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) =>
-                            const Center(child: RainbowGlowingLoader(size: 40)),
-                        errorWidget: (_, _, _) => Container(
-                          color: Colors.grey,
-                          alignment: Alignment.center,
-                          child: Icon(
-                            Icons.image_not_supported,
-                            size: 40,
-                            color: Colors.white54,
-                          ),
-                        ),
-                      ),
-                    ),
+    _activeModalGuards.add(key);
+    try {
+      return await openModal();
+    } finally {
+      _activeModalGuards.remove(key);
+    }
+  }
 
-                    Positioned(
-                      top: 40,
-                      left: 16,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(18),
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                          child: Container(
-                            width: 56,
-                            height: 56,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.18),
-                              borderRadius: BorderRadius.circular(18),
-                            ),
-                            child: IconButton(
-                              icon: const Icon(
-                                Icons.arrow_back,
-                                color: Colors.white,
-                                size: 32,
-                              ),
-                              onPressed: () => Navigator.of(context).pop(),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      top: 40,
-                      right: 16,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(18),
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                          child: Container(
-                            width: 56,
-                            height: 56,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.18),
-                              borderRadius: BorderRadius.circular(18),
-                            ),
-                            child: IconButton(
-                              icon: const Icon(
-                                Icons.share,
-                                color: Colors.white,
-                                size: 28,
-                              ),
-                              onPressed: () {},
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      bottom: 16,
-                      left: 0,
-                      right: 0,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(
-                          imageUrls.length,
-                          (index) => Container(
-                            margin: const EdgeInsets.symmetric(horizontal: 3),
-                            width: 28,
-                            height: 6,
-                            decoration: BoxDecoration(
-                              color: currentPage == index
-                                  ? const Color(0xff338125)
-                                  : Colors.white24,
-                              borderRadius: BorderRadius.circular(3),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 20,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.title,
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
+  Future<void> _startBookingFlow(
+    BuildContext context, {
+    String? preferredConsoleType,
+  }) async {
+    if (_isBookingFlowLaunching) {
+      debugPrint('Skipping duplicate booking flow launch');
+      return;
+    }
+
+    _isBookingFlowLaunching = true;
+    try {
+      if (!_gamesController.shopOpen.value) {
+        segmentService.onCustomEvent('Slot Unavailable', {
+          'cafe_id': widget.vendorId.toString(),
+          'slot_time': 'shop_closed',
+        });
+        fbEventsService.onSlotUnavailable(
+          cafeId: widget.vendorId.toString(),
+          slotTime: 'shop_closed',
+        );
+        AppSnackbar.show(
+          'Shop Closed',
+          'Shop is closed today, no games available.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
+        return;
+      }
+
+      // Food used to be asked here in a pop-up before any slot was shown;
+      // it is now offered on the booking summary instead.
+      await showBookSlotBottomSheet(
+        context: context,
+        email: widget.email,
+        cartItems: null,
+        initialConsoleType: preferredConsoleType,
+      );
+    } finally {
+      _isBookingFlowLaunching = false;
+    }
+  }
+
+  Future<BookingPartySelection?> _showBookingPartyBottomSheet(
+    BuildContext context,
+    String consoleType,
+  ) {
+    final chatService = Get.find<ChatService>();
+    final maxSquadSize = _estimateMaxSquadSize(consoleType);
+    bool isSquad = false;
+    final int minSquadSize = maxSquadSize >= 2 ? 2 : 1;
+    int squadCount = minSquadSize;
+    List<ChatUserModel> results = const [];
+    List<ChatUserModel> selectedMembers = <ChatUserModel>[];
+    bool isSearching = false;
+    String inlineError = '';
+    String queryText = '';
+
+    return _openModalOnce<BookingPartySelection>('booking_party_sheet', () {
+      return showModalBottomSheet<BookingPartySelection>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: const Color(0xFF181818),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        builder: (context) {
+          return StatefulBuilder(
+            builder: (context, setModalState) {
+              final requiredMembers = isSquad
+                  ? (squadCount - 1).clamp(0, 98)
+                  : 0;
+              final canContinue =
+                  !isSquad ||
+                  (squadCount >= minSquadSize &&
+                      selectedMembers.length == requiredMembers &&
+                      selectedMembers.every(_hasUsablePhoneNumber));
+
+              Future<void> runSearch(String value) async {
+                final q = value.trim();
+                setModalState(() {
+                  queryText = value;
+                  inlineError = '';
+                });
+
+                if (q.length < 2) {
+                  setModalState(() {
+                    results = const [];
+                    isSearching = false;
+                  });
+                  return;
+                }
+
+                setModalState(() {
+                  isSearching = true;
+                });
+
+                try {
+                  final users = await chatService.searchUsers(q, limit: 20);
+                  if (!context.mounted) return;
+                  setModalState(() {
+                    results = users;
+                  });
+                } catch (_) {
+                  if (!context.mounted) return;
+                  setModalState(() {
+                    inlineError = 'Unable to search players right now.';
+                  });
+                } finally {
+                  if (context.mounted) {
+                    setModalState(() {
+                      isSearching = false;
+                    });
+                  }
+                }
+              }
+
+              return SafeArea(
+                top: false,
+                child: FractionallySizedBox(
+                  heightFactor: isSquad ? 0.92 : 0.56,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.max,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Flexible(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xff181818),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
+                        Expanded(
+                          child: SingleChildScrollView(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Icon(
-                                  Icons.location_on,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                  child: Text(
-                                    widget.address,
-                                    style: GoogleFonts.inter(
-                                      color: Colors.white,
-                                      fontSize: 12,
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'Booking type',
+                                      style: GoogleFonts.inter(
+                                        color: Colors.white,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w700,
+                                      ),
                                     ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                                    IconButton(
+                                      onPressed: () =>
+                                          Navigator.of(context).pop(),
+                                      icon: const Icon(
+                                        Icons.close,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Choose solo for the regular flow, or squad to lock the exact number of consoles/PCs you want to book.',
+                                  style: GoogleFonts.inter(
+                                    color: Colors.white70,
+                                    fontSize: 13,
+                                    height: 1.4,
                                   ),
                                 ),
+                                const SizedBox(height: 16),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: _buildBookingTypeOption(
+                                        label: 'Solo',
+                                        subtitle: '1 setup',
+                                        isSelected: !isSquad,
+                                        onTap: () {
+                                          setModalState(() {
+                                            isSquad = false;
+                                            squadCount = minSquadSize;
+                                            selectedMembers = <ChatUserModel>[];
+                                            results = const [];
+                                            queryText = '';
+                                            inlineError = '';
+                                          });
+                                        },
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: _buildBookingTypeOption(
+                                        label: 'Squad',
+                                        subtitle: '$maxSquadSize max',
+                                        isSelected: isSquad,
+                                        onTap: () {
+                                          setModalState(() {
+                                            isSquad = true;
+                                            if (squadCount < minSquadSize) {
+                                              squadCount = minSquadSize;
+                                            }
+                                          });
+                                          _squadConfettiController
+                                            ..stop()
+                                            ..play();
+                                        },
+                                        showEliteFx: true,
+                                        confettiController:
+                                            _squadConfettiController,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (isSquad) ...[
+                                  const SizedBox(height: 18),
+                                  Text(
+                                    'Number of setups needed',
+                                    style: GoogleFonts.inter(
+                                      color: Colors.white,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Select from $minSquadSize to $maxSquadSize based on the maximum consoles available at one time.',
+                                    style: GoogleFonts.inter(
+                                      color: Colors.white60,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 10,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF232323),
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(color: Colors.white12),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        _buildCounterButton(
+                                          icon: Icons.remove,
+                                          enabled: squadCount > minSquadSize,
+                                          onTap: () {
+                                            if (squadCount <= minSquadSize) {
+                                              return;
+                                            }
+                                            setModalState(() {
+                                              squadCount -= 1;
+                                              final nextRequired =
+                                                  (squadCount - 1).clamp(0, 98);
+                                              if (selectedMembers.length >
+                                                  nextRequired) {
+                                                selectedMembers =
+                                                    selectedMembers
+                                                        .take(nextRequired)
+                                                        .toList();
+                                              }
+                                            });
+                                          },
+                                        ),
+                                        Expanded(
+                                          child: Column(
+                                            children: [
+                                              Text(
+                                                '$squadCount',
+                                                style: GoogleFonts.inter(
+                                                  color: Colors.white,
+                                                  fontSize: 28,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
+                                              Text(
+                                                'Required setups',
+                                                style: GoogleFonts.inter(
+                                                  color: Colors.white60,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        _buildCounterButton(
+                                          icon: Icons.add,
+                                          enabled: squadCount < maxSquadSize,
+                                          onTap: () {
+                                            if (squadCount >= maxSquadSize)
+                                              return;
+                                            setModalState(() {
+                                              squadCount += 1;
+                                            });
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Container(
+                                    padding: const EdgeInsets.all(14),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF171717),
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(color: Colors.white10),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Container(
+                                              width: 34,
+                                              height: 34,
+                                              decoration: BoxDecoration(
+                                                color: const Color(
+                                                  0xff00DC00,
+                                                ).withValues(alpha: 0.15),
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                              ),
+                                              child: const Icon(
+                                                Icons.person_search_rounded,
+                                                color: Color(0xff00DC00),
+                                                size: 18,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 10),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    'Squad Members',
+                                                    style: GoogleFonts.inter(
+                                                      color: Colors.white,
+                                                      fontSize: 14,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 2),
+                                                  Text(
+                                                    requiredMembers == 0
+                                                        ? 'Only you are included in this squad right now.'
+                                                        : 'Add $requiredMembers player${requiredMembers == 1 ? '' : 's'} for this booking. You are included automatically.',
+                                                    style: GoogleFonts.inter(
+                                                      color: Colors.white60,
+                                                      fontSize: 11,
+                                                      height: 1.35,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 10,
+                                                    vertical: 6,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: Colors.white.withValues(
+                                                  alpha: 0.06,
+                                                ),
+                                                borderRadius:
+                                                    BorderRadius.circular(999),
+                                              ),
+                                              child: Text(
+                                                '${selectedMembers.length}/$requiredMembers',
+                                                style: GoogleFonts.inter(
+                                                  color: Colors.white,
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Container(
+                                          padding: const EdgeInsets.all(1),
+                                          decoration: BoxDecoration(
+                                            borderRadius: BorderRadius.circular(
+                                              14,
+                                            ),
+                                            gradient: const LinearGradient(
+                                              colors: [
+                                                Color(0xff2E2E2E),
+                                                Color(0xff3D3D3D),
+                                              ],
+                                            ),
+                                          ),
+                                          child: Container(
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF111111),
+                                              borderRadius:
+                                                  BorderRadius.circular(13),
+                                            ),
+                                            child: TextField(
+                                              onChanged: runSearch,
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                              ),
+                                              decoration: const InputDecoration(
+                                                hintText:
+                                                    'Search username/email',
+                                                hintStyle: TextStyle(
+                                                  color: Colors.white54,
+                                                ),
+                                                prefixIcon: Icon(
+                                                  Icons.search,
+                                                  color: Colors.white70,
+                                                ),
+                                                border: InputBorder.none,
+                                                contentPadding:
+                                                    EdgeInsets.symmetric(
+                                                      vertical: 14,
+                                                    ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        if (selectedMembers.isNotEmpty) ...[
+                                          const SizedBox(height: 12),
+                                          Wrap(
+                                            spacing: 8,
+                                            runSpacing: 8,
+                                            children: selectedMembers.map((
+                                              user,
+                                            ) {
+                                              final safePhotoUrl =
+                                                  _safePhotoUrl(user);
+                                              return Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 10,
+                                                      vertical: 8,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.white
+                                                      .withValues(alpha: 0.06),
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                        999,
+                                                      ),
+                                                  border: Border.all(
+                                                    color: Colors.white10,
+                                                  ),
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    CircleAvatar(
+                                                      radius: 12,
+                                                      backgroundImage:
+                                                          safePhotoUrl != null
+                                                          ? NetworkImage(
+                                                              safePhotoUrl,
+                                                            )
+                                                          : null,
+                                                      backgroundColor:
+                                                          Colors.white12,
+                                                      child:
+                                                          safePhotoUrl == null
+                                                          ? Text(
+                                                              _initialsForUser(
+                                                                user,
+                                                              ),
+                                                              style: GoogleFonts.inter(
+                                                                color: Colors
+                                                                    .white,
+                                                                fontSize: 10,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w700,
+                                                              ),
+                                                            )
+                                                          : null,
+                                                    ),
+                                                    const SizedBox(width: 8),
+                                                    Text(
+                                                      user.displayName,
+                                                      style: GoogleFonts.inter(
+                                                        color: Colors.white,
+                                                        fontSize: 12,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 6),
+                                                    GestureDetector(
+                                                      onTap: () {
+                                                        setModalState(() {
+                                                          selectedMembers =
+                                                              selectedMembers
+                                                                  .where(
+                                                                    (member) =>
+                                                                        member
+                                                                            .uid !=
+                                                                        user.uid,
+                                                                  )
+                                                                  .toList();
+                                                        });
+                                                      },
+                                                      child: const Icon(
+                                                        Icons.close_rounded,
+                                                        size: 16,
+                                                        color: Colors.white70,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              );
+                                            }).toList(),
+                                          ),
+                                        ],
+                                        if (inlineError.isNotEmpty) ...[
+                                          const SizedBox(height: 10),
+                                          Container(
+                                            width: double.infinity,
+                                            padding: const EdgeInsets.all(10),
+                                            decoration: BoxDecoration(
+                                              color: Colors.red.withValues(
+                                                alpha: 0.12,
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                              border: Border.all(
+                                                color: Colors.red.withValues(
+                                                  alpha: 0.25,
+                                                ),
+                                              ),
+                                            ),
+                                            child: Text(
+                                              inlineError,
+                                              style: GoogleFonts.inter(
+                                                color: Colors.red.shade200,
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                        const SizedBox(height: 12),
+                                        SizedBox(
+                                          height: 220,
+                                          child: requiredMembers == 0
+                                              ? Center(
+                                                  child: Text(
+                                                    'Increase squad size to add squad members.',
+                                                    style: GoogleFonts.inter(
+                                                      color: Colors.white54,
+                                                      fontSize: 12,
+                                                      fontWeight:
+                                                          FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                )
+                                              : isSearching
+                                              ? const Center(
+                                                  child: SizedBox(
+                                                    width: 24,
+                                                    height: 24,
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                          strokeWidth: 2.4,
+                                                          color: Color(
+                                                            0xff00DC00,
+                                                          ),
+                                                        ),
+                                                  ),
+                                                )
+                                              : results.isEmpty
+                                              ? Center(
+                                                  child: Text(
+                                                    queryText.trim().length < 2
+                                                        ? 'Type at least 2 letters to search'
+                                                        : 'No players found',
+                                                    style: GoogleFonts.inter(
+                                                      color: Colors.white60,
+                                                      fontWeight:
+                                                          FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                )
+                                              : ListView.separated(
+                                                  itemCount: results.length,
+                                                  separatorBuilder: (_, _) =>
+                                                      const SizedBox(height: 8),
+                                                  itemBuilder: (_, index) {
+                                                    final user = results[index];
+                                                    final safePhotoUrl =
+                                                        _safePhotoUrl(user);
+                                                    final isSelectedMember =
+                                                        selectedMembers.any(
+                                                          (member) =>
+                                                              member.uid ==
+                                                              user.uid,
+                                                        );
+                                                    final canSelectMore =
+                                                        selectedMembers.length <
+                                                        requiredMembers;
+
+                                                    return Container(
+                                                      padding:
+                                                          const EdgeInsets.all(
+                                                            10,
+                                                          ),
+                                                      decoration: BoxDecoration(
+                                                        color: const Color(
+                                                          0xFF111111,
+                                                        ),
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              12,
+                                                            ),
+                                                        border: Border.all(
+                                                          color:
+                                                              isSelectedMember
+                                                              ? const Color(
+                                                                  0xff00DC00,
+                                                                )
+                                                              : Colors.white10,
+                                                        ),
+                                                      ),
+                                                      child: Row(
+                                                        children: [
+                                                          CircleAvatar(
+                                                            radius: 20,
+                                                            backgroundImage:
+                                                                safePhotoUrl !=
+                                                                    null
+                                                                ? NetworkImage(
+                                                                    safePhotoUrl,
+                                                                  )
+                                                                : null,
+                                                            backgroundColor:
+                                                                Colors.white12,
+                                                            child:
+                                                                safePhotoUrl ==
+                                                                    null
+                                                                ? Text(
+                                                                    _initialsForUser(
+                                                                      user,
+                                                                    ),
+                                                                    style: GoogleFonts.inter(
+                                                                      color: Colors
+                                                                          .white,
+                                                                      fontWeight:
+                                                                          FontWeight
+                                                                              .w700,
+                                                                      fontSize:
+                                                                          12,
+                                                                    ),
+                                                                  )
+                                                                : null,
+                                                          ),
+                                                          const SizedBox(
+                                                            width: 10,
+                                                          ),
+                                                          Expanded(
+                                                            child: Column(
+                                                              crossAxisAlignment:
+                                                                  CrossAxisAlignment
+                                                                      .start,
+                                                              children: [
+                                                                Text(
+                                                                  user.displayName,
+                                                                  maxLines: 1,
+                                                                  overflow:
+                                                                      TextOverflow
+                                                                          .ellipsis,
+                                                                  style: GoogleFonts.inter(
+                                                                    color: Colors
+                                                                        .white,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .w700,
+                                                                    fontSize:
+                                                                        13,
+                                                                  ),
+                                                                ),
+                                                                const SizedBox(
+                                                                  height: 2,
+                                                                ),
+                                                                Text(
+                                                                  user
+                                                                          .username
+                                                                          .isNotEmpty
+                                                                      ? '@${user.username}'
+                                                                      : user.email,
+                                                                  maxLines: 1,
+                                                                  overflow:
+                                                                      TextOverflow
+                                                                          .ellipsis,
+                                                                  style: GoogleFonts.inter(
+                                                                    color: Colors
+                                                                        .white70,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .w500,
+                                                                    fontSize:
+                                                                        12,
+                                                                  ),
+                                                                ),
+                                                              ],
+                                                            ),
+                                                          ),
+                                                          const SizedBox(
+                                                            width: 8,
+                                                          ),
+                                                          ElevatedButton(
+                                                            onPressed:
+                                                                isSelectedMember ||
+                                                                    !canSelectMore
+                                                                ? null
+                                                                : () async {
+                                                                    var memberToAdd =
+                                                                        user;
+                                                                    if (!_hasUsablePhoneNumber(
+                                                                      user,
+                                                                    )) {
+                                                                      final phoneNumber =
+                                                                          await _showMemberPhoneBottomSheet(
+                                                                            context,
+                                                                            user,
+                                                                          );
+                                                                      if (phoneNumber ==
+                                                                              null ||
+                                                                          phoneNumber
+                                                                              .trim()
+                                                                              .isEmpty) {
+                                                                        return;
+                                                                      }
+                                                                      memberToAdd = _copyUserWithPhone(
+                                                                        user,
+                                                                        phoneNumber
+                                                                            .trim(),
+                                                                      );
+                                                                    }
+                                                                    setModalState(() {
+                                                                      selectedMembers = [
+                                                                        ...selectedMembers,
+                                                                        memberToAdd,
+                                                                      ];
+                                                                      inlineError =
+                                                                          '';
+                                                                    });
+                                                                  },
+                                                            style: ElevatedButton.styleFrom(
+                                                              backgroundColor:
+                                                                  const Color(
+                                                                    0xff00DC00,
+                                                                  ),
+                                                              foregroundColor:
+                                                                  Colors.black,
+                                                              disabledBackgroundColor:
+                                                                  Colors
+                                                                      .white10,
+                                                              disabledForegroundColor:
+                                                                  Colors
+                                                                      .white38,
+                                                              shape: RoundedRectangleBorder(
+                                                                borderRadius:
+                                                                    BorderRadius.circular(
+                                                                      10,
+                                                                    ),
+                                                              ),
+                                                            ),
+                                                            child: Text(
+                                                              isSelectedMember
+                                                                  ? 'Added'
+                                                                  : 'Add',
+                                                              style: GoogleFonts.inter(
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w700,
+                                                                fontSize: 12,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    );
+                                                  },
+                                                ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Flexible(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 50,
+                          child: ElevatedButton(
+                            onPressed: canContinue
+                                ? () {
+                                    Navigator.of(context).pop(
+                                      BookingPartySelection(
+                                        isSquad: isSquad,
+                                        requiredConsoleCount: isSquad
+                                            ? squadCount
+                                            : 1,
+                                        selectedMembers: selectedMembers,
+                                      ),
+                                    );
+                                  }
+                                : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xff00DC00),
+                              disabledBackgroundColor: Colors.grey.shade800,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
                             ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xff181818),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.access_time,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                  child: Text(
-                                    widget.openingHours,
-                                    style: GoogleFonts.inter(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
+                            child: Text(
+                              'Continue',
+                              style: GoogleFonts.inter(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 24),
-                    Text(
-                      "Available Consoles",
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      height: 70,
-                      child: GetX<CafeGamesController>(
-                        builder: (controller) {
-                          if (controller.isLoading.value) {
-                            return const Center(child: RainbowLoadingBar());
-                          }
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      );
+    });
+  }
 
-                          final List<dynamic> consoles = controller.games
-                              .where((game) =>
-                          game['game_name'] != null &&
-                              (game['total_slots'] ?? 0) > 0)
-                              .toList();
-
-                          if (consoles.isEmpty) {
-                            return const Center(
-                              child: Text(
-                                "No consoles available",
-                                style: TextStyle(color: Colors.white70),
-                              ),
-                            );
-                          }
-                          if (consoles.isEmpty) {
-                            // Fallback to hardcoded consoles
-                            return ListView(
-                              scrollDirection: Axis.horizontal,
-                              children: [
-                                _consoleIcon(
-                                  'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075080/pc_ah5ulv.png',
-                                  "PC",
-                                ),
-                                _consoleIcon(
-                                  'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075086/xbox_fmz0bn.png',
-                                  "XBOX",
-                                ),
-                                _consoleIcon(
-                                  'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075082/ps_krf4kw.png',
-                                  "PS5",
-                                ),
-                                _consoleIcon(
-                                  'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075086/vr_rzqkbq.png',
-                                  "VR",
-                                ),
-                              ],
-                            );
-                          }
-
-                          return ListView.separated(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: consoles.length,
-                            separatorBuilder: (_, __) => const SizedBox(width: 0),
-                            itemBuilder: (context, index) {
-                              final Map<String, dynamic> console = consoles[index];
-                              final String name =
-                                  console['game_name']?.toString().toUpperCase() ?? 'UNKNOWN';
-                              final String iconPath =
-                              _getConsoleIcon(console['game_name']?.toString() ?? '');
-
-                              return _consoleIcon(iconPath, name);
-                            },
-                          );
-
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    gameTitlesGrid(),
-                    const SizedBox(height: 24),
-                    amenitiesGrid(widget.amenities, excludeFood: hasFood),
-                    if (hasFood) ...[
-                      const SizedBox(height: 24),
-                      foodAndBeverageGrid([
-                        {
-                          'name': 'Crispy Fries',
-                          'image':
-                              'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075186/menu1_ar0hbe.png',
-                        },
-                        {
-                          'name': 'Veggie Burger',
-                          'image':
-                              'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075187/menu2_go9rv3.png',
-                        },
-                        {
-                          'name': 'Red Sauce Pasta',
-                          'image':
-                              'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075188/menu3_o2c0zy.png',
-                        },
-                        {
-                          'name': 'Protein Sandwich',
-                          'image':
-                              'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075189/menu4_wgmjrq.png',
-                        },
-                        {
-                          'name': 'Hot Coffee',
-                          'image':
-                              'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075190/menu5_f3t2l0.png',
-                        },
-                        {
-                          'name': 'Coca Cola with Ice',
-                          'image':
-                              'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075190/menu6_qhoalw.png',
-                        },
-                        {
-                          'name': 'Blue Lagoon',
-                          'image':
-                              'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075191/menu7_tj4lp1.png',
-                        },
-                        {
-                          'name': 'Choco Pastry',
-                          'image':
-                              'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075192/menu8_na7k6n.png',
-                        },
-                        {
-                          'name': 'Classic Donut',
-                          'image':
-                              'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075193/menu9_xlmk0e.png',
-                        },
-                      ]),
-                    ],
-
-                    const SizedBox(height: 24),
-
-                    Text(
-                      "Reviews",
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    ...widget.reviews.map(
-                      (review) => Container(
-                        margin: const EdgeInsets.symmetric(vertical: 4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xff181818),
-                          border: Border.all(color: const Color(0xff2D2D2D)),
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                        child: ListTile(
-                          leading: const Icon(
-                            Icons.person,
-                            color: Colors.white,
-                          ),
-                          title: Text(
-                            review.toString(),
-                            style: GoogleFonts.inter(color: Colors.white),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 80),
+  Widget _buildBookingTypeOption({
+    required String label,
+    required String subtitle,
+    required bool isSelected,
+    required VoidCallback onTap,
+    bool showEliteFx = false,
+    ConfettiController? confettiController,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          gradient: isSelected && showEliteFx
+              ? const LinearGradient(
+                  colors: [
+                    Color(0xFF120F2A),
+                    Color(0xFF2A1D68),
+                    Color(0xFF0E7CFF),
+                    Color(0xFF7CF3FF),
                   ],
+                  stops: [0.0, 0.34, 0.72, 1.0],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : null,
+          color: isSelected
+              ? (showEliteFx
+                    ? null
+                    : BookingColors.accent.withValues(alpha: 0.14))
+              : BookingColors.surfaceAlt,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isSelected
+                ? (showEliteFx
+                      ? const Color(0xFF9FE7FF)
+                      : BookingColors.accentBright)
+                : BookingColors.border,
+            width: 1.4,
+          ),
+          boxShadow: isSelected && showEliteFx
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFF0E7CFF).withValues(alpha: 0.22),
+                    blurRadius: 22,
+                    offset: const Offset(0, 10),
+                  ),
+                  BoxShadow(
+                    color: const Color(0xFF7CF3FF).withValues(alpha: 0.08),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            if (showEliteFx && isSelected && confettiController != null)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: ConfettiWidget(
+                      confettiController: confettiController,
+                      blastDirectionality: BlastDirectionality.directional,
+                      blastDirection: math.pi / 2,
+                      shouldLoop: false,
+                      emissionFrequency: 0.065,
+                      numberOfParticles: 14,
+                      maxBlastForce: 7,
+                      minBlastForce: 3,
+                      gravity: 0.18,
+                      particleDrag: 0.05,
+                      minimumSize: const Size(3, 5),
+                      maximumSize: const Size(5, 8),
+                      colors: const [
+                        Color(0xFFEFFCFF),
+                        Color(0xFF9FE7FF),
+                        Color(0xFF4CB8FF),
+                        Color(0xFF7D7BFF),
+                        Color(0xFFFFFFFF),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-            ],
-          ),
-          // Book Slot Button
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-              child: GetX<CafeGamesController>(
-                builder: (controller) {
-                  return SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        if (!controller.shopOpen.value) {
-                          Get.snackbar(
-                            'Shop Closed',
-                            'Shop is closed today, no games available.',
-                            snackPosition: SnackPosition.BOTTOM,
-                            backgroundColor: Colors.red,
-                            colorText: Colors.white,
-                          );
-                          return;
-                        }
-
-                        final hasFood = _hasFoodAmenity(widget.amenities);
-
-                        if (hasFood) {
-                          final response = await showFoodOrderPrompt(
-                            context,
-                            () {
-                              Get.to(
-                                MenuViewPage(
-                                  vendorId: widget.vendorId.toString(),
-                                  email: widget.email,
-                                  onContinue: (cartItems) {
-                                    showBookSlotBottomSheet(
-                                      context: context,
-                                      email: widget.email,
-                                      cartItems: cartItems,
-                                    );
-                                  },
-                                ),
-                              );
-                            },
-                          );
-
-                          if (context.mounted && response != true) {
-                            // response == false or null → go straight to booking
-                            showBookSlotBottomSheet(
-                              context: context,
-                              email: widget.email,
-                              cartItems: null,
-                            );
-                          }
-                        } else {
-                          // No food amenity → skip prompt
-                          showBookSlotBottomSheet(
-                            context: context,
-                            email: widget.email,
-                            cartItems: null,
-                          );
-                        }
-                      },
-
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: controller.shopOpen.value
-                            ? const Color(0xff338125)
-                            : Colors.grey.shade600,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
+            if (showEliteFx && isSelected)
+              Positioned(
+                top: -1,
+                left: 18,
+                right: 18,
+                child: Container(
+                  height: 16,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.white.withValues(alpha: 0),
+                        Colors.white.withValues(alpha: 0.22),
+                        Colors.white.withValues(alpha: 0),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
                       child: Text(
-                        controller.shopOpen.value
-                            ? 'Continue Booking'
-                            : 'Shop Closed',
+                        label,
                         style: GoogleFonts.inter(
-                          fontSize: 16,
                           color: Colors.white,
-                          fontWeight: FontWeight.w500,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
-                  );
-                },
-              ),
+                    if (showEliteFx && isSelected)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(
+                            0xFF0B1022,
+                          ).withValues(alpha: 0.32),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.22),
+                          ),
+                        ),
+                        child: Text(
+                          'Elite',
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.inter(
+                    color: isSelected && showEliteFx
+                        ? Colors.white.withValues(alpha: 0.96)
+                        : Colors.white60,
+                    fontSize: 12,
+                    fontWeight: isSelected && showEliteFx
+                        ? FontWeight.w600
+                        : FontWeight.w400,
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Future<bool?> showFoodOrderPrompt(
+  String _initialsForUser(ChatUserModel user) {
+    final source = user.displayName.trim().isNotEmpty
+        ? user.displayName.trim()
+        : (user.username.trim().isNotEmpty ? user.username.trim() : 'P');
+    final parts = source
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList();
+    if (parts.isEmpty) return 'P';
+    if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
+    return (parts.first.substring(0, 1) + parts.last.substring(0, 1))
+        .toUpperCase();
+  }
+
+  String? _safePhotoUrl(ChatUserModel user) {
+    final raw = user.photoUrl.trim();
+    if (raw.isEmpty) return null;
+
+    final normalized = raw.toLowerCase();
+    if (normalized == 'not defined' ||
+        normalized == 'undefined' ||
+        normalized == 'null' ||
+        normalized == 'n/a') {
+      return null;
+    }
+
+    final uri = Uri.tryParse(raw);
+    if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
+      return null;
+    }
+
+    return raw;
+  }
+
+  bool _hasUsablePhoneNumber(ChatUserModel user) {
+    final normalized = user.phoneNumber.trim().replaceAll(RegExp(r'\s+'), '');
+    return normalized.isNotEmpty &&
+        normalized.toLowerCase() != 'not defined' &&
+        normalized.toLowerCase() != 'undefined' &&
+        normalized.toLowerCase() != 'null';
+  }
+
+  ChatUserModel _copyUserWithPhone(ChatUserModel user, String phoneNumber) {
+    return ChatUserModel(
+      uid: user.uid,
+      displayName: user.displayName,
+      username: user.username,
+      email: user.email,
+      phoneNumber: phoneNumber,
+      photoUrl: user.photoUrl,
+      backendUserId: user.backendUserId,
+      isOnline: user.isOnline,
+      updatedAt: user.updatedAt,
+      lastSeenAt: user.lastSeenAt,
+    );
+  }
+
+  Future<String?> _showMemberPhoneBottomSheet(
     BuildContext context,
-    VoidCallback onYes,
-  ) async {
-    return await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          backgroundColor: const Color(0xFF181818),
-          child: SizedBox(
-            width: MediaQuery.of(context).size.width * 0.95,
-            height: MediaQuery.of(context).size.height * 0.5,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 35, horizontal: 16),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+    ChatUserModel user,
+  ) {
+    final controller = TextEditingController();
+    String? errorText;
+
+    return _openModalOnce<String>('member_phone_sheet', () {
+      return showModalBottomSheet<String>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: const Color(0xFF181818),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        builder: (sheetContext) {
+          return StatefulBuilder(
+            builder: (sheetContext, setSheetState) {
+              final bottomInset = MediaQuery.of(sheetContext).viewInsets.bottom;
+              return SafeArea(
+                top: false,
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(16, 14, 16, 20 + bottomInset),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      SizedBox(
-                        width: 70,
-                        height: 60,
-                        child: Center(
-                          child: CachedNetworkImage(
-                            imageUrl:
-                                'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075193/menu9_xlmk0e.png',
-                            width: 70,
-                            height: 60,
-                            fit: BoxFit.contain,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Add ${user.displayName}\'s phone number',
+                              style: GoogleFonts.inter(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.of(sheetContext).pop(),
+                            icon: const Icon(Icons.close, color: Colors.white),
+                          ),
+                        ],
+                      ),
+                      Text(
+                        'This is required to add them to the squad booking.',
+                        style: GoogleFonts.inter(
+                          color: Colors.white60,
+                          fontSize: 12,
+                          height: 1.4,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      TextField(
+                        controller: controller,
+                        keyboardType: TextInputType.phone,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          hintText: 'Enter phone number',
+                          hintStyle: const TextStyle(color: Colors.white38),
+                          errorText: errorText,
+                          filled: true,
+                          fillColor: const Color(0xFF111111),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide.none,
                           ),
                         ),
                       ),
-                      const SizedBox(width: 2),
+                      const SizedBox(height: 14),
                       SizedBox(
-                        width: 70,
-                        height: 60,
-                        child: Center(
-                          child: CachedNetworkImage(
-                            imageUrl:
-                                'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075189/menu4_wgmjrq.png',
-                            width: 70,
-                            height: 60,
-                            fit: BoxFit.contain,
+                        width: double.infinity,
+                        height: 48,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            final raw = controller.text.trim();
+                            final normalized = raw.replaceAll(
+                              RegExp(r'[^0-9+]'),
+                              '',
+                            );
+                            if (normalized.length < 10) {
+                              setSheetState(() {
+                                errorText =
+                                    'Enter a valid phone number to continue.';
+                              });
+                              return;
+                            }
+                            Navigator.of(sheetContext).pop(normalized);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xff00DC00),
+                            foregroundColor: Colors.black,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: 2),
-                      SizedBox(
-                        width: 70,
-                        height: 60,
-                        child: Center(
-                          child: CachedNetworkImage(
-                            imageUrl:
-                                'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075187/menu2_go9rv3.png',
-                            width: 70,
-                            height: 60,
-                            fit: BoxFit.contain,
+                          child: Text(
+                            'Save & Add Member',
+                            style: GoogleFonts.inter(
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 40),
-                  Text(
-                    "Want to order ahead \nfrom the café?",
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w500,
+                ),
+              );
+            },
+          );
+        },
+      );
+    });
+  }
+
+  Widget _buildCounterButton({
+    required IconData icon,
+    required bool enabled,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: enabled ? const Color(0xFF121212) : const Color(0xFF1A1A1A),
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        borderRadius: BorderRadius.circular(12),
+        child: SizedBox(
+          height: 42,
+          width: 42,
+          child: Icon(icon, color: enabled ? Colors.white : Colors.white24),
+        ),
+      ),
+    );
+  }
+
+  int _estimateMaxSquadSize([String? forConsoleType]) {
+    int maxAvailable = 1;
+    final normalizedTargetConsole = forConsoleType == null
+        ? ''
+        : _normalizeConsoleType(forConsoleType);
+
+    int? asInt(dynamic value) {
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      if (value == null) return null;
+      return int.tryParse(value.toString());
+    }
+
+    int availabilityCount(dynamic value, {int fallback = 1}) {
+      if (value is bool) return value ? 1 : 0;
+      if (value is num) return value.toInt();
+      if (value is String) {
+        final raw = value.trim().toLowerCase();
+        if (raw == 'true' || raw == 'yes') return 1;
+        if (raw == 'false' || raw == 'no') return 0;
+        return int.tryParse(raw) ?? fallback;
+      }
+      return fallback;
+    }
+
+    dynamic readAny(Map<String, dynamic> map, List<String> keys) {
+      for (final key in keys) {
+        if (map.containsKey(key) && map[key] != null) {
+          return map[key];
+        }
+      }
+      return null;
+    }
+
+    for (final rawGame in _gamesController.games) {
+      if (rawGame is! Map) continue;
+      final game = Map<String, dynamic>.from(rawGame);
+      final normalizedConsoleType = _normalizeConsoleType(
+        (readAny(game, [
+                  'console_type',
+                  'consoleType',
+                  'type',
+                  'game_name',
+                  'name',
+                  'title',
+                ]) ??
+                '')
+            .toString(),
+      );
+      if (normalizedTargetConsole.isNotEmpty &&
+          normalizedConsoleType != normalizedTargetConsole) {
+        continue;
+      }
+      final fallbackCount =
+          asInt(
+            readAny(game, ['available_slot', 'available_slots', 'count']),
+          ) ??
+          asInt(game['total_slots']) ??
+          1;
+      final consoles = game['consoles'];
+
+      if (consoles is List && consoles.isNotEmpty) {
+        for (final rawConsole in consoles) {
+          if (rawConsole is! Map) continue;
+          final console = Map<String, dynamic>.from(rawConsole);
+          final count = availabilityCount(
+            readAny(console, [
+                  'available_slot',
+                  'available_slots',
+                  'available_count',
+                  'available',
+                  'count',
+                  'quantity',
+                ]) ??
+                fallbackCount,
+            fallback: fallbackCount,
+          );
+          if (count > maxAvailable) {
+            maxAvailable = count;
+          }
+        }
+        continue;
+      }
+
+      if (fallbackCount > maxAvailable) {
+        maxAvailable = fallbackCount;
+      }
+    }
+
+    return maxAvailable.clamp(1, 99);
+  }
+
+  Widget _buildPassesSection() {
+    return Obx(() {
+      final response = _gamesController.vendorPassesResponse.value;
+      if (_gamesController.isPassesLoading.value || response == null) {
+        return const SizedBox.shrink();
+      }
+
+      final hourBasedPasses = response.hourBasedPasses;
+      final dateBasedPasses = response.dateBasedPasses;
+      final allPasses = response.allPasses.isNotEmpty
+          ? response.allPasses
+          : response.visiblePasses;
+
+      if (allPasses.isEmpty &&
+          hourBasedPasses.isEmpty &&
+          dateBasedPasses.isEmpty) {
+        return const SizedBox.shrink();
+      }
+
+      final tabs = <_PassTabData>[
+        _PassTabData(
+          label: 'All Pass',
+          count: response.countFor('all_passes', allPasses),
+          passes: allPasses,
+        ),
+        _PassTabData(
+          label: 'Date Pass',
+          count: response.countFor('date_based_passes', dateBasedPasses),
+          passes: dateBasedPasses,
+        ),
+        _PassTabData(
+          label: 'Hour Pass',
+          count: response.countFor('hour_based_passes', hourBasedPasses),
+          passes: hourBasedPasses,
+        ),
+      ].where((tab) => tab.passes.isNotEmpty).toList();
+
+      if (tabs.isEmpty) {
+        return const SizedBox.shrink();
+      }
+
+      if (_selectedPassTabIndex >= tabs.length) {
+        _selectedPassTabIndex = 0;
+      }
+
+      final activeTab = tabs[_selectedPassTabIndex];
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const HomeSectionTitle(title: 'Arena ', accent: 'Passes'),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 40,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: tabs.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 10),
+              itemBuilder: (context, index) {
+                final tab = tabs[index];
+                final isSelected = index == _selectedPassTabIndex;
+                return GestureDetector(
+                  onTap: () {
+                    if (_selectedPassTabIndex == index) return;
+                    setState(() {
+                      _selectedPassTabIndex = index;
+                    });
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? const Color(0xff00DC00)
+                          : Colors.white10,
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: isSelected ? Colors.transparent : Colors.white12,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          tab.label,
+                          style: GoogleFonts.inter(
+                            color: isSelected ? Colors.black : Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isSelected ? Colors.black12 : Colors.white12,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            '${tab.count}',
+                            style: GoogleFonts.inter(
+                              color: isSelected ? Colors.black : Colors.white70,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 40),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.pop(context, true); // Return true for "Yes"
-                          onYes(); // Callback for "Yes"
-                        },
-                        child: Container(
-                          height: 40,
-                          width: 120,
-                          decoration: BoxDecoration(
-                            border: Border.all(
-                              color: Color(0xFF6DFB60),
-                              width: 1.5,
-                            ),
-                            borderRadius: BorderRadius.circular(25),
-                          ),
-                          child: Center(
-                            child: Text(
-                              "Yes, please",
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            height: 172,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: activeTab.passes.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 12),
+              itemBuilder: (context, index) {
+                final pass = activeTab.passes[index];
+                return SizedBox(
+                  width: 292,
+                  child: _PassCard(
+                    index: index,
+                    pass: pass,
+                    onBuy: () => _showPassPurchaseSheet(pass),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      );
+    });
+  }
+
+  Future<void> _showPassPurchaseSheet(GetVendorPassesModel pass) async {
+    if (!mounted) return;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF101010),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            child: SizedBox(
+              height: MediaQuery.of(sheetContext).size.height * 0.52,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 44,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white24,
+                        borderRadius: BorderRadius.circular(999),
                       ),
-                      SizedBox(width: 10),
-                      GestureDetector(
-                        onTap: () => Navigator.pop(
-                          context,
-                          false,
-                        ), // Return false for "No"
-                        child: Container(
-                          height: 40,
-                          width: 120,
-                          decoration: BoxDecoration(
-                            border: Border.all(
-                              color: Colors.white24,
-                              width: 1.5,
-                            ),
-                            borderRadius: BorderRadius.circular(25),
-                          ),
-                          child: Center(
-                            child: Text(
-                              "No, thanks",
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Buy Pass',
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    pass.name ?? 'Arena Pass',
+                    style: GoogleFonts.inter(
+                      color: Colors.white70,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: VendorPassesWidget(
+                      vendorPasses: <GetVendorPassesModel>[pass],
+                    ),
                   ),
                 ],
               ),
@@ -713,349 +1708,903 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
     );
   }
 
-  Future<dynamic> showBookSlotBottomSheet({
-    required BuildContext context,
-    required email,
-    List<Map<String, dynamic>>? cartItems,
-  }) {
-    // Check if shop is open before showing booking options
-    if (!_gamesController.shopOpen.value) {
-      Get.snackbar(
-        'Shop Closed',
-        'Shop is closed today, no games available.',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-        duration: const Duration(seconds: 3),
-        margin: const EdgeInsets.all(16),
-        borderRadius: 8,
+  @override
+  Widget build(BuildContext context) {
+    final hasFood = _hasFoodAmenity(widget.amenities);
+
+    final List<String> imageUrls = widget.images
+        .map((image) => image['url']?.toString() ?? '')
+        .toList()
+        .cast<String>();
+
+    void share() {
+      Share.share(
+        '${widget.title}\n${widget.address}\nCheck it out on Hash Hub.',
+        sharePositionOrigin: shareOriginRect(),
       );
-      return Future.value(null);
-    }
-    final List<dynamic> consoles = _gamesController.games.toList();
-
-    final List<Map<String, dynamic>> slots = consoles.map((console) {
-      final Map<String, dynamic> consoleMap = console as Map<String, dynamic>;
-
-      final consoleName = consoleMap['game_name']?.toString() ?? '';
-      final consoleId = consoleMap['id'];
-
-      return {
-        'label': consoleName.toUpperCase(),
-        'icon': _getConsoleIcon(consoleName),
-        'price': consoleMap['single_slot_price'] ?? 0,
-        'available': consoleMap['total_slots'] ?? 0,
-        'console_id': consoleId,
-        'console_name': consoleName,
-        'game_label': _getConsoleType(consoleName),
-        'opening_days': consoleMap['opening_days'] ?? [],
-      };
-    }).toList();
-
-    int selectedIndex = 0;
-    for (int i = 0; i < slots.length; i++) {
-      if (slots[i]['available'] > 0) {
-        selectedIndex = i;
-        break;
-      }
+      segmentService.onCustomEvent('Cafe Shared', {
+        'cafe_id': widget.vendorId.toString(),
+        'channel': 'system_share',
+      });
+      fbEventsService.onCafeShared(
+        cafeId: widget.vendorId.toString(),
+        channel: 'system_share',
+      );
     }
 
-    return showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: const Color(0xFF181818),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            final double maxHeight = MediaQuery.of(context).size.height * 0.45;
-            return Padding(
-              padding: MediaQuery.of(context).viewInsets,
-              child: Container(
-                height: maxHeight,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 10,
-                ),
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Book your slot',
-                            style: GoogleFonts.inter(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(
-                              Icons.close,
-                              color: Colors.white,
-                              size: 28,
-                            ),
-                            onPressed: () => Navigator.of(context).pop(),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      GridView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              mainAxisSpacing: 10,
-                              crossAxisSpacing: 10,
-                              childAspectRatio: 1.7,
-                            ),
-                        itemCount: slots.length,
-                        itemBuilder: (context, index) {
-                          final slot = slots[index];
-                          final isSelected = selectedIndex == index;
-                          final isAvailable = slot['available'] > 0;
-                          return GestureDetector(
-                            onTap: isAvailable
-                                ? () {
-                                    setState(() {
-                                      selectedIndex = index;
-                                    });
-                                  }
-                                : null,
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              decoration: BoxDecoration(
-                                color: isSelected && isAvailable
-                                    ? const Color(0xFF338125).withOpacity(0.15)
-                                    : (isAvailable
-                                          ? const Color(0xFF232323)
-                                          : const Color(
-                                              0xFF232323,
-                                            ).withOpacity(0.5)),
-                                borderRadius: BorderRadius.circular(8),
-                                border: isSelected && isAvailable
-                                    ? Border.all(
-                                        color: const Color(0xFF338125),
-                                        width: 2,
-                                      )
-                                    : Border.all(
-                                        color: Colors.transparent,
-                                        width: 2,
-                                      ),
-                              ),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 10,
-                              ),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.center,
-                                    children: [
-                                      CachedNetworkImage(
-                                        imageUrl: slot['icon'],
-                                        height: 22,
-                                        width: 22,
-                                        placeholder: (_, _) => const Center(
-                                          child: RainbowGlowingLoader(size: 10),
-                                        ),
-                                        errorWidget: (_, _, _) => const Icon(
-                                          Icons.error,
-                                          color: Colors.red,
-                                        ),
-                                      ),
+    const sectionGap = SizedBox(height: 28);
 
-                                      const SizedBox(width: 6),
-                                      Expanded(
-                                        child: Text(
-                                          slot['label'],
-                                          overflow: TextOverflow.ellipsis,
-                                          style: GoogleFonts.inter(
-                                            color: isAvailable
-                                                ? Colors.white
-                                                : Colors.white54,
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 7,
-                                          vertical: 2,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFF181818),
-                                          borderRadius: BorderRadius.circular(
-                                            6,
-                                          ),
-                                        ),
-                                        child: Text(
-                                          '₹ ${slot['price']}',
-                                          style: GoogleFonts.inter(
-                                            color: isAvailable
-                                                ? Colors.white
-                                                : Colors.white54,
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: 11,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 7,
-                                          vertical: 2,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: isAvailable
-                                              ? const Color(0xFF181818)
-                                              : const Color(0xFF3A2323),
-                                          borderRadius: BorderRadius.circular(
-                                            6,
-                                          ),
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            Icon(
-                                              isAvailable
-                                                  ? Icons.check_circle
-                                                  : Icons.cancel,
-                                              color: isAvailable
-                                                  ? Colors.white
-                                                  : Colors.redAccent,
-                                              size: 8,
-                                            ),
-                                            const SizedBox(width: 2),
-                                            Text(
-                                              '${slot['available']} Available',
-                                              style: GoogleFonts.inter(
-                                                color: isAvailable
-                                                    ? Colors.white
-                                                    : Colors.redAccent,
-                                                fontWeight: FontWeight.w600,
-                                                fontSize: 10,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 10),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 48,
-                        child: ElevatedButton(
-                          onPressed: slots[selectedIndex]['available'] > 0
-                              ? () {
-                                  final consoleId =
-                                      slots[selectedIndex]['console_id'];
-                                  if (consoleId != null && consoleId is int) {
-                                    try {
-                                      Get.to(
-                                        BookingScreen(
-                                          email: email,
-                                          consoleType:
-                                              slots[selectedIndex]['game_label'] ??
-                                              '',
-                                          title: widget.title,
-                                          gameId: consoleId,
-                                          vendorId: widget.vendorId,
-                                          cartItems: cartItems ?? [],
-                                        ),
-                                      );
-                                    } catch (e) {
-                                      Get.snackbar(
-                                        'Error',
-                                        'Failed to open booking screen',
-                                        snackPosition: SnackPosition.BOTTOM,
-                                        backgroundColor: Colors.red,
-                                        colorText: Colors.white,
-                                      );
-                                    }
-                                  } else {
-                                    Get.snackbar(
-                                      'Error',
-                                      'Console ID not found or invalid',
-                                      snackPosition: SnackPosition.BOTTOM,
-                                      backgroundColor: Colors.red,
-                                      colorText: Colors.white,
-                                    );
-                                  }
-                                }
-                              : null,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF338125),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            disabledBackgroundColor: Colors.grey.shade800,
-                          ),
-                          child: Text(
-                            'Continue to Booking',
-                            style: GoogleFonts.inter(
-                              fontSize: 16,
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              Obx(
+                () => ArenaDetailHeader(
+                  imageUrls: imageUrls,
+                  title: widget.title,
+                  address: widget.address,
+                  isOpen: _gamesController.isLoading.value
+                      ? null
+                      : _gamesController.shopOpen.value,
+                  onBack: () => Navigator.of(context).pop(),
+                  onShare: share,
                 ),
               ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Widget _consoleIcon(String path, String label) {
-    return Padding(
-      padding: EdgeInsets.only(right: 20.w),
-      child: Column(
-        children: [
-          CachedNetworkImage(
-            imageUrl: path,
-            height: 48.h,
-            width: 48.w,
-            placeholder: (_, _) =>
-                const Center(child: RainbowGlowingLoader(size: 20)),
-            errorWidget: (_, _, _) =>
-                const Icon(Icons.error, color: Colors.red),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 132),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ArenaDetailQuickActions(
+                      title: widget.title,
+                      address: widget.address,
+                      phone: widget.phone,
+                      email: widget.email,
+                      onShare: share,
+                    ),
+                    Obx(() {
+                      if (!_hasPcConsole(_gamesController.games)) {
+                        return const SizedBox.shrink();
+                      }
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 16),
+                        child: CafeWalletBalanceBanner(
+                          vendorId: widget.vendorId,
+                          cafeName: widget.title,
+                        ),
+                      );
+                    }),
+                    sectionGap,
+                    ArenaDetailConsolesSection(
+                      isLoading: _gamesController.isLoading,
+                      games: _gamesController.games,
+                      onConsoleTap: (consoleType) => _startBookingFlow(
+                        context,
+                        preferredConsoleType: consoleType,
+                      ),
+                    ),
+                    _buildPassesSection(),
+                    sectionGap,
+                    gameTitlesGrid(_gamesController),
+                    const HomeSectionTitle(title: 'Visit ', accent: 'Info'),
+                    const SizedBox(height: 14),
+                    ArenaDetailInfoSection(
+                      title: widget.title,
+                      address: widget.address,
+                      openingHours: widget.openingHours,
+                      showHeader: false,
+                    ),
+                    sectionGap,
+                    amenitiesGrid(widget.amenities, excludeFood: hasFood),
+                    if (hasFood) ...[
+                      sectionGap,
+                      foodAndBeverageGrid(_kSampleMenu),
+                    ],
+                    sectionGap,
+                    ArenaDetailReviewsSection(
+                      vendorId: widget.vendorId,
+                      initialReviews: widget.reviews,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 6),
-          Text(
-            label,
-            style: GoogleFonts.inter(color: Colors.white, fontSize: 11),
+          // Book Slot Button
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: GetX<CafeGamesController>(
+              init: _gamesController,
+              builder: (controller) {
+                final open = controller.shopOpen.value;
+                return BookingBottomBar(
+                  child: open
+                      ? HomeCta(
+                          label: 'Continue Booking',
+                          icon: Icons.sports_esports_rounded,
+                          height: 54,
+                          onTap: () => _startBookingFlow(context),
+                        )
+                      : const _ClosedCta(),
+                );
+              },
+            ),
           ),
         ],
       ),
     );
+  }
+
+  Future<dynamic> showBookSlotBottomSheet({
+    required BuildContext context,
+    required email,
+    List<Map<String, dynamic>>? cartItems,
+    String? initialConsoleType,
+  }) async {
+    return _openModalOnce<dynamic>('book_slot_sheet', () async {
+      final safeEmail = (email ?? widget.email).toString();
+      segmentService.onCustomEvent('Cafe Slot Viewed', {
+        'cafe_id': widget.vendorId.toString(),
+        'slot_time': 'all',
+      });
+      fbEventsService.onCafeSlotViewed(
+        cafeId: widget.vendorId.toString(),
+        slotTime: 'all',
+      );
+      // Check if shop is open before showing booking options.
+      if (!_gamesController.shopOpen.value) {
+        AppSnackbar.show(
+          'Shop Closed',
+          'Shop is closed today, no games available.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 3),
+          margin: const EdgeInsets.all(16),
+          borderRadius: 8,
+        );
+        return Future.value(null);
+      }
+
+      // If user taps quickly before initial fetch completes, refresh once.
+      if (_gamesController.games.isEmpty || _gamesController.isLoading.value) {
+        await _gamesController.fetchGames(widget.vendorId, forceRefresh: false);
+        if (!context.mounted) {
+          return Future.value(null);
+        }
+      }
+
+      int? asInt(dynamic v) {
+        if (v is int) return v;
+        if (v is num) return v.toInt();
+        if (v == null) return null;
+        return int.tryParse(v.toString());
+      }
+
+      double asDouble(dynamic v) {
+        if (v is double) return v;
+        if (v is int) return v.toDouble();
+        return double.tryParse(v?.toString() ?? '') ?? 0;
+      }
+
+      dynamic readAny(Map<String, dynamic> map, List<String> keys) {
+        for (final key in keys) {
+          if (map.containsKey(key) && map[key] != null) {
+            return map[key];
+          }
+        }
+        return null;
+      }
+
+      int availabilityCount(dynamic v, {int fallback = 1}) {
+        if (v is bool) return v ? 1 : 0;
+        if (v is num) return v.toInt();
+        if (v is String) {
+          final raw = v.trim().toLowerCase();
+          if (raw == 'true' || raw == 'yes') return 1;
+          if (raw == 'false' || raw == 'no') return 0;
+          return int.tryParse(raw) ?? fallback;
+        }
+        return fallback;
+      }
+
+      final Map<String, List<Map<String, dynamic>>> gamesByConsole = {};
+
+      void upsertGame({
+        required String gameName,
+        required String genre,
+        required String imageUrl,
+        required String rawConsoleType,
+        required int bookingId,
+        required double price,
+        required int availableCount,
+        required String inventoryKey,
+      }) {
+        final consoleType = _normalizeConsoleType(rawConsoleType);
+        if (consoleType.isEmpty) return;
+        final list = gamesByConsole.putIfAbsent(consoleType, () => []);
+        final existingIndex = list.indexWhere(
+          (item) => inventoryKey.isNotEmpty
+              ? item['inventory_key'] == inventoryKey
+              : (item['inventory_key'] ?? '').toString().isEmpty &&
+                    item['game_id'] == bookingId &&
+                    item['title'] == gameName,
+        );
+        if (existingIndex >= 0) {
+          // The API can repeat the same setup for a game's metadata.  Its
+          // availability is a snapshot, not an additional physical setup.
+          list[existingIndex]['available'] = math.max(
+            list[existingIndex]['available'] as int? ?? 0,
+            availableCount,
+          );
+          if ((list[existingIndex]['price'] as double? ?? 0) <= 0 &&
+              price > 0) {
+            list[existingIndex]['price'] = price;
+          }
+          return;
+        }
+
+        list.add({
+          'title': gameName.isEmpty
+              ? _consoleDisplayLabel(consoleType)
+              : gameName,
+          'genre': genre,
+          'image_url': imageUrl,
+          'console_type': consoleType,
+          'game_id': bookingId,
+          'price': price,
+          'available': availableCount,
+          'inventory_key': inventoryKey,
+        });
+      }
+
+      for (final g in _gamesController.games) {
+        if (g is! Map) continue;
+        final gameMap = Map<String, dynamic>.from(g);
+        final gameName =
+            (readAny(gameMap, ['game_name', 'name', 'title']) ?? '')
+                .toString()
+                .trim();
+        final genre = (gameMap['genre'] ?? '').toString().trim();
+        final imageUrl =
+            (readAny(gameMap, [
+                      'image_url',
+                      'game_image',
+                      'game_image_url',
+                      'image',
+                    ]) ??
+                    '')
+                .toString()
+                .trim();
+        final fallbackPrice = asDouble(
+          readAny(gameMap, [
+            'single_slot_price',
+            'avg_price',
+            'price_per_hour',
+          ]),
+        );
+        final fallbackBookingId = asInt(
+          readAny(gameMap, [
+            'booking_game_id',
+            'bookingGameId',
+            'vendor_game_id',
+            'vendorGameId',
+            'game_id',
+            'id',
+          ]),
+        );
+
+        final gameConsoles = gameMap['consoles'];
+        if (gameConsoles is List && gameConsoles.isNotEmpty) {
+          for (final c in gameConsoles) {
+            if (c is! Map) continue;
+            final consoleMap = Map<String, dynamic>.from(c);
+            final rawConsoleType =
+                (readAny(consoleMap, [
+                          'console_display_name',
+                          'console_slug',
+                          'console_type',
+                          'consoleType',
+                          'type',
+                        ]) ??
+                        readAny(gameMap, [
+                          'console_display_name',
+                          'console_slug',
+                          'console_type',
+                          'consoleType',
+                          'type',
+                          'game_platform',
+                          'platform',
+                          'platform_type',
+                        ]) ??
+                        '')
+                    .toString();
+            // Do not invent a PC option when the API omitted the platform.
+            // A known console label is required before rendering a card.
+            if (rawConsoleType.trim().isEmpty) continue;
+            final bookingId =
+                asInt(
+                  readAny(consoleMap, [
+                    'booking_game_id',
+                    'bookingGameId',
+                    'vendor_game_id',
+                    'vendorGameId',
+                    'game_id',
+                    'id',
+                  ]),
+                ) ??
+                fallbackBookingId;
+            if (bookingId == null) continue;
+            final price = asDouble(
+              readAny(consoleMap, ['price_per_hour']) ?? fallbackPrice,
+            );
+            final available = availabilityCount(
+              readAny(consoleMap, [
+                    'inventory_count',
+                    'available_slot',
+                    'available_slots',
+                    'available_count',
+                    'count',
+                    'quantity',
+                  ]) ??
+                  readAny(consoleMap, [
+                    'is_available',
+                    'isAvailable',
+                    'available',
+                    'bookable',
+                  ]) ??
+                  true,
+            );
+            // Non-bookable placeholder inventory (for example, a PC row with
+            // zero slots) must never be offered as a console option.
+            if (available <= 0) continue;
+            final inventoryKey =
+                (readAny(consoleMap, [
+                          'console_id',
+                          'consoleId',
+                          'setup_id',
+                          'setupId',
+                          'station_id',
+                          'stationId',
+                          'id',
+                          'console_number',
+                        ]) ??
+                        '')
+                    .toString()
+                    .trim();
+            upsertGame(
+              gameName: gameName,
+              genre: genre,
+              imageUrl: imageUrl,
+              rawConsoleType: rawConsoleType,
+              bookingId: bookingId,
+              price: price,
+              availableCount: available,
+              inventoryKey: inventoryKey,
+            );
+          }
+          continue;
+        }
+
+        final fallbackConsoleType =
+            (readAny(gameMap, [
+                      'console_type',
+                      'consoleType',
+                      'type',
+                      'game_platform',
+                      'platform',
+                    ]) ??
+                    '')
+                .toString();
+        if (fallbackConsoleType.isEmpty || fallbackBookingId == null) {
+          continue;
+        }
+        final fallbackAvailable = availabilityCount(
+          readAny(gameMap, ['is_available', 'available']) ??
+              gameMap['total_slots'],
+          fallback: asInt(gameMap['total_slots']) ?? 1,
+        );
+        upsertGame(
+          gameName: gameName,
+          genre: genre,
+          imageUrl: imageUrl,
+          rawConsoleType: fallbackConsoleType,
+          bookingId: fallbackBookingId,
+          price: fallbackPrice,
+          availableCount: fallbackAvailable,
+          inventoryKey: '',
+        );
+      }
+
+      final List<Map<String, dynamic>> consoleOptions = [];
+      for (final entry in gamesByConsole.entries) {
+        final games = entry.value;
+        if (games.isEmpty) continue;
+        // Each game can reference the same physical console type.  Sum only
+        // uniquely identified physical setups; metadata-only rows are used as
+        // a single availability snapshot and cannot inflate that count.
+        var totalAvailable = 0;
+        var unkeyedAvailable = 0;
+        final seenInventoryKeys = <String>{};
+        double minPrice = 0;
+        for (final game in games) {
+          final available = game['available'] as int? ?? 0;
+          final price = game['price'] as double? ?? 0;
+          final inventoryKey = (game['inventory_key'] ?? '').toString();
+          if (inventoryKey.isEmpty) {
+            unkeyedAvailable = math.max(unkeyedAvailable, available);
+          } else if (seenInventoryKeys.add(inventoryKey)) {
+            totalAvailable += available;
+          }
+          if (price > 0 && (minPrice == 0 || price < minPrice)) {
+            minPrice = price;
+          }
+        }
+        if (totalAvailable == 0) {
+          totalAvailable = unkeyedAvailable;
+        }
+
+        final primaryBookingGame = games
+            .cast<Map<String, dynamic>?>()
+            .firstWhere(
+              (game) => (game?['available'] as int? ?? 0) > 0,
+              orElse: () => games.first,
+            );
+
+        consoleOptions.add({
+          'type': entry.key,
+          'label': _consoleDisplayLabel(entry.key),
+          'icon': _getConsoleIcon(entry.key),
+          'total_available': totalAvailable,
+          'starting_price': minPrice,
+          'booking_game_id': primaryBookingGame?['game_id'],
+        });
+      }
+
+      consoleOptions.sort((a, b) {
+        final aAvailable = a['total_available'] as int? ?? 0;
+        final bAvailable = b['total_available'] as int? ?? 0;
+        if (aAvailable != bAvailable) return bAvailable.compareTo(aAvailable);
+        return (a['label'] as String).compareTo(b['label'] as String);
+      });
+
+      int selectedIndex = 0;
+      final preferredType = _normalizeConsoleType(initialConsoleType ?? '');
+      final preferredIndex = consoleOptions.indexWhere(
+        (option) =>
+            _normalizeConsoleType((option['type'] ?? '').toString()) ==
+                preferredType &&
+            (option['total_available'] as int? ?? 0) > 0,
+      );
+      if (preferredIndex >= 0) {
+        selectedIndex = preferredIndex;
+      }
+      for (int i = 0; preferredIndex < 0 && i < consoleOptions.length; i++) {
+        if ((consoleOptions[i]['total_available'] as int? ?? 0) > 0) {
+          selectedIndex = i;
+          break;
+        }
+      }
+
+      // Opens the slot screen for [selectedConsole]. Solo by default; the slot
+      // screen offers a switch to squad instead of asking up front.
+      Future<void> launch(
+        Map<String, dynamic> selectedConsole, {
+        BookingPartySelection? party,
+      }) async {
+        final selectedType = (selectedConsole['type'] ?? '').toString();
+        final selectedGameId = asInt(selectedConsole['booking_game_id']);
+        if (selectedGameId == null) {
+          _showSafeErrorSnackBar(
+            this.context,
+            'No booking option found for this console.',
+          );
+          return;
+        }
+        final isSquad = party?.isSquad ?? false;
+        final canSquad =
+            _normalizeConsoleType(selectedType) == 'pc' &&
+            _estimateMaxSquadSize(selectedType) >= 2;
+        Navigator.of(this.context).push(
+          MaterialPageRoute(
+            builder: (slotContext) => BookingScreen(
+              email: safeEmail,
+              consoleType: _getConsoleType(selectedType),
+              title: widget.title,
+              gameId: selectedGameId,
+              vendorId: widget.vendorId,
+              cartItems: cartItems ?? [],
+              isSquadBooking: isSquad,
+              requiredConsoleCount: party?.requiredConsoleCount ?? 1,
+              selectedSquadMembers:
+                  party?.selectedMembers ?? const <ChatUserModel>[],
+              onSquadTap: isSquad || !canSquad
+                  ? null
+                  : () async {
+                      final selection = await _showBookingPartyBottomSheet(
+                        slotContext,
+                        selectedType,
+                      );
+                      if (!mounted || selection == null || !selection.isSquad) {
+                        return;
+                      }
+                      Navigator.of(slotContext).pop();
+                      await launch(selectedConsole, party: selection);
+                    },
+            ),
+          ),
+        );
+      }
+
+      if (preferredIndex >= 0) {
+        // A console was already tapped on the cafe page; don't ask again.
+        await launch(consoleOptions[preferredIndex]);
+        return null;
+      }
+
+      return showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: const Color(0xFF181818),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        builder: (context) {
+          return StatefulBuilder(
+            builder: (context, setState) {
+              final double maxHeight = MediaQuery.of(context).size.height * 0.5;
+              final bool canContinue = consoleOptions.isNotEmpty;
+              return SafeArea(
+                top: false,
+                child: Padding(
+                  padding: MediaQuery.of(context).viewInsets,
+                  child: SizedBox(
+                    height: maxHeight,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Choose console type',
+                                style: GoogleFonts.inter(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.close,
+                                  color: Colors.white,
+                                  size: 26,
+                                ),
+                                onPressed: () => Navigator.of(context).pop(),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          if (consoleOptions.isEmpty)
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(vertical: 20),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF232323),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                'No console types available right now.',
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.inter(
+                                  color: Colors.white70,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          if (consoleOptions.isNotEmpty)
+                            Expanded(
+                              child: GridView.builder(
+                                itemCount: consoleOptions.length,
+                                gridDelegate:
+                                    const SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: 2,
+                                      mainAxisSpacing: 10,
+                                      crossAxisSpacing: 10,
+                                      childAspectRatio: 1.65,
+                                    ),
+                                itemBuilder: (context, index) {
+                                  final option = consoleOptions[index];
+                                  final isSelected = selectedIndex == index;
+                                  final totalAvailable =
+                                      option['total_available'] as int? ?? 0;
+                                  final startPrice =
+                                      option['starting_price'] as double? ?? 0;
+                                  final hasAvailable = totalAvailable > 0;
+                                  return GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        selectedIndex = index;
+                                      });
+                                    },
+                                    child: AnimatedContainer(
+                                      duration: const Duration(
+                                        milliseconds: 180,
+                                      ),
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: isSelected
+                                            ? const Color(
+                                                0xFF00DC00,
+                                              ).withValues(alpha: 0.16)
+                                            : const Color(0xFF232323),
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(
+                                          color: isSelected
+                                              ? const Color(0xff00DC00)
+                                              : Colors.white12,
+                                          width: 1.5,
+                                        ),
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Builder(
+                                                builder: (context) {
+                                                  final iconUrl =
+                                                      (option['icon'] ?? '')
+                                                          .toString();
+                                                  final fallbackIcon =
+                                                      _getConsoleFallbackIcon(
+                                                        (option['type'] ?? '')
+                                                            .toString(),
+                                                      );
+                                                  if (iconUrl.isEmpty) {
+                                                    return Icon(
+                                                      fallbackIcon,
+                                                      color: Colors.white70,
+                                                      size: 20,
+                                                    );
+                                                  }
+                                                  return CachedNetworkImage(
+                                                    imageUrl: iconUrl,
+                                                    height: 24,
+                                                    width: 24,
+                                                    placeholder: (_, _) =>
+                                                        const SizedBox(
+                                                          height: 16,
+                                                          width: 16,
+                                                          child:
+                                                              RainbowGlowingLoader(
+                                                                size: 10,
+                                                              ),
+                                                        ),
+                                                    errorWidget: (_, _, _) =>
+                                                        Icon(
+                                                          fallbackIcon,
+                                                          color: Colors.white70,
+                                                          size: 20,
+                                                        ),
+                                                  );
+                                                },
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Text(
+                                                  (option['label'] ?? '')
+                                                      .toString(),
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: GoogleFonts.inter(
+                                                    color: Colors.white,
+                                                    fontWeight: FontWeight.w700,
+                                                    fontSize: 14,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const Spacer(),
+                                          Text(
+                                            totalAvailable == 1
+                                                ? '1 setup available'
+                                                : '$totalAvailable setups available',
+                                            style: GoogleFonts.inter(
+                                              color: hasAvailable
+                                                  ? Colors.white70
+                                                  : Colors.redAccent,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                          if (startPrice > 0) ...[
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              'Starts at ${Money.symbol}${startPrice.toStringAsFixed(startPrice % 1 == 0 ? 0 : 1)}/slot',
+                                              style: GoogleFonts.inter(
+                                                color: Colors.white70,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          const SizedBox(height: 10),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 48,
+                            child: ElevatedButton(
+                              onPressed: canContinue
+                                  ? () async {
+                                      Navigator.of(context).pop();
+                                      if (!mounted) return;
+                                      await Future.delayed(
+                                        const Duration(milliseconds: 140),
+                                      );
+                                      if (!mounted) return;
+                                      await launch(
+                                        consoleOptions[selectedIndex],
+                                      );
+                                    }
+                                  : null,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xff00DC00),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                disabledBackgroundColor: Colors.grey.shade800,
+                              ),
+                              child: Text(
+                                'Continue to Booking',
+                                style: GoogleFonts.inter(
+                                  fontSize: 16,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      );
+    });
+  }
+
+  String _normalizeConsoleType(String consoleName) {
+    final name = consoleName
+        .toLowerCase()
+        .replaceAll('_', ' ')
+        .replaceAll('-', ' ')
+        .trim();
+    if (name.isEmpty) return '';
+    if (name.contains('playstation 3') ||
+        RegExp(r'\bps\s*3\b').hasMatch(name)) {
+      return 'ps3';
+    }
+    if (name.contains('playstation 4') ||
+        RegExp(r'\bps\s*4\b').hasMatch(name)) {
+      return 'ps4';
+    }
+    if (name.contains('playstation 5') ||
+        RegExp(r'\bps\s*5\b').hasMatch(name)) {
+      return 'ps5';
+    }
+    if (name.contains('playstation') || RegExp(r'\bps\b').hasMatch(name)) {
+      return 'playstation';
+    }
+    if (name.contains('xbox')) return 'xbox';
+    if (name.contains('vr') || name.contains('virtual')) return 'vr_headset';
+    if (name.contains('nintendo') || name.contains('switch')) {
+      return 'nintendo_switch';
+    }
+    if (name.contains('steam') || name.contains('deck')) return 'steam_deck';
+    if (name.contains('arcade')) return 'arcade_cabinet';
+    if (name.contains('racing') || name.contains('rig')) return 'racing_rig';
+    if (name.contains('simulator')) return 'simulator';
+    if (name.contains('private') && name.contains('room')) {
+      return 'private_room';
+    }
+    if (name.contains('vip') && name.contains('room')) return 'vip_room';
+    if (name.contains('bootcamp') && name.contains('room')) {
+      return 'bootcamp_room';
+    }
+    if (name.contains('pc') || name.contains('computer')) return 'pc';
+    return name.replaceAll(' ', '_');
+  }
+
+  String _consoleDisplayLabel(String consoleName) {
+    switch (_normalizeConsoleType(consoleName)) {
+      case 'ps3':
+        return 'PS3';
+      case 'ps4':
+        return 'PS4';
+      case 'ps5':
+        return 'PS5';
+      case 'playstation':
+        return 'PLAYSTATION';
+      case 'xbox':
+        return 'XBOX';
+      case 'vr_headset':
+        return 'VR';
+      case 'nintendo_switch':
+        return 'NINTENDO SWITCH';
+      case 'steam_deck':
+        return 'STEAM DECK';
+      case 'arcade_cabinet':
+        return 'ARCADE CABINET';
+      case 'racing_rig':
+        return 'RACING RIG';
+      case 'simulator':
+        return 'SIMULATOR';
+      case 'private_room':
+        return 'PRIVATE ROOM';
+      case 'vip_room':
+        return 'VIP ROOM';
+      case 'bootcamp_room':
+        return 'BOOTCAMP ROOM';
+      case 'pc':
+        return 'PC';
+      default:
+        return consoleName.replaceAll('_', ' ').toUpperCase();
+    }
+  }
+
+  void _showSafeErrorSnackBar(BuildContext context, String message) {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger != null) {
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    final fallbackContext = Get.context;
+    if (fallbackContext != null && Overlay.maybeOf(fallbackContext) != null) {
+      AppSnackbar.show(
+        'Error',
+        message,
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    debugPrint('Unable to show snackbar: $message');
   }
 
   Widget rowInfo(IconData icon, String text) => Row(
@@ -1147,137 +2696,309 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
     ],
   );
 
-  Widget gameTitlesGrid() {
-    // Hardcoded popular games with their images
-    final List<Map<String, String>> hardcodedGames = [
-      {
-        'name': 'Valorant',
-        'image':
-            'https://freelogopng.com/images/all_img/1664302216valorant-logo-png.png',
-      },
-      {
-        'name': 'CS2',
-        'image':
-            'https://cdn.cloudflare.steamstatic.com/steam/apps/730/header.jpg',
-      },
-      {
-        'name': 'Dota 2',
-        'image':
-            'https://cdn.cloudflare.steamstatic.com/steam/apps/570/header.jpg',
-      },
-      {
-        'name': 'FIFA 24',
-        'image':
-            'https://cdn.cloudflare.steamstatic.com/steam/apps/1506830/header.jpg',
-      },
-      {
-        'name': 'PUBG',
-        'image':
-            'https://cdn.cloudflare.steamstatic.com/steam/apps/578080/header.jpg',
-      },
-      {
-        'name': 'Fortnite',
-        'image':
-            'https://cdn.cloudflare.steamstatic.com/steam/apps/945360/header.jpg',
-      },
-      {
-        'name': 'Apex Legends',
-        'image':
-            'https://cdn.cloudflare.steamstatic.com/steam/apps/1172470/header.jpg',
-      },
-      {
-        'name': 'Rocket League',
-        'image':
-            'https://cdn.cloudflare.steamstatic.com/steam/apps/252950/header.jpg',
-      },
-      {
-        'name': 'Overwatch 2',
-        'image':
-            'https://cdn.cloudflare.steamstatic.com/steam/apps/2357570/header.jpg',
-      },
-      {
-        'name': 'League of Legends',
-        'image':
-            'https://cdn.cloudflare.steamstatic.com/steam/apps/12170/header.jpg',
-      },
-    ];
+  Widget gameTitlesGrid(CafeGamesController controller) {
+    bool _looksLikeConsoleLabel(String value) {
+      final v = value
+          .trim()
+          .toLowerCase()
+          .replaceAll(RegExp(r'[_-]+'), ' ')
+          .replaceAll(RegExp(r'\s+'), ' ');
+      if (v.isEmpty) return true;
+      const invalidLabels = <String>{
+        'n/a',
+        'na',
+        'none',
+        'null',
+        'unknown',
+        '-',
+      };
+      if (invalidLabels.contains(v)) return true;
+      const blocked = <String>{
+        'pc',
+        'pcs',
+        'gaming pc',
+        'gaming pcs',
+        'pc setup',
+        'pc setups',
+        'xbox',
+        'xbox one',
+        'xbox series',
+        'xbox series s',
+        'xbox series x',
+        'playstation',
+        'play station',
+        'playstation 4',
+        'playstation 5',
+        'ps',
+        'ps4',
+        'ps5',
+        'vr',
+        'vr headset',
+        'virtual reality',
+      };
+      if (blocked.contains(v)) return true;
+      const blockedKeywords = <String>[
+        'playstation',
+        'play station',
+        'xbox',
+        'gaming pc',
+        'pc setup',
+        'pc station',
+        'console setup',
+        'nintendo switch',
+        'switch console',
+        'steam deck',
+        'arcade',
+        'racing rig',
+        'simulator',
+        'vip room',
+        'private room',
+        'bootcamp room',
+      ];
+      if (blockedKeywords.any(v.contains)) return true;
+      if (v.startsWith('ps') && v.length <= 4) return true;
+      if (v.endsWith(' console')) return true;
+      if (v.endsWith(' setup')) return true;
+      return false;
+    }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          "Available Games",
-          style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 160,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: hardcodedGames.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 2),
-            itemBuilder: (context, index) {
-              final game = hardcodedGames[index];
+    String _gameName(Map<String, dynamic> game) {
+      final nestedGame = game['game'];
+      final candidates = [
+        if (nestedGame is Map) nestedGame['name'],
+        if (nestedGame is Map) nestedGame['title'],
+        game['game_name'],
+        game['name'],
+        game['title'],
+        game['gameTitle'],
+      ];
+      for (final c in candidates) {
+        final name = (c ?? '').toString().trim();
+        if (!isLikelyArenaGameTitle(name)) continue;
+        return name;
+      }
+      return '';
+    }
 
-              return Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 5.0,
-                  vertical: 8.0,
-                ),
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      game['image']!,
-                      width: 80,
-                      height: 112,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                ),
-              );
-            },
+    String _gameImage(Map<String, dynamic> game) {
+      final nestedGame = game['game'];
+      if (nestedGame is Map) {
+        for (final key in const [
+          'image_url',
+          'image',
+          'thumbnail',
+          'cover',
+          'logo',
+        ]) {
+          final value = nestedGame[key];
+          if (value is String && value.trim().isNotEmpty) {
+            return value.trim();
+          }
+        }
+      }
+      final orderedKeys = [
+        'image_url',
+        'image',
+        'game_image',
+        'game_image_url',
+        'thumbnail',
+        'cover',
+        'logo',
+      ];
+      for (final key in orderedKeys) {
+        final v = game[key];
+        if (v is String && v.trim().isNotEmpty) return v;
+      }
+      return '';
+    }
+
+    Widget artworkFallback() {
+      return const DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF1B2130), Color(0xFF0B0D12)],
           ),
         ),
-      ],
-    );
+        child: Center(
+          child: Icon(
+            Icons.sports_esports_rounded,
+            color: HomeTokens.green,
+            size: 34,
+          ),
+        ),
+      );
+    }
+
+    const title = HomeSectionTitle(title: 'Games you can ', accent: 'Play');
+
+    return Obx(() {
+      if (controller.isLoading.value) {
+        return const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            title,
+            SizedBox(height: 14),
+            SizedBox(height: 150, child: Center(child: AppLinearLoader())),
+            SizedBox(height: 28),
+          ],
+        );
+      }
+
+      final List<Map<String, String>> displayGames = [];
+
+      for (final item in controller.games) {
+        if (item is! Map) continue;
+        final game = Map<String, dynamic>.from(item);
+        final name = _gameName(game);
+        if (name.isEmpty) continue;
+        if (_looksLikeConsoleLabel(name)) continue;
+        displayGames.add({'name': name, 'image': _gameImage(game)});
+      }
+
+      // Fallback to cafe-level games list when vendor-games payload has
+      // platform labels (PC/PS5/XBOX) instead of actual game titles.
+      if (displayGames.isEmpty) {
+        for (final name in sanitizeArenaGameList(widget.availableGames)) {
+          displayGames.add({'name': name, 'image': ''});
+        }
+      }
+
+      if (displayGames.isEmpty) {
+        return const SizedBox.shrink();
+      }
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          title,
+          const SizedBox(height: 14),
+          SizedBox(
+            height: 172,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              clipBehavior: Clip.none,
+              itemCount: displayGames.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 12),
+              itemBuilder: (context, index) {
+                final item = displayGames[index];
+                final name = item['name'] ?? 'Game';
+                final image = item['image'] ?? '';
+                return SizedBox(
+                  width: 104,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 104,
+                        height: 132,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: HomeTokens.hairline),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.35),
+                              blurRadius: 14,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: image.isEmpty
+                              ? artworkFallback()
+                              : CachedNetworkImage(
+                                  imageUrl: image,
+                                  fit: BoxFit.cover,
+                                  placeholder: (_, _) => const ColoredBox(
+                                    color: HomeTokens.surface,
+                                    child: Center(child: AppLinearLoader()),
+                                  ),
+                                  errorWidget: (_, _, _) => artworkFallback(),
+                                ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          color: HomeTokens.textSecondary,
+                          fontSize: 12,
+                          height: 1.25,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+          // The gap below lives here, so a hidden section leaves no hole.
+          const SizedBox(height: 28),
+        ],
+      );
+    });
   }
 
   Widget foodAndBeverageGrid(List<Map<String, String>> items) {
+    // Hide the whole section when there is nothing to show, so cafes without a
+    // menu don't render an empty header.
+    if (items.isEmpty) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const HomeSectionTitle(title: 'Snacks & ', accent: 'Drinks'),
+        const SizedBox(height: 4),
         Text(
-          "Food & Beverages Offered",
-          style: GoogleFonts.inter(
-            color: Colors.white,
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
+          'Add food when you book your slot',
+          style: HomeTokens.body(HomeTokens.textTertiary, size: 12.5),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 14),
         SizedBox(
-          height: 90,
+          height: 124,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
+            clipBehavior: Clip.none,
             itemCount: items.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            separatorBuilder: (_, _) => const SizedBox(width: 10),
             itemBuilder: (context, index) {
               final item = items[index];
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                child: CachedNetworkImage(
-                  imageUrl: item['image']!,
-                  height: 60,
-                  width: 70,
-                  fit: BoxFit.contain,
-                  placeholder: (_, _) =>
-                      const Center(child: RainbowGlowingLoader(size: 10)),
-                  errorWidget: (_, _, _) =>
-                      const Icon(Icons.error, color: Colors.red),
+              return SizedBox(
+                width: 100,
+                child: HomeCard(
+                  padding: const EdgeInsets.fromLTRB(8, 12, 8, 10),
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: CachedNetworkImage(
+                          imageUrl: item['image'] ?? '',
+                          fit: BoxFit.contain,
+                          placeholder: (_, _) => const Center(
+                            child: RainbowGlowingLoader(size: 10),
+                          ),
+                          errorWidget: (_, _, _) => const Icon(
+                            Icons.fastfood_rounded,
+                            color: HomeTokens.textTertiary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        item['name'] ?? '',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          color: HomeTokens.textSecondary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               );
             },
@@ -1288,9 +3009,30 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
   }
 
   Widget amenitiesGrid(List<dynamic> amenities, {bool excludeFood = false}) {
-    final filtered = amenities.where((item) {
-      if (item is! Map) return false;
-      if (item['available'] != true) return false;
+    // Normalize amenities: accept maps or strings from API
+    final normalized = amenities
+        .map((item) {
+          if (item is Map) {
+            return {
+              'name':
+                  item['name'] ?? item['amenity'] ?? item['amenity_name'] ?? '',
+              'available':
+                  item['available'] ??
+                  item['is_available'] ??
+                  item['isAvailable'] ??
+                  true,
+            };
+          }
+          if (item is String) {
+            return {'name': item, 'available': true};
+          }
+          return null;
+        })
+        .whereType<Map<String, dynamic>>()
+        .toList();
+
+    final filtered = normalized.where((item) {
+      if (!_truthy(item['available'])) return false;
       final name = (item['name'] ?? '').toString().toLowerCase();
       if (excludeFood &&
           (name == 'food' ||
@@ -1300,74 +3042,64 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
               name.contains('cafe'))) {
         return false;
       }
-      return true;
+      return name.isNotEmpty;
     }).toList();
+    final display = filtered.isNotEmpty
+        ? filtered
+        : normalized
+              .where(
+                (item) => (item['name'] ?? '').toString().trim().isNotEmpty,
+              )
+              .toList();
+    if (display.isEmpty) return const SizedBox.shrink();
+    String pretty(String name) => name
+        .replaceAll('_', ' ')
+        .split(' ')
+        .map(
+          (w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '',
+        )
+        .join(' ');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          "Facilities",
-          style: GoogleFonts.inter(
-            color: Colors.white,
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 8),
-        SizedBox(
-          height: 90,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: filtered.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 16),
-            itemBuilder: (context, index) {
-              final item = filtered[index];
-              final name = item['name']?.toString() ?? '';
-              final displayName = name
-                  .replaceAll('_', ' ')
-                  .split(' ')
-                  .map(
-                    (w) => w.isNotEmpty
-                        ? '${w[0].toUpperCase()}${w.substring(1)}'
-                        : '',
-                  )
-                  .join(' ');
-              return Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: const Color(0xff232323),
-                      borderRadius: BorderRadius.circular(22),
+        const HomeSectionTitle(title: 'Cafe ', accent: 'Facilities'),
+        const SizedBox(height: 14),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final item in display)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 9,
+                ),
+                decoration: BoxDecoration(
+                  color: HomeTokens.surface,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: HomeTokens.hairline),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _getAmenityIcon(item['name']?.toString() ?? ''),
+                      color: HomeTokens.green,
+                      size: 16,
                     ),
-                    child: Icon(
-                      _getAmenityIcon(name),
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    width: 50,
-                    padding: const EdgeInsets.symmetric(horizontal: 2.0),
-                    child: Text(
-                      displayName,
+                    const SizedBox(width: 7),
+                    Text(
+                      pretty(item['name']?.toString() ?? ''),
                       style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 9,
-                        fontWeight: FontWeight.normal,
+                        color: HomeTokens.textPrimary,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
                       ),
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                ],
-              );
-            },
-          ),
+                  ],
+                ),
+              ),
+          ],
         ),
       ],
     );
@@ -1456,49 +3188,537 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
   }
 
   String _getConsoleIcon(String consoleName) {
-    final name = consoleName.toLowerCase();
+    switch (_normalizeConsoleType(consoleName)) {
+      case 'pc':
+        return 'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075080/pc_ah5ulv.png';
+      case 'xbox':
+        return 'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075086/xbox_fmz0bn.png';
+      case 'ps3':
+      case 'ps4':
+      case 'ps5':
+      case 'playstation':
+        return 'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075082/ps_krf4kw.png';
+      case 'vr_headset':
+        return 'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075086/vr_rzqkbq.png';
+      case 'nintendo_switch':
+        return 'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075079/gaming-pad-01_byibeu.png';
+      case 'vip_room':
+        return 'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075079/crown_mzzqhy.png';
+      default:
+        return '';
+    }
+  }
 
-    // Map console names to icon assets based on API response
-    if (name.contains('pc') || name.contains('computer')) {
-      return 'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075080/pc_ah5ulv.png';
+  IconData _getConsoleFallbackIcon(String consoleName) {
+    switch (_normalizeConsoleType(consoleName)) {
+      case 'steam_deck':
+        return Icons.sports_esports_outlined;
+      case 'arcade_cabinet':
+        return Icons.videogame_asset_outlined;
+      case 'racing_rig':
+        return Icons.sports_motorsports_outlined;
+      case 'simulator':
+        return Icons.rocket_launch_outlined;
+      case 'private_room':
+        return Icons.meeting_room_outlined;
+      case 'vip_room':
+        return Icons.workspace_premium_outlined;
+      case 'bootcamp_room':
+        return Icons.groups_2_outlined;
+      default:
+        return Icons.sports_esports_outlined;
     }
-    if (name.contains('xbox') || name.contains('x-box')) {
-      return 'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075086/xbox_fmz0bn.png';
-    }
-    if (name.contains('ps5') ||
-        name.contains('ps') ||
-        name.contains('playstation')) {
-      return 'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075082/ps_krf4kw.png';
-    }
-    if (name.contains('vr') || name.contains('virtual reality')) {
-      return 'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075086/vr_rzqkbq.png';
-    }
-    if (name.contains('nintendo') || name.contains('switch')) {
-      return 'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075079/gaming-pad-01_byibeu.png';
-    }
-
-    // Default icon
-    return 'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075080/pc_ah5ulv.png';
   }
 
   String _getConsoleType(String consoleName) {
-    final name = consoleName.toLowerCase();
-
-    // Map console names to console types for booking screen
-    if (name.contains('ps') || name.contains('playstation')) {
-      return 'PS';
+    switch (_normalizeConsoleType(consoleName)) {
+      case 'ps3':
+        return 'PS3';
+      case 'ps4':
+        return 'PS4';
+      case 'ps5':
+        return 'PS5';
+      case 'playstation':
+        return 'PS';
+      case 'xbox':
+        return 'XB';
+      case 'vr_headset':
+        return 'VR';
+      case 'nintendo_switch':
+        return 'NS';
+      case 'steam_deck':
+        return 'SD';
+      case 'arcade_cabinet':
+        return 'ARCADE';
+      case 'racing_rig':
+        return 'RACING';
+      case 'simulator':
+        return 'SIM';
+      case 'private_room':
+        return 'PRIVATE';
+      case 'vip_room':
+        return 'VIP';
+      case 'bootcamp_room':
+        return 'BOOTCAMP';
+      default:
+        return 'PC';
     }
-    if (name.contains('xbox') || name.contains('x-box')) {
-      return 'XB';
-    }
-    if (name.contains('vr') || name.contains('virtual reality')) {
-      return 'VR';
-    }
-    if (name.contains('nintendo') || name.contains('switch')) {
-      return 'NS';
-    }
-
-    // Default to PC
-    return 'PC';
   }
 }
+
+class _PassCard extends StatelessWidget {
+  final int index;
+  final GetVendorPassesModel pass;
+  final VoidCallback onBuy;
+
+  const _PassCard({
+    required this.index,
+    required this.pass,
+    required this.onBuy,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const passImagesHQ = <String>[
+      'https://res.cloudinary.com/dxjjigepf/image/upload/v1756904249/dailyPass_kphyzf.png',
+      'https://res.cloudinary.com/dxjjigepf/image/upload/v1756904250/weeklyPass_p7fhtm.png',
+      'https://res.cloudinary.com/dxjjigepf/image/upload/v1756904250/monthlyPass_xcqhyf.png',
+      'https://res.cloudinary.com/dxjjigepf/image/upload/q_auto:best,f_auto,w_1080,h_720,c_fill/v1755075171/cafepass3_on04c0.png',
+    ];
+    final passName = pass.name ?? 'Pass';
+    final price = pass.price ?? 0;
+    final totalHours = pass.totalHour ?? 0;
+    final daysValid = pass.daysValid ?? 0;
+    final description = (pass.description ?? '').trim();
+    final isHourBased =
+        pass.sourceGroup == 'hour_based_passes' ||
+        (pass.passMode ?? '').toLowerCase().contains('hour');
+    final isDateBased =
+        pass.sourceGroup == 'date_based_passes' ||
+        (pass.passMode ?? '').toLowerCase().contains('date');
+    final subtitleParts = <String>[
+      if (isHourBased && totalHours > 0) '$totalHours hrs',
+      if (isDateBased && daysValid > 0) '$daysValid days',
+      if (!isHourBased && !isDateBased && totalHours > 0) '$totalHours hrs',
+      if (!isHourBased && !isDateBased && daysValid > 0) '$daysValid days',
+    ];
+    final subtitle = subtitleParts.isEmpty
+        ? (pass.passMode ?? 'Available pass')
+        : subtitleParts.join(' • ');
+    final image = passImagesHQ[index % passImagesHQ.length];
+    const accentPalette = <Color>[
+      Color(0xff00DC00),
+      Color(0xff00C2FF),
+      Color(0xffFF8A00),
+      Color(0xffFF4D6D),
+      Color(0xff9B5DE5),
+      Color(0xffFFD60A),
+      Color(0xff2EC4B6),
+      Color(0xffF15BB5),
+    ];
+    final accentSeed = Object.hash(pass.id, pass.name, pass.passMode, index);
+    final accentColor =
+        accentPalette[(accentSeed & 0x7fffffff) % accentPalette.length];
+
+    return BounceTap(
+      onTap: onBuy,
+      child: Container(
+        height: 160,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white12),
+        ),
+        child: Stack(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: CachedNetworkImage(
+                imageUrl: image,
+                height: 160,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                placeholder: (_, _) =>
+                    const Center(child: RainbowGlowingLoader(size: 40)),
+                errorWidget: (_, _, _) => Container(
+                  color: Colors.grey,
+                  alignment: Alignment.center,
+                  child: const Icon(
+                    Icons.image_not_supported,
+                    color: Colors.white54,
+                    size: 40,
+                  ),
+                ),
+              ),
+            ),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                child: Container(color: Colors.black.withOpacity(0.65)),
+              ),
+            ),
+            Row(
+              children: [
+                Container(
+                  width: 44,
+                  decoration: BoxDecoration(
+                    color: accentColor.withOpacity(0.15),
+                    borderRadius: const BorderRadius.horizontal(
+                      left: Radius.circular(20),
+                    ),
+                  ),
+                  child: RotatedBox(
+                    quarterTurns: -1,
+                    child: Center(
+                      child: Text(
+                        'PROTOCOL',
+                        style: GoogleFonts.inter(
+                          color: accentColor,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.2,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              isHourBased
+                                  ? 'HOUR ACCESS'
+                                  : isDateBased
+                                  ? 'DATE ACCESS'
+                                  : 'ALL ACCESS',
+                              style: GoogleFonts.inter(
+                                color: accentColor,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                            Text(
+                              '${Money.symbol}${price.toStringAsFixed(0)}',
+                              style: GoogleFonts.inter(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          passName.toUpperCase(),
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.8,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          subtitle,
+                          style: GoogleFonts.inter(
+                            color: Colors.white70,
+                            fontSize: 12,
+                          ),
+                        ),
+                        if (description.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            description,
+                            style: GoogleFonts.inter(
+                              color: Colors.white54,
+                              fontSize: 11,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                        const Spacer(),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: accentColor,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              'INITIALIZE',
+                              style: GoogleFonts.inter(
+                                color: Colors.black,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PassTabData {
+  final String label;
+  final int count;
+  final List<GetVendorPassesModel> passes;
+
+  const _PassTabData({
+    required this.label,
+    required this.count,
+    required this.passes,
+  });
+}
+
+class _MarqueeText extends StatefulWidget {
+  const _MarqueeText({
+    required this.text,
+    required this.style,
+    this.blankSpace = 20,
+    this.velocity = 30,
+  });
+
+  final String text;
+  final TextStyle style;
+  final double blankSpace;
+  final double velocity; // pixels per second
+
+  @override
+  State<_MarqueeText> createState() => _MarqueeTextState();
+}
+
+class _MarqueeTextState extends State<_MarqueeText>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  double _measureTextWidth(String text, TextStyle style) {
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+    )..layout();
+    return painter.width;
+  }
+
+  void _startAnimation(Duration duration) {
+    if (_controller.duration != duration || !_controller.isAnimating) {
+      _controller.duration = duration;
+      _controller.repeat();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxWidth = constraints.maxWidth;
+        final textWidth = _measureTextWidth(widget.text, widget.style);
+        if (textWidth <= maxWidth) {
+          _controller.stop();
+          return Text(
+            widget.text,
+            style: widget.style,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+          );
+        }
+
+        final distance = textWidth + widget.blankSpace;
+        final seconds = distance / widget.velocity;
+        _startAnimation(Duration(milliseconds: (seconds * 1000).round()));
+
+        return ClipRect(
+          child: OverflowBox(
+            alignment: Alignment.centerLeft,
+            minWidth: maxWidth,
+            maxWidth: double.infinity,
+            child: AnimatedBuilder(
+              animation: _controller,
+              builder: (_, __) {
+                final offset = -distance * _controller.value;
+                return Transform.translate(
+                  offset: Offset(offset, 0),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(widget.text, style: widget.style),
+                      SizedBox(width: widget.blankSpace),
+                      Text(widget.text, style: widget.style),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class BookingPartySelection {
+  const BookingPartySelection({
+    required this.isSquad,
+    required this.requiredConsoleCount,
+    this.selectedMembers = const <ChatUserModel>[],
+  });
+
+  final bool isSquad;
+  final int requiredConsoleCount;
+  final List<ChatUserModel> selectedMembers;
+}
+
+/// True when the cafe lists any PC console — scan & play is PC-only.
+bool _hasPcConsole(List<Map<String, dynamic>> games) {
+  bool isPc(dynamic entry) {
+    if (entry is! Map) return false;
+    for (final key in const [
+      'console_type',
+      'consoleType',
+      'console_slug',
+      'console_display_name',
+      'type',
+      'game_platform',
+    ]) {
+      final v = entry[key]?.toString().toLowerCase().trim() ?? '';
+      // Same rule the consoles section uses to label a console as PC.
+      if (v.contains('pc') || v.contains('computer')) return true;
+    }
+    return false;
+  }
+
+  for (final g in games) {
+    if (isPc(g)) return true;
+    final consoles = g['consoles'];
+    if (consoles is List && consoles.any(isPc)) return true;
+  }
+  return false;
+}
+
+/// Disabled state for the bottom CTA. Neutral rather than a faded green, so a
+/// closed shop never reads as a tappable primary action.
+class _ClosedCta extends StatelessWidget {
+  const _ClosedCta();
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      enabled: false,
+      label: 'Shop closed',
+      child: Container(
+        height: 54,
+        decoration: BoxDecoration(
+          color: HomeTokens.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: HomeTokens.hairline),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.lock_clock,
+              color: HomeTokens.textTertiary,
+              size: 18,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Shop Closed',
+              style: GoogleFonts.inter(
+                color: HomeTokens.textSecondary,
+                fontSize: 14.5,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Placeholder menu art until the vendor menu API feeds this section.
+const List<Map<String, String>> _kSampleMenu = [
+  {
+    'name': 'Crispy Fries',
+    'image':
+        'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075186/menu1_ar0hbe.png',
+  },
+  {
+    'name': 'Veggie Burger',
+    'image':
+        'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075187/menu2_go9rv3.png',
+  },
+  {
+    'name': 'Red Sauce Pasta',
+    'image':
+        'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075188/menu3_o2c0zy.png',
+  },
+  {
+    'name': 'Protein Sandwich',
+    'image':
+        'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075189/menu4_wgmjrq.png',
+  },
+  {
+    'name': 'Hot Coffee',
+    'image':
+        'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075190/menu5_f3t2l0.png',
+  },
+  {
+    'name': 'Coca Cola with Ice',
+    'image':
+        'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075190/menu6_qhoalw.png',
+  },
+  {
+    'name': 'Blue Lagoon',
+    'image':
+        'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075191/menu7_tj4lp1.png',
+  },
+  {
+    'name': 'Choco Pastry',
+    'image':
+        'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075192/menu8_na7k6n.png',
+  },
+  {
+    'name': 'Classic Donut',
+    'image':
+        'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075193/menu9_xlmk0e.png',
+  },
+];

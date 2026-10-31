@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hash/core/utils/app_snackbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
@@ -47,11 +48,11 @@ class _EventBannerState extends State<EventBanner> {
         );
         
         // Navigate to event details or perform action
-        Get.snackbar(
+        AppSnackbar.show(
           'Event',
           'Event banner clicked!',
           snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.green,
+          backgroundColor: const Color(0xff00DC00),
           colorText: Colors.white,
         );
       },
@@ -61,7 +62,7 @@ class _EventBannerState extends State<EventBanner> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           gradient: const LinearGradient(
-            colors: [Color(0xFF338125), Color(0xFF2E7D32)],
+            colors: [Color(0xff00DC00), Color(0xff00DC00)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
