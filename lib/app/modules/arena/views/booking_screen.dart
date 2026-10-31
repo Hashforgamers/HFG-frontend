@@ -100,8 +100,27 @@ class _BookingScreenState extends State<BookingScreen> {
     if (type.contains('playstation') || RegExp(r'\bps\b').hasMatch(type)) {
       return 'PlayStation';
     }
-    if (type.contains('xbox')) {
-      return 'Xbox';
+    switch (_normalizedConsoleType) {
+      case 'xbox':
+        return 'Xbox';
+      case 'nintendo_switch':
+        return 'Switch';
+      case 'arcade_cabinet':
+        return 'Arcade';
+      case 'vr_headset':
+        return 'VR';
+      case 'steam_deck':
+        return 'Steam Deck';
+      case 'racing_rig':
+        return 'Rig';
+      case 'simulator':
+        return 'Sim';
+      case 'vip_room':
+        return 'VIP Room';
+      case 'bootcamp_room':
+        return 'Bootcamp';
+      case 'private_room':
+        return 'Room';
     }
     return 'PC';
   }
@@ -156,7 +175,11 @@ class _BookingScreenState extends State<BookingScreen> {
         .replaceAll(' ', '_');
     if (type.isEmpty) return 'pc';
     if (type.contains('playstation') || type.startsWith('ps')) return 'ps';
-    if (type.contains('xbox')) return 'xbox';
+    // Short codes come from ArenaViewDetailed._getConsoleType.
+    if (type.contains('xbox') || type == 'xb') return 'xbox';
+    if (type == 'ns') return 'nintendo_switch';
+    if (type == 'sd') return 'steam_deck';
+    if (type == 'sim') return 'simulator';
     if (type.contains('nintendo') || type.contains('switch')) {
       return 'nintendo_switch';
     }
