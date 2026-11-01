@@ -15,13 +15,18 @@ class HashStoreHomeCubit extends Cubit<HashStoreHomeState>
   // Bumped per filter change so a slow earlier response cannot win.
   int _request = 0;
 
-  Future<void> fetchProducts({String? vendorId, String? categoryId}) async {
+  Future<void> fetchProducts({
+    String? vendorId,
+    String? categoryId,
+    Map<String, List<Object>> filters = const {},
+  }) async {
     final request = ++_request;
     final base = state;
     emit(
       HashStoreHomeState(
         vendorId: vendorId,
         categoryId: categoryId,
+        filters: filters,
         vendors: base.vendors,
         categories: base.categories,
         loading: true,
@@ -33,6 +38,7 @@ class HashStoreHomeCubit extends Cubit<HashStoreHomeState>
         limit: _pageSize,
         vendorId: vendorId,
         categoryId: categoryId,
+        filters: filters,
       );
       if (request != _request) return;
       final products = _rows(data);
@@ -42,7 +48,8 @@ class HashStoreHomeCubit extends Cubit<HashStoreHomeState>
           count: (data['count'] as num?)?.toInt() ?? products.length,
           vendorId: vendorId,
           categoryId: categoryId,
-          vendors: vendorId == null && categoryId == null
+          filters: filters,
+          vendors: vendorId == null && categoryId == null && filters.isEmpty
               ? _vendorsOf(products)
               : state.vendors,
           categories: state.categories,
@@ -54,6 +61,7 @@ class HashStoreHomeCubit extends Cubit<HashStoreHomeState>
         HashStoreHomeState(
           vendorId: vendorId,
           categoryId: categoryId,
+          filters: filters,
           vendors: state.vendors,
           categories: state.categories,
           error: e.toString(),
@@ -81,6 +89,7 @@ class HashStoreHomeCubit extends Cubit<HashStoreHomeState>
         limit: _pageSize,
         vendorId: base.vendorId,
         categoryId: base.categoryId,
+        filters: base.filters,
       );
       if (request != _request) return;
       final products = [...base.products, ..._rows(data)];
@@ -90,7 +99,11 @@ class HashStoreHomeCubit extends Cubit<HashStoreHomeState>
           count: (data['count'] as num?)?.toInt() ?? base.count,
           vendorId: base.vendorId,
           categoryId: base.categoryId,
-          vendors: base.vendorId == null && base.categoryId == null
+          filters: base.filters,
+          vendors:
+              base.vendorId == null &&
+                  base.categoryId == null &&
+                  base.filters.isEmpty
               ? _vendorsOf(products)
               : base.vendors,
           categories: state.categories,
@@ -111,6 +124,7 @@ class HashStoreHomeCubit extends Cubit<HashStoreHomeState>
     count: s.count,
     vendorId: s.vendorId,
     categoryId: s.categoryId,
+    filters: s.filters,
     vendors: s.vendors,
     categories: categories ?? s.categories,
     loading: s.loading,

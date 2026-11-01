@@ -5,6 +5,7 @@ import 'package:hash/app/modules/hash_store/cubit/hash_store_home_cubit.dart';
 import 'package:hash/app/modules/hash_store/pages/hash_store_product_page.dart';
 import 'package:hash/app/modules/hash_store/widgets/hash_store_app_bar.dart';
 import 'package:hash/app/modules/hash_store/widgets/store_product_card.dart';
+import 'package:hash/app/modules/hash_store/widgets/store_specs.dart';
 import 'package:hash/app/modules/hash_store/widgets/store_ui.dart';
 
 class HashStoreHomePage extends StatelessWidget {
@@ -74,6 +75,16 @@ class _CatalogBodyState extends State<_CatalogBody> {
                 icon: _categoryIcons[c['handle']] ?? Icons.category_outlined,
               ),
           ];
+          final filterSpecs = [
+            for (final c in state.categories)
+              if (c['id'] == state.categoryId)
+                for (final spec
+                    in (c['specifications'] as List? ?? []).whereType<Map>())
+                  if (spec['filterable'] == true &&
+                      spec['key'] is String &&
+                      storeFilterChoices(spec).isNotEmpty)
+                    spec,
+          ];
           final categoryName = chips
               .firstWhere(
                 (c) => c.id == state.categoryId,
@@ -86,6 +97,7 @@ class _CatalogBodyState extends State<_CatalogBody> {
             onRefresh: () => cubit.fetchProducts(
               vendorId: state.vendorId,
               categoryId: state.categoryId,
+              filters: state.filters,
             ),
             child: CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(
@@ -162,6 +174,34 @@ class _CatalogBodyState extends State<_CatalogBody> {
                     ),
                   ),
                 ),
+                if (filterSpecs.isNotEmpty)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: StoreOptionChip(
+                          label: state.filters.isEmpty
+                              ? 'Filters'
+                              : 'Filters · ${state.filters.length}',
+                          selected: state.filters.isNotEmpty,
+                          onTap: () async {
+                            final picked = await showStoreFilters(
+                              context,
+                              specs: filterSpecs,
+                              current: state.filters,
+                            );
+                            if (picked == null) return;
+                            cubit.fetchProducts(
+                              vendorId: state.vendorId,
+                              categoryId: state.categoryId,
+                              filters: picked,
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
                 if (state.loading)
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -189,7 +229,16 @@ class _CatalogBodyState extends State<_CatalogBody> {
                       onAction: () => cubit.fetchProducts(
                         vendorId: state.vendorId,
                         categoryId: state.categoryId,
+                        filters: state.filters,
                       ),
+                    ),
+                  )
+                else if (state.products.isEmpty && state.filters.isNotEmpty)
+                  const SliverToBoxAdapter(
+                    child: StoreMessage(
+                      icon: Icons.filter_alt_off_outlined,
+                      title: 'No matches for these filters',
+                      body: 'Try fewer filters.',
                     ),
                   )
                 else if (state.products.isEmpty && state.categoryId != null)
@@ -269,7 +318,9 @@ class _CatalogBodyState extends State<_CatalogBody> {
                                 onDetails: () =>
                                     openStoreProduct(context, product),
                                 onAdd: () {
-                                  if (inCart) {
+                                  if (storeVariants(product).length > 1) {
+                                    openStoreProduct(context, product);
+                                  } else if (inCart) {
                                     openShopTab(context, 2);
                                   } else {
                                     addProductToCart(context, product);

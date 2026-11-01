@@ -323,6 +323,7 @@ class MedusaStoreService {
     int limit = 20,
     String? vendorId,
     String? categoryId,
+    Map<String, List<Object>> filters = const {},
   }) => _public(
     '/store/hash/products',
     query: {
@@ -331,16 +332,25 @@ class MedusaStoreService {
       'offset': offset,
       if (vendorId != null) 'vendor_id': vendorId,
       if (categoryId != null) 'category_id': categoryId,
+      if (filters.isNotEmpty) 'filters': jsonEncode(filters),
     },
   );
 
-  /// Active shop categories in display order: `{id, name, handle, ...}`.
-  Future<List<Map<String, dynamic>>> categories() async {
-    final data = await _public('/store/hash/categories');
-    return (data['categories'] as List? ?? [])
-        .map((c) => Map<String, dynamic>.from(c as Map))
-        .toList();
-  }
+  Future<List<Map<String, dynamic>>>? _categories;
+
+  /// Active shop categories in display order: `{id, name, handle,
+  /// specifications, ...}`, kept for the app session.
+  Future<List<Map<String, dynamic>>> categories() =>
+      _categories ??= _public('/store/hash/categories')
+          .then(
+            (data) => (data['categories'] as List? ?? [])
+                .map((c) => Map<String, dynamic>.from(c as Map))
+                .toList(),
+          )
+          .catchError((Object e) {
+            _categories = null; // let Retry fetch again
+            throw e;
+          });
 
   final _states = <String, Future<StoreStates>>{};
 

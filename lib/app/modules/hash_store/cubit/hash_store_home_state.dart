@@ -9,6 +9,9 @@ class HashStoreHomeState extends Equatable {
   /// Selected category; null is "All".
   final String? categoryId;
 
+  /// Spec key -> accepted values, sent as `filters`; values are alternatives.
+  final Map<String, List<Object>> filters;
+
   /// vendor_id -> vendor_name, collected from the unfiltered catalog.
   final Map<String, String> vendors;
 
@@ -23,6 +26,7 @@ class HashStoreHomeState extends Equatable {
     this.count = 0,
     this.vendorId,
     this.categoryId,
+    this.filters = const {},
     this.vendors = const {},
     this.categories = const [],
     this.loading = false,
@@ -38,6 +42,7 @@ class HashStoreHomeState extends Equatable {
     count,
     vendorId,
     categoryId,
+    filters,
     vendors,
     categories,
     loading,

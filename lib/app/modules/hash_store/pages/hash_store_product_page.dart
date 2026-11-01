@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hash/app/modules/hash_store/cubit/hash_store_cart_cubit.dart';
+import 'package:hash/app/modules/hash_store/data/medusa_store_service.dart';
 import 'package:hash/app/modules/hash_store/pages/hash_store_checkout_page.dart';
 import 'package:hash/app/modules/hash_store/widgets/store_reviews.dart';
+import 'package:hash/app/modules/hash_store/widgets/store_specs.dart';
 import 'package:hash/app/modules/hash_store/widgets/store_ui.dart';
 
 /// Pushes the product page, carrying the shop's shared cart along.
@@ -32,7 +34,74 @@ class _HashStoreProductPageState extends State<HashStoreProductPage> {
   int _qty = 1;
   final _scroll = ScrollController();
 
-  Map<String, dynamic> get p => widget.product;
+  Map<String, Map> _defs = const {};
+
+  /// Selected option per key; starts on the default SKU.
+  late Map<String, Object?> _options = Map<String, Object?>.from(
+    (_variants.firstWhere(
+              (v) => v['id'] == widget.product['variant_id'],
+              orElse: () => _variants.firstOrNull ?? const {},
+            )['options']
+            as Map?) ??
+        const {},
+  );
+
+  List<Map> get _variants => storeVariants(widget.product);
+
+  bool _matches(Map v, Map<String, Object?> options) =>
+      options.entries.every((e) => (v['options'] as Map?)?[e.key] == e.value);
+
+  Map? get _variant =>
+      _variants.where((v) => _matches(v, _options)).firstOrNull;
+
+  /// The product as its selected SKU: price, stock, offers and variant_id.
+  Map<String, dynamic> get _sku => _variant == null
+      ? widget.product
+      : storeWithVariant(widget.product, _variant!);
+
+  /// Option keys and values present in the actual SKUs, in first-seen order.
+  Map<String, List<Object?>> get _optionValues {
+    final out = <String, List<Object?>>{};
+    for (final v in _variants) {
+      for (final e in ((v['options'] as Map?) ?? const {}).entries) {
+        final values = out['${e.key}'] ??= [];
+        if (!values.contains(e.value)) values.add(e.value);
+      }
+    }
+    return out;
+  }
+
+  void _pick(String key, Object? value) {
+    final wanted = {..._options, key: value};
+    // Keep the other choices when that SKU exists; otherwise jump to the
+    // closest SKU with this value, preferring one that can be bought.
+    final candidates = _variants
+        .where((v) => (v['options'] as Map?)?[key] == value)
+        .toList();
+    final next =
+        candidates.where((v) => _matches(v, wanted)).firstOrNull ??
+        candidates
+            .where((v) => storeSkuBuyable(storeWithVariant(widget.product, v)))
+            .firstOrNull ??
+        candidates.firstOrNull;
+    if (next == null) return;
+    setState(() {
+      _options = Map<String, Object?>.from((next['options'] as Map?) ?? wanted);
+      _qty = 1;
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Labels only; raw keys show until (or if) categories load.
+    MedusaStoreService.instance
+        .categories()
+        .then((c) {
+          if (mounted) setState(() => _defs = storeSpecDefs(c));
+        })
+        .catchError((_) {});
+  }
 
   @override
   void dispose() {
@@ -42,10 +111,19 @@ class _HashStoreProductPageState extends State<HashStoreProductPage> {
 
   @override
   Widget build(BuildContext context) {
+    final p = _sku;
+    final optionValues = _optionValues;
+    final specs = ((widget.product['specifications'] as Map?) ?? const {})
+        .entries
+        .where((e) => e.value != null && '${e.value}'.isNotEmpty)
+        .toList();
     final available = p['available'] == null
         ? null
         : storeNum(p['available']).toInt();
     final soldOut = available != null && available <= 0;
+    final buyable = _variant != null || _variants.isEmpty
+        ? storeSkuBuyable(p)
+        : false;
     final price = storeCardPrice(p);
     final maxQty = available ?? 10;
     final busy = context.select((HashStoreCartCubit c) => c.state.busy);
@@ -226,7 +304,7 @@ class _HashStoreProductPageState extends State<HashStoreProductPage> {
                                 ],
                               ),
                             ),
-                            if (!soldOut && !inCart)
+                            if (buyable && !inCart)
                               StoreQtyStepper(
                                 value: _qty,
                                 onMinus: _qty > 1
@@ -245,6 +323,98 @@ class _HashStoreProductPageState extends State<HashStoreProductPage> {
                             style: storeBody(
                               size: 13,
                               color: StoreColors.purpleSoft,
+                            ),
+                          ),
+                        ],
+                        for (final option in optionValues.entries) ...[
+                          const SizedBox(height: 20),
+                          Text(
+                            '${storeSpecLabel(option.key, _defs)}: '
+                            '${storeSpecValue(_options[option.key], _defs[option.key])}',
+                            style: storeBody(
+                              size: 13,
+                              color: StoreColors.muted,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              for (final value in option.value)
+                                Builder(
+                                  builder: (_) {
+                                    final match = _variants
+                                        .where(
+                                          (v) => _matches(v, {
+                                            ..._options,
+                                            option.key: value,
+                                          }),
+                                        )
+                                        .firstOrNull;
+                                    return StoreOptionChip(
+                                      label: storeSpecValue(
+                                        value,
+                                        _defs[option.key],
+                                      ),
+                                      selected: _options[option.key] == value,
+                                      // Dimmed: not sold with the other
+                                      // choices, or that SKU can't be bought.
+                                      muted:
+                                          match == null ||
+                                          !storeSkuBuyable(
+                                            storeWithVariant(
+                                              widget.product,
+                                              match,
+                                            ),
+                                          ),
+                                      onTap: () => _pick(option.key, value),
+                                    );
+                                  },
+                                ),
+                            ],
+                          ),
+                        ],
+                        if (specs.isNotEmpty) ...[
+                          const SizedBox(height: 28),
+                          StoreSection(
+                            title: 'Specifications',
+                            child: StorePanel(
+                              child: Column(
+                                children: [
+                                  for (final e in specs)
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 6,
+                                      ),
+                                      child: Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              storeSpecLabel('${e.key}', _defs),
+                                              style: storeBody(
+                                                size: 13,
+                                                color: StoreColors.muted,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Text(
+                                              storeSpecValue(
+                                                e.value,
+                                                _defs['${e.key}'],
+                                              ),
+                                              style: storeBody(size: 13),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                ],
+                              ),
                             ),
                           ),
                         ],
@@ -332,8 +502,8 @@ class _HashStoreProductPageState extends State<HashStoreProductPage> {
       // Amazon/Myntra pattern: add in place (the button becomes "Go to bag"),
       // or Buy now straight into checkout.
       bottomNavigationBar: StoreBottomBar(
-        child: soldOut
-            ? const StoreButton(label: 'Sold out')
+        child: !buyable
+            ? StoreButton(label: soldOut ? 'Sold out' : 'Unavailable')
             : Row(
                 children: [
                   Expanded(

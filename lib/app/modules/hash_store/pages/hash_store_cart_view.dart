@@ -6,7 +6,6 @@ import 'package:hash/app/modules/hash_store/data/medusa_store_service.dart';
 import 'package:hash/app/modules/hash_store/widgets/hash_store_app_bar.dart';
 import 'package:hash/app/modules/hash_store/widgets/store_ui.dart';
 import 'package:hash/core/utils/haptics.dart';
-import 'package:hash/app/modules/hash_store/widgets/store_page_intro.dart';
 
 class HashStoreCartView extends StatefulWidget {
   const HashStoreCartView({super.key});
@@ -109,15 +108,6 @@ class _HashStoreCartViewState extends State<HashStoreCartView> {
               ),
               slivers: [
                 const HashStoreAppBar(),
-                SliverToBoxAdapter(
-                  child: StorePageIntro(
-                    eyebrow: 'Your bag',
-                    title: 'Ready when you are.',
-                    subtitle: hasItems
-                        ? '${state.itemCount} item${state.itemCount == 1 ? '' : 's'} · Review your picks before checkout.'
-                        : 'Your next upgrade starts here.',
-                  ),
-                ),
                 if (state.loading && cart == null)
                   SliverPadding(
                     padding: const EdgeInsets.all(16),

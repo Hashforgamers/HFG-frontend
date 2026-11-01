@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:hash/app/modules/hash_store/widgets/store_page_intro.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
 import 'package:hash/app/modules/shop_new/controllers/shop_controller.dart';
@@ -59,14 +58,6 @@ class _HashStoreOrdersViewState extends State<HashStoreOrdersView> {
                 ),
                 slivers: [
                   const HashStoreAppBar(),
-                  const SliverToBoxAdapter(
-                    child: StorePageIntro(
-                      eyebrow: 'Your orders',
-                      title: 'Every order. One place.',
-                      subtitle:
-                          'Follow your purchases, delivery and completion details.',
-                    ),
-                  ),
                   if (state is HashStoreOrdersLoaded && state.orders.isNotEmpty)
                     SliverPadding(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
