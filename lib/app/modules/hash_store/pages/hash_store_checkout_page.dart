@@ -176,6 +176,11 @@ class _HashStoreCheckoutPageState extends State<HashStoreCheckoutPage> {
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+    // Delivery starts ticked; the buyer can still pick another option.
+    final first = _options?.firstOrNull?['id'];
+    if (mounted && _optionId == null && first is String) {
+      await _selectOption(first);
+    }
   }
 
   Future<void> _selectOption(String id) async {

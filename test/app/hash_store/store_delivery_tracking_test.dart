@@ -304,9 +304,8 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Continue to delivery'));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Surface delivery'));
-      await tester.tap(find.text('Surface delivery'));
-      await tester.pumpAndSettle();
+      // Delivery is ticked by default once the address is saved.
+      expect(selections, 1);
       await tester.tap(find.text('Place order'));
       await tester.pumpAndSettle();
       expect(

@@ -15,6 +15,29 @@ class HashStoreCartView extends StatefulWidget {
 }
 
 class _HashStoreCartViewState extends State<HashStoreCartView> {
+  String? _quoteKey;
+  Future<Map<String, dynamic>?>? _quote;
+
+  /// The delivery quote splits delivery from the platform fee in the summary;
+  /// without it the cart only has one combined shipping total. Refetched when
+  /// the cart's shipping changes; any failure falls back to the combined line.
+  Future<Map<String, dynamic>?> _quoteFor(Map<String, dynamic> cart) {
+    final key = '${cart['id']}:${cart['shipping_total']}';
+    if (key == _quoteKey && _quote != null) return _quote!;
+    _quoteKey = key;
+    return _quote = () async {
+      if ((cart['shipping_methods'] as List? ?? []).isEmpty) return null;
+      try {
+        final q = (await MedusaStoreService.instance.deliveryPolicy(
+          cart['id'] as String,
+        ))['quote'];
+        return q is Map ? Map<String, dynamic>.from(q) : null;
+      } catch (_) {
+        return null;
+      }
+    }();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -169,7 +192,11 @@ class _HashStoreCartViewState extends State<HashStoreCartView> {
                         children: [
                           StoreSection(
                             title: 'Order summary',
-                            child: StoreTotals(cart: cart!),
+                            child: FutureBuilder(
+                              future: _quoteFor(cart!),
+                              builder: (_, snap) =>
+                                  StoreTotals(cart: cart, quote: snap.data),
+                            ),
                           ),
                           const SizedBox(height: 10),
                           TextButton.icon(
@@ -327,8 +354,12 @@ class _CartRow extends StatelessWidget {
                         StoreQtyStepper(
                           compact: true,
                           value: qty,
-                          onMinus: busy || qty <= 1
+                          // At 1, minus removes the line (with Undo).
+                          minusRemoves: qty <= 1,
+                          onMinus: busy
                               ? null
+                              : qty <= 1
+                              ? onRemove
                               : () => onQty(qty - 1),
                           onPlus: busy ? null : () => onQty(qty + 1),
                         ),

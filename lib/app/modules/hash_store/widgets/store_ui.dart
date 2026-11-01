@@ -730,12 +730,16 @@ class StoreQtyStepper extends StatelessWidget {
   final VoidCallback? onMinus;
   final VoidCallback? onPlus;
   final bool compact;
+
+  /// Minus shows a bin instead, for steppers where it removes the line.
+  final bool minusRemoves;
   const StoreQtyStepper({
     super.key,
     required this.value,
     this.onMinus,
     this.onPlus,
     this.compact = false,
+    this.minusRemoves = false,
   });
 
   @override
@@ -763,7 +767,9 @@ class StoreQtyStepper extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          btn(Icons.remove_rounded, 'Decrease quantity', onMinus),
+          minusRemoves
+              ? btn(Icons.delete_outline_rounded, 'Remove item', onMinus)
+              : btn(Icons.remove_rounded, 'Decrease quantity', onMinus),
           ConstrainedBox(
             constraints: BoxConstraints(minWidth: compact ? 18 : 24),
             child: Text(
