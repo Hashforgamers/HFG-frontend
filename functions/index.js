@@ -1,6 +1,8 @@
 const functions = require("firebase-functions/v1");
 const admin = require("firebase-admin");
-const {istDayKey, loadPolicy, skipReason} = require("./push_policy");
+const {
+  istDayKey, isQuietHour, loadPolicy, quietEndMs, skipReason,
+} = require("./push_policy");
 
 admin.initializeApp();
 
@@ -328,6 +330,7 @@ async function claimBroadcastSlot(kind) {
   const policy = await loadPolicy(admin, functions.logger);
   const ref = db.collection("push_throttle").doc(kind);
   const nowMs = Date.now();
+  if (isQuietHour(nowMs, policy)) return false;
   return db.runTransaction(async (tx) => {
     const last = asNumber(((await tx.get(ref)).data() || {}).last_sent_ms);
     if (last && nowMs - last < policy.socialProofMinMinutes * 60 * 1000) {
@@ -1010,6 +1013,12 @@ exports.processFunnelNotificationJobs = functions.pubsub
             },
           });
 
+          if (response && response.skipped === "quiet_hours") {
+            // Still relevant in the morning; send it then instead of dropping.
+            const policy = await loadPolicy(admin, functions.logger);
+            await doc.ref.update({sendAtMs: quietEndMs(now, policy)});
+            continue;
+          }
           if (response && response.skipped) {
             await markJobState(doc.ref, "cancelled", {
               cancelReason: `push_${response.skipped}`,

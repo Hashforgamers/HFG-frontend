@@ -6,9 +6,12 @@
  */
 
 const DEFAULT_POLICY = Object.freeze({
-  maxPerUserPerDay: 3,
+  maxPerUserPerDay: 1,
   skipActiveMinutes: 120,
   socialProofMinMinutes: 360,
+  // No engagement pushes from 22:00 to 09:00 IST.
+  quietStartHour: 22,
+  quietEndHour: 9,
 });
 
 const IST_OFFSET_MS = 330 * 60 * 1000;
@@ -19,6 +22,26 @@ function istDayKey(nowMs) {
   const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
   const dd = String(d.getUTCDate()).padStart(2, "0");
   return `${d.getUTCFullYear()}${mm}${dd}`;
+}
+
+/** Hour of day in India, 0-23. */
+function istHour(nowMs) {
+  return new Date(nowMs + IST_OFFSET_MS).getUTCHours();
+}
+
+/** True inside the quiet window; handles windows that cross midnight. */
+function isQuietHour(nowMs, {quietStartHour: start, quietEndHour: end}) {
+  const h = istHour(nowMs);
+  return start > end ? h >= start || h < end : h >= start && h < end;
+}
+
+/** Next time the quiet window ends (quietEndHour:00 IST) after nowMs. */
+function quietEndMs(nowMs, {quietEndHour}) {
+  const ist = new Date(nowMs + IST_OFFSET_MS);
+  let end = Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth(),
+      ist.getUTCDate(), quietEndHour) - IST_OFFSET_MS;
+  if (end <= nowMs) end += 24 * 60 * 60 * 1000;
+  return end;
 }
 
 /**
@@ -33,9 +56,10 @@ function isRecentlyActive({isOnline, lastSeenMs, nowMs, skipActiveMinutes}) {
 
 /**
  * Why an engagement push to this user should be skipped, or null to send.
- * @return {null|"recently_active"|"daily_cap"}
+ * @return {null|"quiet_hours"|"recently_active"|"daily_cap"}
  */
 function skipReason({isOnline, lastSeenMs, sentToday, nowMs, policy}) {
+  if (isQuietHour(nowMs, policy)) return "quiet_hours";
   if (isRecentlyActive({
     isOnline,
     lastSeenMs,
@@ -59,8 +83,8 @@ let cachedAtMs = 0;
 const CACHE_MS = 5 * 60 * 1000;
 
 /**
- * Reads push_max_per_user_per_day, push_skip_active_minutes and
- * push_social_proof_min_minutes from server-side Remote Config, falling back
+ * Reads push_max_per_user_per_day, push_skip_active_minutes,
+ * push_social_proof_min_minutes and push_quiet_start/end_hour from server-side Remote Config, falling back
  * to DEFAULT_POLICY if the template is missing or unreachable.
  */
 async function loadPolicy(admin, logger) {
@@ -73,6 +97,8 @@ async function loadPolicy(admin, logger) {
         push_max_per_user_per_day: DEFAULT_POLICY.maxPerUserPerDay,
         push_skip_active_minutes: DEFAULT_POLICY.skipActiveMinutes,
         push_social_proof_min_minutes: DEFAULT_POLICY.socialProofMinMinutes,
+        push_quiet_start_hour: DEFAULT_POLICY.quietStartHour,
+        push_quiet_end_hour: DEFAULT_POLICY.quietEndHour,
       },
     });
     const config = template.evaluate();
@@ -86,6 +112,11 @@ async function loadPolicy(admin, logger) {
       socialProofMinMinutes: clampInt(
           config.getNumber("push_social_proof_min_minutes"),
           DEFAULT_POLICY.socialProofMinMinutes, 0, 7 * 24 * 60),
+      // clampInt treats 0 as junk, so midnight can't be a bound; fine here.
+      quietStartHour: clampInt(config.getNumber("push_quiet_start_hour"),
+          DEFAULT_POLICY.quietStartHour, 1, 23),
+      quietEndHour: clampInt(config.getNumber("push_quiet_end_hour"),
+          DEFAULT_POLICY.quietEndHour, 1, 23),
     };
   } catch (error) {
     if (logger) {
@@ -102,6 +133,8 @@ async function loadPolicy(admin, logger) {
 module.exports = {
   DEFAULT_POLICY,
   istDayKey,
+  isQuietHour,
+  quietEndMs,
   isRecentlyActive,
   skipReason,
   clampInt,

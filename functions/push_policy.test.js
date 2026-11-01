@@ -3,7 +3,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
-  DEFAULT_POLICY, istDayKey, skipReason, clampInt,
+  DEFAULT_POLICY, istDayKey, skipReason, clampInt, isQuietHour, quietEndMs,
 } = require("./push_policy");
 
 const now = Date.UTC(2026, 9, 9, 12, 0, 0); // 17:30 IST
@@ -31,8 +31,21 @@ test("a stale is_online flag does not block pushes", () => {
 test("caps at N per day", () => {
   const base = {nowMs: now, lastSeenMs: now - 5 * 60 * min,
     policy: DEFAULT_POLICY};
-  assert.equal(skipReason({...base, sentToday: 2}), null);
-  assert.equal(skipReason({...base, sentToday: 3}), "daily_cap");
+  assert.equal(skipReason({...base, sentToday: 0}), null);
+  assert.equal(skipReason({...base, sentToday: 1}), "daily_cap");
+});
+
+test("quiet hours are 22:00-09:00 IST", () => {
+  const ist = (h, m = 0) => Date.UTC(2026, 9, 9, h, m) - 330 * min;
+  assert.equal(isQuietHour(ist(21, 59), DEFAULT_POLICY), false);
+  assert.equal(isQuietHour(ist(22), DEFAULT_POLICY), true);
+  assert.equal(isQuietHour(ist(3), DEFAULT_POLICY), true);
+  assert.equal(isQuietHour(ist(9), DEFAULT_POLICY), false);
+  assert.equal(skipReason({sentToday: 0, nowMs: ist(23),
+    policy: DEFAULT_POLICY}), "quiet_hours");
+  // 23:00 defers to 09:00 the next day; 03:00 to 09:00 the same day.
+  assert.equal(quietEndMs(ist(23), DEFAULT_POLICY), ist(9) + 24 * 60 * min);
+  assert.equal(quietEndMs(ist(3), DEFAULT_POLICY), ist(9));
 });
 
 test("clampInt falls back on junk and clamps range", () => {
