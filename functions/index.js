@@ -13,6 +13,7 @@ const FUNNEL_STATE_COLLECTION = "notification_funnel_state";
 const FUNNEL_JOBS_COLLECTION = "notification_funnel_jobs";
 
 const MAX_FUNNEL_JOBS_PER_RUN = 30;
+const STALE_FUNNEL_JOB_MS = 24 * 60 * 60 * 1000;
 const MINI_GAMES_TOPIC = "mira_road_users";
 const MINI_GAMES_DAILY_CAMPAIGNS = [
   {
@@ -948,20 +949,37 @@ exports.processFunnelNotificationJobs = functions.pubsub
     .schedule("every 1 minutes")
     .onRun(async () => {
       const now = Date.now();
-      const jobsSnapshot = await db.collection(FUNNEL_JOBS_COLLECTION)
-          .where("sendAtMs", "<=", now)
-          .orderBy("sendAtMs", "asc")
-          .limit(MAX_FUNNEL_JOBS_PER_RUN * 3)
+      // Filter on status, not just sendAtMs: ordering every due job by time
+      // returned the oldest already-sent/cancelled ones forever, so pending
+      // jobs behind them were never reached and nothing was sent.
+      // shortcut: due-time filter runs in memory (a status+sendAtMs query
+      // needs a composite index); fine while pending jobs stay in the hundreds.
+      const pendingSnapshot = await db.collection(FUNNEL_JOBS_COLLECTION)
+          .where("status", "==", "pending")
+          .limit(1000)
           .get();
+      const dueJobs = pendingSnapshot.docs
+          .filter((doc) => asNumber(doc.get("sendAtMs")) <= now)
+          .sort((a, b) => asNumber(a.get("sendAtMs")) - asNumber(b.get("sendAtMs")))
+          .slice(0, MAX_FUNNEL_JOBS_PER_RUN);
 
-      if (jobsSnapshot.empty) {
-        functions.logger.info("No funnel notification jobs due");
+      if (dueJobs.length === 0) {
+        functions.logger.info("No funnel notification jobs due", {
+          pending: pendingSnapshot.size,
+        });
         return null;
       }
+      functions.logger.info("Processing funnel notification jobs", {
+        due: dueJobs.length,
+        pending: pendingSnapshot.size,
+      });
 
-      for (const doc of jobsSnapshot.docs) {
+      for (const doc of dueJobs) {
         const job = doc.data() || {};
-        if (asString(job.status) !== "pending") {
+        // Jobs stuck behind the old query are days late; a "you looked at
+        // this cafe" nudge that late reads as spam, so drop it.
+        if (now - asNumber(job.sendAtMs) > STALE_FUNNEL_JOB_MS) {
+          await markJobState(doc.ref, "cancelled", {cancelReason: "stale"});
           continue;
         }
         const campaignKey = asString(job.campaignKey);
