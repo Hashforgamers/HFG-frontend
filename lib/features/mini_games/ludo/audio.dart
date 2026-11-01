@@ -36,7 +36,9 @@ class Audio {
   /// One preloaded player per sound so a roll, a step and a capture (ours or
   /// the opponent's, arriving together online) never interrupt each other.
   static final Map<String, AudioPlayer> _players = {};
-  static final Set<String> _loaded = {};
+  // One shared load per sound: concurrent setAsset calls on a player crash
+  // just_audio ("Platform player already exists").
+  static final Map<String, Future<void>> _loads = {};
 
   /// Plays a bundled sound, fire-and-forget. Never blocks gameplay: loading is
   /// capped at 2s and every failure is swallowed. The returned future only
@@ -45,9 +47,13 @@ class Audio {
     () async {
       try {
         final player = _players[asset] ??= AudioPlayer();
-        if (!_loaded.contains(asset)) {
-          await player.setAsset(asset).timeout(const Duration(seconds: 2));
-          _loaded.add(asset);
+        try {
+          await (_loads[asset] ??= player.setAsset(
+            asset,
+          )).timeout(const Duration(seconds: 2));
+        } catch (_) {
+          _loads.remove(asset);
+          rethrow;
         }
         await player.seek(Duration.zero);
         await player.play();

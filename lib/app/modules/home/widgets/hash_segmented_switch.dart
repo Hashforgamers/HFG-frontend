@@ -37,6 +37,9 @@ class _HashSegmentedSwitchState extends State<HashSegmentedSwitch>
   bool _isAnimating = false;
   AudioPlayer? _tapAudioPlayer;
   bool _tapAudioReady = false;
+  // One shared load: concurrent setAsset calls crash just_audio
+  // ("Platform player already exists").
+  Future<void>? _tapLoad;
 
   static const String _toggleTapSfxPath = 'assets/audio/sfx/toggle-click.mp3';
 
@@ -53,7 +56,7 @@ class _HashSegmentedSwitchState extends State<HashSegmentedSwitch>
     super.dispose();
   }
 
-  Future<void> _prepareTapSound() async {
+  Future<void> _prepareTapSound() => _tapLoad ??= () async {
     final player = _tapAudioPlayer ??= AudioPlayer();
     try {
       await player.setAsset(_toggleTapSfxPath);
@@ -61,8 +64,9 @@ class _HashSegmentedSwitchState extends State<HashSegmentedSwitch>
       _tapAudioReady = true;
     } catch (_) {
       _tapAudioReady = false;
+      _tapLoad = null;
     }
-  }
+  }();
 
   void _playTapSound() {
     if (!_tapAudioReady) {

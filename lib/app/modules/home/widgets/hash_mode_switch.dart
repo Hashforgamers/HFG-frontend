@@ -52,7 +52,9 @@ class _HashModeSwitchState extends State<HashModeSwitch> {
   late int _selected = widget.selectedIndex;
   bool _busy = false;
   AudioPlayer? _tap;
-  bool _tapReady = false;
+  // One shared load: concurrent setAsset calls crash just_audio
+  // ("Platform player already exists").
+  Future<void>? _tapLoad;
 
   @override
   void didUpdateWidget(HashModeSwitch old) {
@@ -71,14 +73,14 @@ class _HashModeSwitchState extends State<HashModeSwitch> {
   Future<void> _playTap() async {
     try {
       final p = _tap ??= AudioPlayer();
-      if (!_tapReady) {
-        await p.setAsset('assets/audio/sfx/toggle-click.mp3');
-        await p.setVolume(0.8);
-        _tapReady = true;
-      }
+      await (_tapLoad ??= p
+          .setAsset('assets/audio/sfx/toggle-click.mp3')
+          .then((_) => p.setVolume(0.8)));
       await p.seek(Duration.zero);
       unawaited(p.play());
-    } catch (_) {}
+    } catch (_) {
+      _tapLoad = null;
+    }
   }
 
   Future<void> _select(int index) async {

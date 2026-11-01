@@ -802,13 +802,19 @@ class NotificationController extends GetxController {
     );
 
     final details = const NotificationDetails(android: android, iOS: ios);
-    await _fln.show(
-      DateTime.now().millisecondsSinceEpoch ~/ 1000,
-      title,
-      body,
-      details,
-      payload: payload ?? AppRoutes.CHAT,
-    );
+    // Callers fire and forget; iOS throws PlatformException when it refuses
+    // the banner, which surfaced as a crash. The banner is best-effort.
+    try {
+      await _fln.show(
+        DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        title,
+        body,
+        details,
+        payload: payload ?? AppRoutes.CHAT,
+      );
+    } catch (e) {
+      debugPrint('[Notifications] chat banner failed: $e');
+    }
   }
 
   Future<void> showLiveNotification({
