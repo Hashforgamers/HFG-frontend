@@ -156,6 +156,12 @@ class AnalyticsService {
       );
       debugPrint('[Analytics] $name $safe');
       await _analytics.logEvent(name: name, parameters: safe);
+      // GA4 revenue only counts the standard `purchase` event.
+      if (name == AnalyticsEvent.paymentSuccess &&
+          (safe['value'] is num) &&
+          (safe['value'] as num) > 0) {
+        await _analytics.logEvent(name: 'purchase', parameters: safe);
+      }
       _fanOutToProviders(name, safe);
     } catch (error, stackTrace) {
       debugPrint('[Analytics] failed to log $name: $error');

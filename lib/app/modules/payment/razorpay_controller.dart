@@ -42,6 +42,7 @@ class RazorpayController extends GetxController {
   RxBool isPaymentInProgress = false.obs;
   RxString paymentStatus = ''.obs;
   PaymentType? _currentPaymentType;
+  double? _checkoutAmount;
   String? _passIdForPurchase;
 
   // Context surfaced on the success screen after a gateway booking. Set by the
@@ -197,6 +198,7 @@ class RazorpayController extends GetxController {
       isPaymentInProgress(true); // ★ start spinner sooner
       paymentStatus.value = 'Opening payment gateway…';
       _currentPaymentType = paymentType; // Store the payment type
+      _checkoutAmount = amount;
       Haptics.cta();
 
       // Track payment initiated event
@@ -319,6 +321,7 @@ class RazorpayController extends GetxController {
               'payment_method': 'razorpay',
               'checkout_type': PaymentType.passPurchase.name,
               'transaction_id': r.paymentId,
+              'value': _checkoutAmount,
               'currency': 'INR',
             },
             deduplicationKey: r.paymentId,
