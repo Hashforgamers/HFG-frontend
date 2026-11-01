@@ -70,7 +70,6 @@ class ArenaDetailView extends StatefulWidget {
 }
 
 class _ArenaDetailViewState extends State<ArenaDetailView> {
-
   late final CafeGamesController _gamesController;
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
@@ -2241,9 +2240,15 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
         );
       }
 
-      if (preferredIndex >= 0) {
-        // A console was already tapped on the cafe page; don't ask again.
-        await launch(consoleOptions[preferredIndex]);
+      final bookable = consoleOptions
+          .where((o) => (o['total_available'] as int? ?? 0) > 0)
+          .toList();
+      if (preferredIndex >= 0 || bookable.length == 1) {
+        // A console was already tapped on the cafe page, or there is only one
+        // to choose; don't ask.
+        await launch(
+          preferredIndex >= 0 ? consoleOptions[preferredIndex] : bookable.first,
+        );
         return null;
       }
 
