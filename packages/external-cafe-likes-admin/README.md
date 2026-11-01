@@ -63,3 +63,20 @@ cafes_external/{cafeId}/likes/{userKey}
 ```
 
 The admin site uses server-side Firebase Admin reads and does not rely on open client-side Firestore reads for analytics.
+
+## Push Studio (`/push`)
+
+A MoEngage/WebEngage-style console for Hash pushes and deep links, behind the same admin login.
+
+- `/push`: AI copywriter (Claude writes A/B variants plus the deep link to use), message editor with length limits, Android/iOS preview, deep-link builder with UTM tags, audience (all users via `mira_road_users`, one uid via `hfg_user_<uid>`, any FCM topic), send now or schedule, and a test send to a single FCM token.
+- `/push/campaigns`: history of every send with status, audience, link and errors; scheduled ones can be cancelled.
+- `/push/deeplinks`: link builder for WhatsApp/Instagram/QR (`hash://` and `https://www.hashforgamers.com/…`), a checker for existing links, and the full destination catalog with which links actually open a screen today.
+
+Pushes use the same payload as `functions/index.js` (`deep_link` or `route` in `data`, plus `campaign_id`), so the app's `PushRouter` handles them and logs `notification_opened` with that `campaign_id` in Firebase Analytics.
+
+Setup:
+
+- Set `ANTHROPIC_API_KEY` in `.env.local` for the AI copywriter.
+- The service account needs Firebase Cloud Messaging send rights and Firestore write access (`push_campaigns`).
+- Scheduled campaigns are sent by the `dispatchScheduledPushCampaigns` Cloud Function (every 5 minutes): `cd functions && npm run deploy`.
+- The destination catalog lives in `lib/deeplinks.ts` and mirrors `lib/core/service/deeplink_service.dart`; update `opens` when the app gains a screen. Self-check: `node --experimental-strip-types lib/deeplinks.check.ts`.

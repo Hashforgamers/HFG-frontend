@@ -3,7 +3,12 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import {
+  GoogleAuthProvider,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  type UserCredential,
+} from "firebase/auth";
 import { firebaseAuth } from "@/lib/firebase-client";
 
 export function LoginForm() {
@@ -13,17 +18,12 @@ export function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const signIn = async (getCredential: () => Promise<UserCredential>) => {
     setLoading(true);
     setError(null);
 
     try {
-      const credential = await signInWithEmailAndPassword(
-        firebaseAuth,
-        email,
-        password,
-      );
+      const credential = await getCredential();
       const idToken = await credential.user.getIdToken();
 
       const response = await fetch("/api/session", {
@@ -48,6 +48,11 @@ export function LoginForm() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    void signIn(() => signInWithEmailAndPassword(firebaseAuth, email, password));
   };
 
   return (
@@ -82,6 +87,15 @@ export function LoginForm() {
 
       <button className="button" type="submit" disabled={loading}>
         {loading ? "Signing in..." : "Sign In To Admin"}
+      </button>
+
+      <button
+        className="button-secondary"
+        type="button"
+        disabled={loading}
+        onClick={() => void signIn(() => signInWithPopup(firebaseAuth, new GoogleAuthProvider()))}
+      >
+        Sign in with Google
       </button>
     </form>
   );

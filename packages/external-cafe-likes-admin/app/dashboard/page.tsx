@@ -26,7 +26,8 @@ export default async function DashboardPage({
 
   const [cafes, recentLikes] = await Promise.all([
     getLeaderboard(query, 100),
-    getRecentLikes(25),
+    // shortcut: empty until the likes.created_at collection-group index exists in Firestore.
+    getRecentLikes(25).catch(() => []),
   ]);
 
   const totalLikes = cafes.reduce((sum, cafe) => sum + cafe.totalLikes, 0);
@@ -46,6 +47,9 @@ export default async function DashboardPage({
 
           <div className="actions">
             <span className="pill">{session.email}</span>
+            <Link className="button" href="/push">
+              Push Studio
+            </Link>
             <Link
               className="button-secondary"
               href={`/api/export/cafes${query ? `?q=${encodeURIComponent(query)}` : ""}`}

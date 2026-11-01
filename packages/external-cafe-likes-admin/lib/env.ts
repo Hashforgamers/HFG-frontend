@@ -1,19 +1,19 @@
-function readEnv(name: string) {
-  const value = process.env[name];
+function readEnv(name: string, value = process.env[name]) {
   if (!value) {
     throw new Error(`Missing environment variable: ${name}`);
   }
   return value;
 }
 
+// Next.js only inlines NEXT_PUBLIC_* into browser code when written literally.
 export function getPublicFirebaseEnv() {
   return {
-    apiKey: readEnv("NEXT_PUBLIC_FIREBASE_API_KEY"),
-    authDomain: readEnv("NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN"),
-    projectId: readEnv("NEXT_PUBLIC_FIREBASE_PROJECT_ID"),
-    storageBucket: readEnv("NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET"),
-    messagingSenderId: readEnv("NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID"),
-    appId: readEnv("NEXT_PUBLIC_FIREBASE_APP_ID"),
+    apiKey: readEnv("NEXT_PUBLIC_FIREBASE_API_KEY", process.env.NEXT_PUBLIC_FIREBASE_API_KEY),
+    authDomain: readEnv("NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN", process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN),
+    projectId: readEnv("NEXT_PUBLIC_FIREBASE_PROJECT_ID", process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID),
+    storageBucket: readEnv("NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET", process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET),
+    messagingSenderId: readEnv("NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID", process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID),
+    appId: readEnv("NEXT_PUBLIC_FIREBASE_APP_ID", process.env.NEXT_PUBLIC_FIREBASE_APP_ID),
     measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
   };
 }
@@ -39,7 +39,6 @@ export function getAdminEmailAllowlist() {
 
 export function isAllowedAdminEmail(email?: string | null) {
   if (!email) return false;
-  const allowlist = getAdminEmailAllowlist();
-  if (allowlist.length === 0) return true;
-  return allowlist.includes(email.toLowerCase());
+  // An empty allowlist denies everyone: every app user is also a Firebase user.
+  return getAdminEmailAllowlist().includes(email.toLowerCase());
 }
