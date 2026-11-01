@@ -1102,6 +1102,42 @@ exports.dailyMiniGamesPush = functions.pubsub
       return null;
     });
 
+/**
+ * Sends Push Studio campaigns (packages/external-cafe-likes-admin) whose
+ * send_at has passed. The studio stores the full FCM message on the doc.
+ */
+exports.dispatchScheduledPushCampaigns = functions.pubsub
+    .schedule("every 5 minutes")
+    .onRun(async () => {
+      // Only a handful are ever scheduled; filtering here avoids a composite index.
+      const snap = await db.collection("push_campaigns")
+          .where("status", "==", "scheduled").get();
+      const nowMs = Date.now();
+      for (const doc of snap.docs) {
+        if (timestampToMs(doc.get("send_at")) > nowMs) continue;
+        const claimed = await db.runTransaction(async (tx) => {
+          const fresh = await tx.get(doc.ref);
+          if (fresh.get("status") !== "scheduled") return false;
+          tx.update(doc.ref, {status: "sending"});
+          return true;
+        });
+        if (!claimed) continue;
+        try {
+          const messageId = await admin.messaging().send(doc.get("message"));
+          await doc.ref.update({
+            status: "sent",
+            message_id: messageId,
+            sent_at: admin.firestore.FieldValue.serverTimestamp(),
+          });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          functions.logger.error("Scheduled push failed", {id: doc.id, message});
+          await doc.ref.update({status: "failed", error: message});
+        }
+      }
+      return null;
+    });
+
 // HashWallet rewards (streak, missions, match/invite/weekly rewards).
 const rewards = require("./rewards");
 exports.rewardsStatus = rewards.rewardsStatus;
