@@ -88,18 +88,24 @@ class StoreProductCard extends StatelessWidget {
                                 size: 11,
                               ),
                               const SizedBox(height: 4),
+                              // The offered price gets its own line: sharing a
+                              // scaled-down row with the MRP and badge shrank it.
                               FittedBox(
                                 fit: BoxFit.scaleDown,
                                 alignment: Alignment.centerLeft,
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  spacing: 6,
-                                  children: [
-                                    Text(
-                                      price == null ? '—' : storeMoney(price),
-                                      style: storeTitle(18),
-                                    ),
-                                    if (off > 0) ...[
+                                child: Text(
+                                  price == null ? '—' : storeMoney(price),
+                                  style: storeTitle(18),
+                                ),
+                              ),
+                              if (off > 0)
+                                FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    spacing: 6,
+                                    children: [
                                       Text(
                                         storeMoney(mrp),
                                         style:
@@ -134,9 +140,8 @@ class StoreProductCard extends StatelessWidget {
                                         ),
                                       ),
                                     ],
-                                  ],
+                                  ),
                                 ),
-                              ),
                             ],
                           ),
                         ),

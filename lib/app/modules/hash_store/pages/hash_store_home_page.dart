@@ -4,6 +4,7 @@ import 'package:hash/app/modules/hash_store/cubit/hash_store_cart_cubit.dart';
 import 'package:hash/app/modules/hash_store/cubit/hash_store_home_cubit.dart';
 import 'package:hash/app/modules/hash_store/pages/hash_store_product_page.dart';
 import 'package:hash/app/modules/hash_store/widgets/hash_store_app_bar.dart';
+import 'package:hash/app/modules/hash_store/widgets/store_category_icon.dart';
 import 'package:hash/app/modules/hash_store/widgets/store_product_card.dart';
 import 'package:hash/app/modules/hash_store/widgets/store_specs.dart';
 import 'package:hash/app/modules/hash_store/widgets/store_ui.dart';
@@ -27,15 +28,6 @@ class _CatalogBody extends StatefulWidget {
   @override
   State<_CatalogBody> createState() => _CatalogBodyState();
 }
-
-// The backend sends no icons; unknown handles get the generic one.
-const _categoryIcons = <String, IconData>{
-  'accessories': Icons.headphones_rounded,
-  'keyboards': Icons.keyboard_alt_outlined,
-  'mouse': Icons.mouse_outlined,
-  'monitors': Icons.desktop_windows_outlined,
-  'chairs': Icons.chair_outlined,
-};
 
 class _CatalogBodyState extends State<_CatalogBody> {
   String _query = '';
@@ -72,7 +64,10 @@ class _CatalogBodyState extends State<_CatalogBody> {
               (
                 id: c['id'] as String?,
                 name: '${c['name'] ?? ''}',
-                icon: _categoryIcons[c['handle']] ?? Icons.category_outlined,
+                icon: storeCategoryIcon(
+                  c['handle'] as String?,
+                  c['name'] as String?,
+                ),
               ),
           ];
           final filterSpecs = [
