@@ -7,7 +7,10 @@
 
 const DEFAULT_POLICY = Object.freeze({
   maxPerUserPerDay: 1,
-  skipActiveMinutes: 120,
+  // Only skip users in the app right now (presence heartbeat is 30s).
+  // Funnel pushes fire 2-30 min after an action, so a longer window
+  // cancelled nearly all of them as "recently_active".
+  skipActiveMinutes: 5,
   socialProofMinMinutes: 360,
   // No engagement pushes from 22:00 to 09:00 IST.
   quietStartHour: 22,

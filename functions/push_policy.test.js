@@ -14,12 +14,12 @@ test("IST day rolls over at 18:30 UTC", () => {
   assert.equal(istDayKey(Date.UTC(2026, 9, 9, 18, 30)), "20261010");
 });
 
-test("skips users online now or seen within 2h", () => {
+test("skips users online now or seen within 5 min", () => {
   const base = {sentToday: 0, nowMs: now, policy: DEFAULT_POLICY};
   assert.equal(skipReason({...base, isOnline: true}), "recently_active");
   assert.equal(
-      skipReason({...base, lastSeenMs: now - 119 * min}), "recently_active");
-  assert.equal(skipReason({...base, lastSeenMs: now - 121 * min}), null);
+      skipReason({...base, lastSeenMs: now - 4 * min}), "recently_active");
+  assert.equal(skipReason({...base, lastSeenMs: now - 6 * min}), null);
   assert.equal(skipReason({...base}), null);
 });
 
