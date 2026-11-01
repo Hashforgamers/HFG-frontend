@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:hash/app/modules/home/widgets/home_design.dart';
@@ -27,6 +28,9 @@ class _DailyRewardsCardState extends State<DailyRewardsCard> {
   final Set<String> _claimingMissions = {};
   bool _claiming = false;
   bool _failed = false;
+
+  /// Null until the user toggles: open while today's reward is unclaimed.
+  bool? _expanded;
 
   @override
   void initState() {
@@ -100,22 +104,36 @@ class _DailyRewardsCardState extends State<DailyRewardsCard> {
     }
   }
 
+  // Content sits on the vivid gradient, so it is white-on-colour throughout.
+  static const _white70 = Color(0xB3FFFFFF);
+  static const _glass = Color(0x2EFFFFFF);
+  // See-through tint over a backdrop blur: frosted glass with brand colour.
+  static const _gradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0x597B2FF7), Color(0x40FF3E8E), Color(0x33FF9A3D)],
+    stops: [0, 0.55, 1],
+  );
+
   Widget _missionRow(DailyMission m) {
     final busy = _claimingMissions.contains(m.id);
     final Widget trailing;
     if (m.claimed) {
-      trailing = const Icon(Icons.check_circle_rounded, color: HomeTokens.gold);
+      trailing = const Icon(Icons.check_circle_rounded, color: Colors.white);
     } else if (m.complete) {
       trailing = TextButton(
         onPressed: busy ? null : () => _claimMission(m),
-        style: TextButton.styleFrom(foregroundColor: HomeTokens.gold),
+        style: TextButton.styleFrom(
+          foregroundColor: HomeTokens.ink,
+          backgroundColor: Colors.white,
+          minimumSize: const Size(0, 32),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          textStyle: const TextStyle(fontWeight: FontWeight.w800),
+        ),
         child: Text(busy ? '…' : 'Claim +${m.reward}'),
       );
     } else {
-      trailing = Text(
-        '+${m.reward}',
-        style: HomeTokens.body(HomeTokens.textSecondary),
-      );
+      trailing = Text('+${m.reward}', style: HomeTokens.body(_white70));
     }
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -125,15 +143,15 @@ class _DailyRewardsCardState extends State<DailyRewardsCard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(m.title, style: HomeTokens.body(HomeTokens.textPrimary)),
+                Text(m.title, style: HomeTokens.body(Colors.white)),
                 const SizedBox(height: 6),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(4),
                   child: LinearProgressIndicator(
                     value: m.target == 0 ? 0 : m.progress / m.target,
                     minHeight: 5,
-                    color: HomeTokens.green,
-                    backgroundColor: HomeTokens.hairline,
+                    color: Colors.white,
+                    backgroundColor: _glass,
                   ),
                 ),
               ],
@@ -142,7 +160,7 @@ class _DailyRewardsCardState extends State<DailyRewardsCard> {
           const SizedBox(width: 12),
           Text(
             '${m.progress}/${m.target}',
-            style: HomeTokens.body(HomeTokens.textSecondary, size: 12),
+            style: HomeTokens.body(_white70, size: 12),
           ),
           const SizedBox(width: 8),
           trailing,
@@ -157,81 +175,205 @@ class _DailyRewardsCardState extends State<DailyRewardsCard> {
     if (_failed || s == null) return const SizedBox.shrink();
     // Days already earned in this streak, including today once claimed.
     final done = s.streak;
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, HomeTokens.gap),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: HomeTokens.surface,
-        borderRadius: BorderRadius.circular(HomeTokens.radius),
-        border: Border.all(color: HomeTokens.gold.withValues(alpha: 0.35)),
+    final expanded = _expanded ?? !s.claimedToday;
+    final subtitle = s.claimedToday
+        ? 'Claimed today · +${s.nextAmount} tomorrow'
+        : done > 0
+        ? 'Day ${done + 1} of 7 is ready'
+        : 'Claim daily to climb to +${DailyRewardsCard.rewards.last}';
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(HomeTokens.radius),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        child: DecoratedBox(
+          decoration: const BoxDecoration(gradient: _gradient),
+          child: Stack(
+            children: [
+              // Light blobs and a big Hash logo watermark for depth.
+              Positioned(top: -60, right: -40, child: _blob(180, 0.22)),
+              Positioned(bottom: -70, left: -50, child: _blob(200, 0.12)),
+              Positioned(
+                right: -20,
+                top: -14,
+                child: Transform.rotate(
+                  angle: -0.2,
+                  child: Image.asset(
+                    'assets/images/hash_silhouette.png',
+                    width: 150,
+                    color: Colors.white.withValues(alpha: 0.1),
+                    colorBlendMode: BlendMode.srcIn,
+                    excludeFromSemantics: true,
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: AnimatedSize(
+                  duration: const Duration(milliseconds: 200),
+                  alignment: Alignment.topCenter,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _header(s, done, expanded, subtitle),
+                      if (expanded) ...[
+                        const SizedBox(height: 18),
+                        _streakTrack(done),
+                        const SizedBox(height: 18),
+                        _claimArea(s),
+                        if (_missions.isNotEmpty) ...[
+                          const SizedBox(height: 18),
+                          Text(
+                            'TODAY’S MISSIONS',
+                            style: HomeTokens.eyebrow(Colors.white),
+                          ),
+                          const SizedBox(height: 4),
+                          for (final m in _missions) _missionRow(m),
+                        ],
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.local_fire_department_rounded,
-                color: HomeTokens.gold,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  done > 0 ? '$done-day streak' : 'Start your streak',
-                  style: HomeTokens.title(17),
-                ),
-              ),
-              Text('DAILY REWARD', style: HomeTokens.eyebrow(HomeTokens.gold)),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              for (var i = 0; i < 7; i++)
-                Expanded(
-                  child: _dayPip(i, done: i < done, today: _isNext(i)),
-                ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            height: 44,
-            child: FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: HomeTokens.gold,
-                foregroundColor: HomeTokens.ink,
-                disabledBackgroundColor: HomeTokens.hairline,
-                disabledForegroundColor: HomeTokens.textSecondary,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              onPressed: s.claimedToday || _claiming ? null : _claim,
-              child: _claiming
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(
-                      s.claimedToday
-                          ? 'Come back tomorrow for +${s.nextAmount}'
-                          : 'Claim +${s.nextAmount} Hash Coins',
-                      style: const TextStyle(fontWeight: FontWeight.w800),
-                    ),
-            ),
-          ),
-          if (_missions.isNotEmpty) ...[
-            const SizedBox(height: 18),
-            Text(
-              'TODAY’S MISSIONS',
-              style: HomeTokens.eyebrow(HomeTokens.green),
-            ),
-            const SizedBox(height: 4),
-            for (final m in _missions) _missionRow(m),
-          ],
+    );
+  }
+
+  Widget _blob(double size, double alpha) => Container(
+    width: size,
+    height: size,
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      gradient: RadialGradient(
+        colors: [
+          Colors.white.withValues(alpha: alpha),
+          Colors.transparent,
         ],
+      ),
+    ),
+  );
+
+  Widget _header(
+    StreakStatus s,
+    int done,
+    bool expanded,
+    String subtitle,
+  ) => Semantics(
+    button: true,
+    expanded: expanded,
+    child: InkWell(
+      onTap: () => setState(() => _expanded = !expanded),
+      borderRadius: BorderRadius.circular(14),
+      child: Row(
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(shape: BoxShape.circle, color: _glass),
+            child: const Icon(
+              Icons.local_fire_department_rounded,
+              color: HomeTokens.goldLight,
+              size: 28,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  done > 0 ? '$done-day streak 🔥' : 'Start your streak',
+                  style: HomeTokens.title(19),
+                ),
+                const SizedBox(height: 2),
+                Text(subtitle, style: HomeTokens.body(_white70, size: 12)),
+              ],
+            ),
+          ),
+          if (!expanded && !s.claimedToday)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                '+${s.nextAmount}',
+                style: HomeTokens.body(
+                  HomeTokens.pink,
+                  size: 12,
+                ).copyWith(fontWeight: FontWeight.w900),
+              ),
+            ),
+          Icon(
+            expanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
+            color: Colors.white,
+          ),
+        ],
+      ),
+    ),
+  );
+
+  Widget _claimArea(StreakStatus s) {
+    if (s.claimedToday) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: _glass,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.check_circle_rounded,
+              color: Colors.white,
+              size: 18,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Come back tomorrow for +${s.nextAmount}',
+              style: HomeTokens.body(
+                Colors.white,
+              ).copyWith(fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+      );
+    }
+    return SizedBox(
+      width: double.infinity,
+      height: 48,
+      child: FilledButton(
+        style: FilledButton.styleFrom(
+          backgroundColor: Colors.white,
+          foregroundColor: HomeTokens.ink,
+          elevation: 6,
+          shadowColor: Colors.black45,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+        onPressed: _claiming ? null : _claim,
+        child: _claiming
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: HomeTokens.pink,
+                ),
+              )
+            : Text(
+                'Claim +${s.nextAmount} Hash Coins',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 15,
+                ),
+              ),
       ),
     );
   }
@@ -241,31 +383,86 @@ class _DailyRewardsCardState extends State<DailyRewardsCard> {
     return !s.claimedToday && i == s.streak;
   }
 
-  Widget _dayPip(int i, {required bool done, required bool today}) {
-    final color = done
-        ? HomeTokens.gold
-        : (today ? HomeTokens.goldLight : HomeTokens.textTertiary);
-    return Column(
-      children: [
-        Container(
-          width: 30,
-          height: 30,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: done ? HomeTokens.gold : Colors.transparent,
-            border: Border.all(color: color, width: today ? 2 : 1),
-          ),
-          child: done
-              ? const Icon(Icons.check_rounded, size: 18, color: HomeTokens.ink)
-              : Text(
-                  '${DailyRewardsCard.rewards[i]}',
-                  style: HomeTokens.body(color, size: 11),
+  /// Seven day pips joined by connectors that turn white once both ends
+  /// are claimed.
+  Widget _streakTrack(int done) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      for (var i = 0; i < 7; i++) ...[
+        if (i > 0)
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: Container(
+                height: 3,
+                decoration: BoxDecoration(
+                  color: i < done ? Colors.white : _glass,
+                  borderRadius: BorderRadius.circular(2),
                 ),
-        ),
-        const SizedBox(height: 4),
-        Text('D${i + 1}', style: HomeTokens.body(color, size: 10)),
+              ),
+            ),
+          ),
+        _dayPip(i, done: i < done, today: _isNext(i)),
       ],
+    ],
+  );
+
+  Widget _dayPip(int i, {required bool done, required bool today}) {
+    final last = i == 6;
+    return SizedBox(
+      width: 34,
+      child: Column(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: done
+                  ? Colors.white
+                  : (last ? HomeTokens.goldLight : _glass),
+              border: today ? Border.all(color: Colors.white, width: 2) : null,
+              boxShadow: today || last
+                  ? [
+                      BoxShadow(
+                        color: (last ? HomeTokens.goldLight : Colors.white)
+                            .withValues(alpha: 0.6),
+                        blurRadius: 14,
+                      ),
+                    ]
+                  : null,
+            ),
+            child: done
+                ? const Icon(
+                    Icons.check_rounded,
+                    size: 18,
+                    color: HomeTokens.pink,
+                  )
+                : last
+                ? const Icon(
+                    Icons.card_giftcard_rounded,
+                    size: 17,
+                    color: HomeTokens.ink,
+                  )
+                : Text(
+                    '${DailyRewardsCard.rewards[i]}',
+                    style: HomeTokens.body(
+                      Colors.white,
+                      size: 11,
+                    ).copyWith(fontWeight: FontWeight.w800),
+                  ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            last ? '+${DailyRewardsCard.rewards[i]}' : 'D${i + 1}',
+            style: HomeTokens.body(
+              last ? HomeTokens.goldLight : _white70,
+              size: 10,
+            ).copyWith(fontWeight: last ? FontWeight.w800 : null),
+          ),
+        ],
+      ),
     );
   }
 }
