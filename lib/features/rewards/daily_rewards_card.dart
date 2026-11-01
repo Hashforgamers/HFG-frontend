@@ -23,14 +23,20 @@ class DailyRewardsCard extends StatefulWidget {
 
 class _DailyRewardsCardState extends State<DailyRewardsCard> {
   final RewardsService _rewards = RewardsService.instance;
-  StreakStatus? _status;
-  List<DailyMission> _missions = const [];
+  // Last answer for this app session, so returning to Home shows the card
+  // at once instead of waiting on the rewards function again.
+  static StreakStatus? _lastStatus;
+  static List<DailyMission> _lastMissions = const [];
+
+  StreakStatus? _status = _lastStatus;
+  List<DailyMission> _missions = _lastMissions;
   final Set<String> _claimingMissions = {};
   bool _claiming = false;
   bool _failed = false;
 
-  /// Null until the user toggles: open while today's reward is unclaimed.
-  bool? _expanded;
+  /// Starts collapsed (the header's +N chip shows today's reward), so the
+  /// card is the same height loading or loaded and never pushes Home down.
+  bool _expanded = false;
 
   @override
   void initState() {
@@ -43,8 +49,8 @@ class _DailyRewardsCardState extends State<DailyRewardsCard> {
       final s = await _rewards.status();
       if (!mounted) return;
       setState(() {
-        _status = s.streak;
-        _missions = s.missions;
+        _status = _lastStatus = s.streak;
+        _missions = _lastMissions = s.missions;
         _failed = false;
       });
       // Anything issued earlier (match rewards, missions) gets credited now.
@@ -172,15 +178,40 @@ class _DailyRewardsCardState extends State<DailyRewardsCard> {
   @override
   Widget build(BuildContext context) {
     final s = _status;
-    if (_failed || s == null) return const SizedBox.shrink();
+    if (_failed && s == null) return const SizedBox.shrink();
+    if (s == null) return _shell(_loadingHeader());
     // Days already earned in this streak, including today once claimed.
     final done = s.streak;
-    final expanded = _expanded ?? !s.claimedToday;
+    final expanded = _expanded;
     final subtitle = s.claimedToday
         ? 'Claimed today · +${s.nextAmount} tomorrow'
         : done > 0
         ? 'Day ${done + 1} of 7 is ready'
         : 'Claim daily to climb to +${DailyRewardsCard.rewards.last}';
+    return _shell(
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _header(s, done, expanded, subtitle),
+          if (expanded) ...[
+            const SizedBox(height: 18),
+            _streakTrack(done),
+            const SizedBox(height: 18),
+            _claimArea(s),
+            if (_missions.isNotEmpty) ...[
+              const SizedBox(height: 18),
+              Text('TODAY’S MISSIONS', style: HomeTokens.eyebrow(Colors.white)),
+              const SizedBox(height: 4),
+              for (final m in _missions) _missionRow(m),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Frosted card body shared by the loading and loaded states.
+  Widget _shell(Widget content) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(HomeTokens.radius),
       child: BackdropFilter(
@@ -211,27 +242,7 @@ class _DailyRewardsCardState extends State<DailyRewardsCard> {
                 child: AnimatedSize(
                   duration: const Duration(milliseconds: 200),
                   alignment: Alignment.topCenter,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _header(s, done, expanded, subtitle),
-                      if (expanded) ...[
-                        const SizedBox(height: 18),
-                        _streakTrack(done),
-                        const SizedBox(height: 18),
-                        _claimArea(s),
-                        if (_missions.isNotEmpty) ...[
-                          const SizedBox(height: 18),
-                          Text(
-                            'TODAY’S MISSIONS',
-                            style: HomeTokens.eyebrow(Colors.white),
-                          ),
-                          const SizedBox(height: 4),
-                          for (final m in _missions) _missionRow(m),
-                        ],
-                      ],
-                    ],
-                  ),
+                  child: content,
                 ),
               ),
             ],
@@ -240,6 +251,51 @@ class _DailyRewardsCardState extends State<DailyRewardsCard> {
       ),
     );
   }
+
+  Widget _flameBadge() => Container(
+    width: 46,
+    height: 46,
+    decoration: const BoxDecoration(shape: BoxShape.circle, color: _glass),
+    child: const Icon(
+      Icons.local_fire_department_rounded,
+      color: HomeTokens.goldLight,
+      size: 28,
+    ),
+  );
+
+  /// Same height as the collapsed header, so nothing moves when data lands.
+  Widget _loadingHeader() => Row(
+    children: [
+      _flameBadge(),
+      const SizedBox(width: 12),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Daily streak',
+              style: HomeTokens.title(19),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'Loading your rewards…',
+              style: HomeTokens.body(_white70, size: 12),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(
+        width: 18,
+        height: 18,
+        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white70),
+      ),
+      const SizedBox(width: 3),
+    ],
+  );
 
   Widget _blob(double size, double alpha) => Container(
     width: size,
@@ -268,16 +324,7 @@ class _DailyRewardsCardState extends State<DailyRewardsCard> {
       borderRadius: BorderRadius.circular(14),
       child: Row(
         children: [
-          Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(shape: BoxShape.circle, color: _glass),
-            child: const Icon(
-              Icons.local_fire_department_rounded,
-              color: HomeTokens.goldLight,
-              size: 28,
-            ),
-          ),
+          _flameBadge(),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -286,9 +333,16 @@ class _DailyRewardsCardState extends State<DailyRewardsCard> {
                 Text(
                   done > 0 ? '$done-day streak 🔥' : 'Start your streak',
                   style: HomeTokens.title(19),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
-                Text(subtitle, style: HomeTokens.body(_white70, size: 12)),
+                Text(
+                  subtitle,
+                  style: HomeTokens.body(_white70, size: 12),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ],
             ),
           ),
