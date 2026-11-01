@@ -94,8 +94,8 @@ class _HomeContentViewState extends State<HomeContentView>
         _buildLazyLoadedSection('hostBanner', _buildHostBanner()),
         _buildLazyLoadedSection('playerLobby', _buildPlayerLobby()),
       ],
-      const DailyRewardsCard(),
       _buildLazyLoadedSection('cafe', _cachedCafeSection),
+      const DailyRewardsCard(),
       _buildLazyLoadedSection('miniGames', _cachedMiniGamesSection),
       _buildLazyLoadedSection('shorts', _cachedShortsSection),
       if (_showGamePassCard)
