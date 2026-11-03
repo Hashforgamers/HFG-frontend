@@ -138,7 +138,8 @@ Future<Map<String, List<Object>>?> showStoreFilters(
 // add range/text inputs if sellers need them.
 List<Object> storeFilterChoices(Map spec) => spec['type'] == 'boolean'
     ? const [true, false]
-    : (spec['choices'] as List? ?? [])
+    // Custom-colour fields send `suggestions` instead of `choices`.
+    : (spec['choices'] as List? ?? spec['suggestions'] as List? ?? [])
           .map((c) => c is Map ? c['value'] : c)
           .whereType<Object>()
           .toList();

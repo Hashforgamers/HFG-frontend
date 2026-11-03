@@ -64,15 +64,22 @@ class StoreProductCard extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: storeBody(
-                        size: 14,
-                        weight: FontWeight.w600,
-                        height: 1.25,
-                      ),
+                    // Always two lines tall, so one- and two-line titles keep
+                    // images and prices aligned across the row.
+                    Stack(
+                      children: [
+                        Text('\n', style: storeBody(size: 14, height: 1.25)),
+                        Text(
+                          title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: storeBody(
+                            size: 14,
+                            weight: FontWeight.w600,
+                            height: 1.25,
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 6),
                     Row(

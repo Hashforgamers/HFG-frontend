@@ -71,6 +71,33 @@ class _HashStoreProductPageState extends State<HashStoreProductPage> {
     return out;
   }
 
+  /// The listing gallery shows until the shopper picks an option.
+  bool _picked = false;
+
+  /// Header photos: the listing gallery, then the chosen SKU's images, or
+  /// colour-matched gallery photos when no SKU matches. Old responses
+  /// without a gallery fall back to the thumbnail; empty means placeholder.
+  List<String> get _photos {
+    final product = widget.product;
+    final gallery = (product['gallery'] as List? ?? []).whereType<Map>();
+    if (product['gallery'] == null) {
+      return [if (product['thumbnail'] is String) product['thumbnail']];
+    }
+    final all = [for (final g in gallery) '${g['url']}'];
+    if (!_picked) return all;
+    final images = _variant?['images'];
+    if (images is List) return images.map((i) => '$i').toList();
+    final color = _options['color'];
+    if (color == null) return all;
+    final matched = [
+      for (final g in gallery)
+        if (g['color'] == color) '${g['url']}',
+      for (final g in gallery)
+        if (g['color'] == null) '${g['url']}',
+    ];
+    return matched.isEmpty ? all : matched;
+  }
+
   void _pick(String key, Object? value) {
     final wanted = {..._options, key: value};
     // Keep the other choices when that SKU exists; otherwise jump to the
@@ -86,6 +113,7 @@ class _HashStoreProductPageState extends State<HashStoreProductPage> {
         candidates.firstOrNull;
     if (next == null) return;
     setState(() {
+      _picked = true;
       _options = Map<String, Object?>.from((next['options'] as Map?) ?? wanted);
       _qty = 1;
     });
@@ -183,22 +211,25 @@ class _HashStoreProductPageState extends State<HashStoreProductPage> {
                         child: Stack(
                           fit: StackFit.expand,
                           children: [
-                            StoreImage(
-                              url: p['thumbnail'] as String?,
-                              radius: 0,
+                            _PhotoPager(
+                              // A new key per photo set resets to the first.
+                              key: ValueKey(_photos.join('|')),
+                              photos: _photos,
                             ),
-                            const DecoratedBox(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  stops: [0, 0.25, 0.7, 1],
-                                  colors: [
-                                    Color(0x99050506),
-                                    Colors.transparent,
-                                    Colors.transparent,
-                                    StoreColors.bg,
-                                  ],
+                            IgnorePointer(
+                              child: const DecoratedBox(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    stops: [0, 0.25, 0.7, 1],
+                                    colors: [
+                                      Color(0x99050506),
+                                      Colors.transparent,
+                                      Colors.transparent,
+                                      StoreColors.bg,
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
@@ -617,4 +648,55 @@ class _Step extends StatelessWidget {
       ],
     ),
   );
+}
+
+/// Swipeable header photos with page dots; one photo is a plain image.
+class _PhotoPager extends StatefulWidget {
+  final List<String> photos;
+  const _PhotoPager({super.key, required this.photos});
+
+  @override
+  State<_PhotoPager> createState() => _PhotoPagerState();
+}
+
+class _PhotoPagerState extends State<_PhotoPager> {
+  int _page = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final photos = widget.photos;
+    if (photos.length < 2) {
+      return StoreImage(url: photos.firstOrNull, radius: 0);
+    }
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        PageView(
+          onPageChanged: (i) => setState(() => _page = i),
+          children: [for (final url in photos) StoreImage(url: url, radius: 0)],
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 56,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            spacing: 6,
+            children: [
+              for (var i = 0; i < photos.length; i++)
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 160),
+                  width: i == _page ? 16 : 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: i == _page ? Colors.white : Colors.white38,
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }
