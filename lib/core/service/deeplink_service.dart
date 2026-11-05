@@ -10,7 +10,6 @@ import 'package:app_links/app_links.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
-import 'package:hash/app/modules/tournaments_section/pages/tournaments_team_invite_join_view.dart';
 import 'package:hash/features/mini_games/ludo/ludo_game_screen.dart';
 import 'package:hash/features/mini_games/ludo/online/ludo_match_screen.dart';
 import 'package:hash/features/mini_games/score/mini_game_leaderboard_page.dart';
@@ -404,12 +403,15 @@ class DeepLinkService extends GetxController {
       return;
     }
     if (destination.type == DeepLinkType.teamInvite) {
-      Widget page() => TournamentsTeamInviteJoinView(
-        eventId: destination.id!,
-        teamId: destination.secondaryId!,
-        inviteId: destination.inviteId ?? '',
-      );
-      replaceStack ? Get.offAll(page) : Get.to(page);
+      // The tournament screen lists this user's pending team invites with
+      // accept/decline, so the invite link simply opens the tournament.
+      final route = FeatureFlags.tournamentsEnabled
+          ? AppRoutes.TOURNAMENT_DETAIL
+          : AppRoutes.HOME;
+      final args = {'id': destination.id!, 'team_id': destination.secondaryId};
+      replaceStack
+          ? Get.offAllNamed(route, arguments: args)
+          : Get.toNamed(route, arguments: args);
       return;
     }
 

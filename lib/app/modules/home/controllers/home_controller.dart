@@ -3,7 +3,7 @@ import 'package:hash/config/feature_flags.dart';
 import 'package:flutter/material.dart';
 import 'package:hash/app/modules/arena/views/past_booking_screen.dart';
 import 'package:hash/core/utils/haptics.dart';
-import 'package:hash/app/modules/tournaments_section/pages/tournaments_home_view.dart';
+import 'package:hash/app/modules/tournaments/player/tournaments_home_view.dart';
 import '../../arena/views/arena_view.dart';
 import '../../profile/user_profile_view.dart';
 import '../views/feature_coming_soon_view.dart';

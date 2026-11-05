@@ -20,9 +20,10 @@ import 'package:hash/app/modules/home/widgets/home_sign_off_card.dart';
 import 'package:hash/app/modules/home/widgets/home_game_pass_card.dart';
 import 'package:hash/app/modules/home/widgets/optimized_app_bar.dart';
 import 'package:hash/app/modules/home/controllers/home_controller.dart';
-import 'package:hash/app/modules/tournaments_section/cubit/tournament_home_cubit.dart';
-import 'package:hash/app/modules/tournaments_section/models/tournament_model.dart';
-import 'package:hash/app/modules/tournaments_section/pages/tournaments_details_view.dart';
+import 'package:hash/app/modules/tournaments/data/tournament_api.dart';
+import 'package:hash/core/localization/app_region.dart';
+import 'package:hash/app/modules/tournaments/data/tournament_models.dart';
+import 'package:hash/app/modules/tournaments/player/tournaments_home_view.dart' show openTournament;
 import 'package:hash/app/modules/login/controllers/login_controller.dart';
 import 'package:hash/app/modules/news/news_section_view.dart';
 import 'package:hash/app/modules/refferal/views/referral_view_with_controller.dart';
@@ -62,7 +63,14 @@ class _HomeContentViewState extends State<HomeContentView>
   late final UserController userController;
   late final WalletController walletController;
   late final SegmentSdkService segmentService;
-  late final TournamentHomeCubit tournamentHomeCubit;
+  final ValueNotifier<List<Tournament>> _upcomingTournaments = ValueNotifier(const []);
+
+  Future<void> _loadUpcomingTournaments() async {
+    try {
+      _upcomingTournaments.value =
+          (await TournamentApi().list(view: 'upcoming', perPage: 12, sort: 'soonest')).items;
+    } catch (_) {}
+  }
 
   // Animation controllers
   late final AnimationController _fadeController;
@@ -152,7 +160,7 @@ class _HomeContentViewState extends State<HomeContentView>
     _fadeController.dispose();
     _slideController.dispose();
     _scrollController.dispose();
-    tournamentHomeCubit.close();
+    _upcomingTournaments.dispose();
     super.dispose();
   }
 
@@ -162,7 +170,7 @@ class _HomeContentViewState extends State<HomeContentView>
     userController = Get.find<UserController>();
     walletController = Get.find<WalletController>();
     segmentService = locator<SegmentSdkService>();
-    tournamentHomeCubit = TournamentHomeCubit();
+    if (FeatureFlags.tournamentsEnabled) _loadUpcomingTournaments();
   }
 
   void _initializeSections() {
@@ -268,7 +276,7 @@ class _HomeContentViewState extends State<HomeContentView>
           _refreshWalletIfReady(forceRefresh: forceRefresh),
           bookingController.fetchUserBookings(forceRefresh: forceRefresh),
           if (FeatureFlags.tournamentsEnabled)
-            tournamentHomeCubit.fetchTournaments(forceRefresh: forceRefresh),
+            _loadUpcomingTournaments(),
           hashCoinCubit.getHashCoin(forceRefresh: forceRefresh),
         ];
         if (!_fcmRegistered) {
@@ -592,26 +600,15 @@ class _HomeContentViewState extends State<HomeContentView>
   }
 
   Widget _buildPlayerLobby() {
-    return BlocBuilder<TournamentHomeCubit, TournamentHomeState>(
-      bloc: tournamentHomeCubit,
-      builder: (context, state) {
-        if (state is TournamentHomeLoaded) {
-          final upcoming = state.joinableTournaments
-              .where(
-                (tournament) => tournament.status == TournamentStatus.upcoming,
-              )
-              .toList(growable: false);
-          if (upcoming.isNotEmpty) {
-            return _buildUpcomingTournaments(upcoming);
-          }
-        }
-        // No upcoming tournaments: show nothing (the lobby card was removed).
-        return const SizedBox.shrink();
-      },
+    return ValueListenableBuilder<List<Tournament>>(
+      valueListenable: _upcomingTournaments,
+      builder: (context, upcoming, _) => upcoming.isEmpty
+          ? const SizedBox.shrink()
+          : _buildUpcomingTournaments(upcoming),
     );
   }
 
-  Widget _buildUpcomingTournaments(List<TournamentModel> tournaments) {
+  Widget _buildUpcomingTournaments(List<Tournament> tournaments) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -648,35 +645,19 @@ class _HomeContentViewState extends State<HomeContentView>
     );
   }
 
-  Widget _buildUpcomingTournamentCard(TournamentModel tournament) {
-    final imagePath = tournament.imageUrl.trim();
+  Widget _buildUpcomingTournamentCard(Tournament tournament) {
+    final imagePath = tournament.bannerUrl ?? '';
     final image = imagePath.startsWith('http')
         ? NetworkImage(imagePath)
-        : AssetImage(
-                imagePath.isEmpty
-                    ? 'assets/hash_store_images/tournament_img1.png'
-                    : imagePath,
-              )
+        : const AssetImage('assets/hash_store_images/tournament_img1.png')
               as ImageProvider;
-    final date = tournament.startDate;
+    final date = tournament.startAt;
     final dateLabel = date == null
         ? 'DATE TBA'
         : '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
 
     return GestureDetector(
-      onTap: () {
-        if (tournament.source == 'community') {
-          Get.toNamed(
-            AppRoutes.TOURNAMENT_DETAIL,
-            arguments: {
-              'id': tournament.id,
-              'can_manage': tournament.canManage,
-            },
-          );
-        } else {
-          Get.to(() => TournamentsDetailsView(tournament: tournament));
-        }
-      },
+      onTap: () => openTournament(tournament.id),
       child: SizedBox(
         width: 124,
         child: Column(
@@ -712,7 +693,7 @@ class _HomeContentViewState extends State<HomeContentView>
                       child: Row(
                         children: [
                           Text(
-                            tournament.statusLabel.toUpperCase(),
+                            tournament.status.label.toUpperCase(),
                             style: GoogleFonts.inter(
                               color: HomeTokens.orange,
                               fontSize: 8,
@@ -722,7 +703,7 @@ class _HomeContentViewState extends State<HomeContentView>
                           ),
                           const Spacer(),
                           Text(
-                            tournament.entryFee,
+                            tournament.isFree ? 'FREE' : Money.format(tournament.entryFee, currency: tournament.currency),
                             style: GoogleFonts.inter(
                               color: Colors.white,
                               fontSize: 9,

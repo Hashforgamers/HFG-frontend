@@ -17,7 +17,7 @@ import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/utils/haptics.dart';
 import 'package:hash/utils/widgets/hash_wordmark.dart';
-import 'package:hash/app/modules/community/services/dispute_chat_auth.dart';
+import 'package:hash/app/modules/tournaments/data/dispute_chat_auth.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 

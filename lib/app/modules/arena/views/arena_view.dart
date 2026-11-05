@@ -16,8 +16,8 @@ import 'package:hash/app/modules/arena/services/nearby_player_location_service.d
 import 'package:hash/app/modules/chat/models/chat_user_model.dart';
 import 'package:hash/app/modules/chat/services/chat_service.dart';
 import 'package:hash/app/modules/chat/views/chat_room_view.dart';
-import 'package:hash/app/modules/tournaments_section/pages/tournaments_home_view.dart';
-import 'package:hash/app/modules/community/services/community_api.dart';
+import 'package:hash/app/modules/tournaments/data/tournament_api.dart';
+import 'package:hash/app/routes/app_routes.dart';
 import 'package:hash/app/modules/social/friend_service.dart';
 import 'package:hash/app/modules/social/friends_view.dart';
 import 'package:hash/app/modules/social/lfg_service.dart';
@@ -655,13 +655,13 @@ class _ArenaViewState extends State<ArenaView> {
 
   Future<void> _invitePlayerToTournament(Map<String, dynamic> player) async {
     try {
-      final page = await CommunityApi().listTournaments(
+      final page = await TournamentApi().list(
         view: 'upcoming',
         perPage: 30,
         sort: 'soonest',
       );
       if (page.items.isEmpty) {
-        Get.to(() => const TournamentsHomeView());
+        Get.toNamed(AppRoutes.TOURNAMENTS_DISCOVERY);
         return;
       }
       final tournament = await Get.bottomSheet(

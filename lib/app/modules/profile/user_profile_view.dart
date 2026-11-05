@@ -14,8 +14,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:hash/app/modules/hash_coin/cubit/hash_coin_cubit.dart';
 import 'package:hash/app/modules/about/about_page.dart';
-import 'package:hash/app/modules/community/models/host_verification.dart';
-import 'package:hash/app/modules/community/services/community_api.dart';
+import 'package:hash/app/modules/tournaments/host/models/host_verification.dart';
+import 'package:hash/app/modules/tournaments/data/tournament_api.dart';
 import 'package:hash/app/modules/need_help/need_help_page.dart';
 import 'package:hash/app/modules/profile/profile_view.dart';
 import 'package:hash/app/modules/refferal/views/referral_view_with_controller.dart';
@@ -52,7 +52,7 @@ class _UserProfileViewState extends State<UserProfileView> {
   @override
   void initState() {
     super.initState();
-    _hostVerification = CommunityApi().getMyHostVerification();
+    _hostVerification = TournamentApi().myHostVerification().catchError((_) => null);
   }
 
   @override
@@ -106,7 +106,7 @@ class _UserProfileViewState extends State<UserProfileView> {
           if (uid != null) await userController.fetchUserData(uid);
           if (mounted) {
             setState(() {
-              _hostVerification = CommunityApi().getMyHostVerification();
+              _hostVerification = TournamentApi().myHostVerification().catchError((_) => null);
             });
           }
         },

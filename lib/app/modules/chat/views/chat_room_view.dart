@@ -33,9 +33,7 @@ import 'package:hash/features/mini_games/wordly/wordly_screen.dart';
 import 'package:hash/features/mini_games/ludo/constants.dart';
 import 'package:hash/features/mini_games/ludo/online/ludo_match.dart';
 import 'package:hash/features/mini_games/flappy_birds/online/bird_match_service.dart';
-import 'package:hash/app/modules/community/services/community_api.dart';
-import 'package:hash/app/modules/tournaments_section/models/tournament_model.dart';
-import 'package:hash/app/modules/tournaments_section/pages/tournaments_details_view.dart';
+import 'package:hash/app/modules/tournaments/data/tournament_api.dart';
 import 'package:hash/app/routes/app_routes.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service/fb_events_service.dart';
@@ -1699,11 +1697,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
       }
 
       if (communityTeam) {
-        await CommunityApi().respondToTeamInvitation(
-          eventId,
-          teamId,
-          action: 'accept',
-        );
+        await TournamentApi().respondInvitation(eventId, teamId, accept: true);
       } else {
         await _remoteRepo.joinEventTeam(
           eventId: eventId,
@@ -1759,31 +1753,9 @@ class _ChatRoomViewState extends State<ChatRoomView> {
       );
       return;
     }
-    if (communityTeam) {
-      await Get.toNamed(
-        AppRoutes.TOURNAMENT_DETAIL,
-        arguments: {'id': eventId},
-      );
-      return;
-    }
-
-    try {
-      final payload = await _remoteRepo.fetchEventById(eventId: eventId);
-      if (!mounted) return;
-      await Get.to(
-        () => TournamentsDetailsView(
-          tournament: TournamentModel.fromJson(payload),
-        ),
-      );
-    } catch (error) {
-      if (!mounted) return;
-      AppSnackbar.show(
-        'Tournament',
-        error.toString().replaceFirst('Exception: ', ''),
-        snackPosition: SnackPosition.BOTTOM,
-        colorText: Colors.white,
-      );
-    }
+    // Cafe events were retired with the old tournament module; every invite
+    // now opens the community tournament screen.
+    await Get.toNamed(AppRoutes.TOURNAMENT_DETAIL, arguments: {'id': eventId});
   }
 
   Widget _buildComposer() {
