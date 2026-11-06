@@ -6,6 +6,7 @@ const TABS = [
   ["/push", "Compose"],
   ["/push/campaigns", "Campaigns"],
   ["/push/deeplinks", "Deep links"],
+  ["/push/flags", "Feature flags"],
   ["/dashboard", "Cafe likes"],
 ] as const;
 

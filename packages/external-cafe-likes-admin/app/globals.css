@@ -572,3 +572,28 @@ button:disabled {
 .preview-col code {
   overflow-wrap: anywhere;
 }
+
+/* Feature flag switch */
+.flag-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 92px;
+  padding: 4px 12px 4px 4px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.flag-switch:disabled { opacity: 0.6; cursor: wait; }
+.flag-knob {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #6e7686;
+  transition: background 0.2s;
+}
+.flag-switch.on { border-color: rgba(0, 220, 0, 0.5); background: rgba(0, 220, 0, 0.12); }
+.flag-switch.on .flag-knob { background: #00dc00; }
