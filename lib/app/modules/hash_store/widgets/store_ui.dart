@@ -421,12 +421,17 @@ class StoreImage extends StatelessWidget {
   final double? width;
   final double? height;
   final double radius;
+
+  /// Show the whole photo (no cropping), filling the spare space with a
+  /// blurred, dimmed copy of it. Used where wide shots would get cut off.
+  final bool whole;
   const StoreImage({
     super.key,
     this.url,
     this.width,
     this.height,
     this.radius = 16,
+    this.whole = false,
   });
 
   @override
@@ -452,6 +457,34 @@ class StoreImage extends StatelessWidget {
       borderRadius: BorderRadius.circular(radius),
       child: (url == null || url!.isEmpty)
           ? placeholder
+          : whole
+          ? SizedBox(
+              width: width,
+              height: height,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  ImageFiltered(
+                    imageFilter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                    child: CachedNetworkImage(
+                      imageUrl: url!,
+                      fit: BoxFit.cover,
+                      color: Colors.black.withValues(alpha: 0.35),
+                      colorBlendMode: BlendMode.darken,
+                      placeholder: (_, _) => placeholder,
+                      errorWidget: (_, _, _) => placeholder,
+                    ),
+                  ),
+                  CachedNetworkImage(
+                    imageUrl: url!,
+                    fit: BoxFit.contain,
+                    fadeInDuration: const Duration(milliseconds: 250),
+                    placeholder: (_, _) => const SizedBox.shrink(),
+                    errorWidget: (_, _, _) => const SizedBox.shrink(),
+                  ),
+                ],
+              ),
+            )
           : CachedNetworkImage(
               imageUrl: url!,
               width: width,

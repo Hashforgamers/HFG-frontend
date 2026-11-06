@@ -71,11 +71,9 @@ class _HashStoreProductPageState extends State<HashStoreProductPage> {
     return out;
   }
 
-  /// The listing gallery shows until the shopper picks an option.
-  bool _picked = false;
-
-  /// Header photos: the listing gallery, then the chosen SKU's images, or
-  /// colour-matched gallery photos when no SKU matches. Old responses
+  /// Header photos follow the selected option from the start (so they never
+  /// show another colour than the selected chip): the SKU's images, else
+  /// colour-matched gallery photos, else the whole gallery. Old responses
   /// without a gallery fall back to the thumbnail; empty means placeholder.
   List<String> get _photos {
     final product = widget.product;
@@ -84,7 +82,6 @@ class _HashStoreProductPageState extends State<HashStoreProductPage> {
       return [if (product['thumbnail'] is String) product['thumbnail']];
     }
     final all = [for (final g in gallery) '${g['url']}'];
-    if (!_picked) return all;
     final images = _variant?['images'];
     if (images is List) return images.map((i) => '$i').toList();
     final color = _options['color'];
@@ -113,7 +110,6 @@ class _HashStoreProductPageState extends State<HashStoreProductPage> {
         candidates.firstOrNull;
     if (next == null) return;
     setState(() {
-      _picked = true;
       _options = Map<String, Object?>.from((next['options'] as Map?) ?? wanted);
       _qty = 1;
     });

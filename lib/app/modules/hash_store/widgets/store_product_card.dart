@@ -45,7 +45,11 @@ class StoreProductCard extends StatelessWidget {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    StoreImage(url: product['thumbnail'] as String?, radius: 0),
+                    StoreImage(
+                      url: product['thumbnail'] as String?,
+                      radius: 0,
+                      whole: true,
+                    ),
                     if (soldOut)
                       const Positioned(
                         top: 8,
