@@ -103,7 +103,7 @@ class _InviteCafeViewState extends State<InviteCafeView> {
                         horizontal: 10,
                       ),
                       decoration: BoxDecoration(
-                        color: Color(0xFF338125),
+                        color: Color(0xff00DC00),
                         borderRadius: BorderRadius.circular(10),
                         boxShadow: [
                           BoxShadow(

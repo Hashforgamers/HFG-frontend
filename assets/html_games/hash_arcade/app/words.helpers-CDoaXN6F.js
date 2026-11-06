@@ -1,0 +1,1 @@
+import{C as e,V as n}from"./dictionary-zGEq5PQE.js";const a=o=>n.has(o.toLowerCase()),l=o=>e.filter(r=>r.length===o);function c(o,r){const t={};for(const s of r)t[s]=(t[s]??0)+1;for(const s of o){if(!t[s])return!1;t[s]--}return!0}export{l as c,a as i,c as s};

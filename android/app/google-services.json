@@ -1,6 +1,7 @@
-{
+  {
   "project_info": {
     "project_number": "376797794992",
+    "firebase_url": "https://hash-ee6fc-default-rtdb.firebaseio.com",
     "project_id": "hash-ee6fc",
     "storage_bucket": "hash-ee6fc.firebasestorage.app"
   },
@@ -13,6 +14,14 @@
         }
       },
       "oauth_client": [
+        {
+          "client_id": "376797794992-73kqlbksicbr82pbmgkuenj5aea5svi8.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.hfg.hash",
+            "certificate_hash": "c0fefb77a8c4beedf43ef6612326fc429ad5fcc9"
+          }
+        },
         {
           "client_id": "376797794992-96qdebg3d6l6ra7edjstcbtttgs6vcba.apps.googleusercontent.com",
           "client_type": 1,
@@ -43,6 +52,14 @@
           "android_info": {
             "package_name": "com.hfg.hash",
             "certificate_hash": "e4f5869749e475665fd6795a0b1c12e56396397a"
+          }
+        },
+        {
+          "client_id": "376797794992-j9r3jolklubj7lvsrchgghmki64r2ahm.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.hfg.hash",
+            "certificate_hash": "f2daf6ee007b5220143fc1e753c90bc02898f184"
           }
         },
         {

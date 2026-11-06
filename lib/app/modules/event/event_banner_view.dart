@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:hash/core/utils/app_snackbar.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -46,14 +47,28 @@ class _EventBannerState extends State<EventBanner> {
           campaignId: 'event_banner_001',
           action: 'banner_clicked',
         );
+        segmentService.onCustomEvent('Campaign Clicked', {
+          'campaign_id': 'event_banner_001',
+          'placement': 'home_banner',
+        });
+        fbEventsService.onCampaignClicked(
+          campaignId: 'event_banner_001',
+          source: 'home_banner',
+        );
 
-        Get.snackbar(
+        AppSnackbar.show(
           'Event',
           'Event banner clicked!',
           snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.green,
+          backgroundColor: const Color(0xff00DC00),
           colorText: Colors.white,
         );
+      },
+      onLongPress: () {
+        segmentService.onCustomEvent('Campaign Dismissed', {
+          'campaign_id': 'event_banner_001',
+        });
+        fbEventsService.onCampaignDismissed(campaignId: 'event_banner_001');
       },
       child: Container(
         height: 160,
@@ -137,7 +152,7 @@ class _EventBannerState extends State<EventBanner> {
                     ),
                     decoration: BoxDecoration(
                       border: Border.all(
-                        color: const Color(0xFF75F94C),
+                        color: const Color(0xff00DC00),
                         width: 1.5,
                       ),
                       borderRadius: BorderRadius.circular(25),

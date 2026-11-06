@@ -1,0 +1,136 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:flutter/foundation.dart';
+import 'package:get/get.dart';
+import 'package:hash/app/data/services/user_controller.dart';
+import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
+import 'package:hash/core/service_locator.dart';
+
+class FunnelNotificationService {
+  FunnelNotificationService({
+    FirebaseFirestore? firestore,
+    firebase_auth.FirebaseAuth? auth,
+  }) : _firestore = firestore ?? FirebaseFirestore.instance,
+       _auth = auth ?? firebase_auth.FirebaseAuth.instance;
+
+  static const String _eventsCollection = 'notification_funnel_events';
+
+  final FirebaseFirestore _firestore;
+  final firebase_auth.FirebaseAuth _auth;
+
+  Future<void> trackEvent(
+    String eventType, {
+    Map<String, dynamic> payload = const <String, dynamic>{},
+  }) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      // No authenticated user; skip to avoid orphaned events.
+      debugPrint('[Funnel] skip $eventType -> currentUser is null');
+      return;
+    }
+
+    final firebaseUid = currentUser.uid.trim();
+    if (firebaseUid.isEmpty) {
+      debugPrint('[Funnel] skip $eventType -> firebaseUid empty');
+      return;
+    }
+
+    final backendUserId = await _resolveBackendUserId();
+    if (backendUserId.isEmpty) {
+      debugPrint('[Funnel] skip $eventType -> backend user id missing');
+    }
+    final sanitizedPayload = _sanitizeMap({
+      ...payload,
+      ...await _resolveUserIdentityPayload(currentUser),
+    });
+    final now = DateTime.now();
+
+    await _firestore.collection(_eventsCollection).add({
+      'eventType': eventType.trim(),
+      'firebaseUid': firebaseUid,
+      'backendUserId': backendUserId,
+      'payload': sanitizedPayload,
+      'occurredAtMs': now.millisecondsSinceEpoch,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+    debugPrint(
+      '[Funnel] wrote $eventType for uid=$firebaseUid backend=$backendUserId',
+    );
+  }
+
+  Future<String> _resolveBackendUserId() async {
+    try {
+      if (Get.isRegistered<UserController>()) {
+        final userId = Get.find<UserController>().id.value.trim();
+        if (userId.isNotEmpty) {
+          return userId;
+        }
+      }
+    } catch (_) {}
+
+    try {
+      final userData = await locator<RemoteRepoInterface>()
+          .getUserFromPreferences();
+      return (userData?['id'] ?? userData?['user_id'] ?? '').toString().trim();
+    } catch (_) {
+      return '';
+    }
+  }
+
+  Future<Map<String, dynamic>> _resolveUserIdentityPayload(
+    firebase_auth.User currentUser,
+  ) async {
+    String displayName = currentUser.displayName?.trim() ?? '';
+    String username = '';
+
+    try {
+      if (Get.isRegistered<UserController>()) {
+        final user = Get.find<UserController>().user.value;
+        final controllerName = (user.name ?? '').trim();
+        displayName = controllerName.isNotEmpty ? controllerName : displayName;
+        username = (user.gameUserName ?? '').trim();
+      }
+    } catch (_) {}
+
+    try {
+      final userData = await locator<RemoteRepoInterface>()
+          .getUserFromPreferences();
+      displayName = displayName.isNotEmpty
+          ? displayName
+          : (userData?['name'] ?? userData?['displayName'] ?? '')
+                .toString()
+                .trim();
+      username = username.isNotEmpty
+          ? username
+          : (userData?['gameUserName'] ?? userData?['username'] ?? '')
+                .toString()
+                .trim();
+    } catch (_) {}
+
+    final preferredName = username.isNotEmpty ? username : displayName;
+    return {
+      if (displayName.isNotEmpty) 'display_name': displayName,
+      if (username.isNotEmpty) 'username': username,
+      if (preferredName.isNotEmpty) 'user_name': preferredName,
+    };
+  }
+
+  Map<String, dynamic> _sanitizeMap(Map<String, dynamic> payload) {
+    final sanitized = <String, dynamic>{};
+    payload.forEach((key, value) {
+      if (value == null) {
+        return;
+      }
+      if (value is String || value is num || value is bool) {
+        sanitized[key] = value;
+        return;
+      }
+      if (value is List) {
+        sanitized[key] = value.map((item) => item?.toString() ?? '').toList();
+        return;
+      }
+      sanitized[key] = value.toString();
+    });
+    return sanitized;
+  }
+}

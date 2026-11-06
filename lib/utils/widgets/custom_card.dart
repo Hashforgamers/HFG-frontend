@@ -1,5 +1,6 @@
 // early_access_card.dart
 import 'package:flutter/material.dart';
+import 'package:hash/core/utils/app_snackbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -28,7 +29,7 @@ class _EarlyAccessCardState extends State<EarlyAccessCard> {
           await launchUrl(Uri.parse(widget.siteUrl),
               mode: LaunchMode.externalApplication);
         } else {
-          Get.snackbar('Error', 'Could not launch article');
+          AppSnackbar.show('Error', 'Could not launch article');
         }
       }, // mobile “hover”
       child: SizedBox(
@@ -110,7 +111,7 @@ class _CardPainter extends CustomPainter {
     if (hover) {
       // green glow identical to Tailwind shadow-[0_0_20px_#1fff96]
       canvas.drawShadow(
-          path, const Color(0xFF1FFF96).withOpacity(.6), 12, false);
+          path, const Color(0xff00DC00).withOpacity(.6), 12, false);
     }
 
     // background fill

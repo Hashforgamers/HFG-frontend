@@ -130,7 +130,7 @@
 //           await launchUrl(Uri.parse(siteUrl),
 //               mode: LaunchMode.externalApplication);
 //         } else {
-//           Get.snackbar('Error', 'Could not launch article');
+//           AppSnackbar.show('Error', 'Could not launch article');
 //         }
 //       },
 //       child: Stack(
@@ -155,7 +155,7 @@
 //                     Colors.red,
 //                     Colors.orange,
 //                     Colors.yellow,
-//                     Colors.green,
+//                     const Color(0xff00DC00),
 //                     Colors.cyan,
 //                     Colors.blue,
 //                     Colors.purple,

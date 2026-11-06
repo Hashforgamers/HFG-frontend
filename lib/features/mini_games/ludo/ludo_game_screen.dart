@@ -1,54 +1,603 @@
+import 'dart:async';
+import 'package:hash/core/service/app_remote_config.dart';
+import 'ludo_score_service.dart';
+import 'package:hash/utils/widgets/game_button.dart';
+import 'package:hash/utils/widgets/game_panel.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'constants.dart';
+import 'ludo_analytics.dart';
 import 'ludo_provider.dart';
 import 'main_screen.dart';
+import 'online/ludo_live_matches_screen.dart';
+import 'online/ludo_match_screen.dart';
+import 'online/ludo_match_service.dart';
+import 'online/ludo_quit_cooldown.dart';
+import 'online/ludo_presence_widgets.dart';
+import 'skins/ludo_skin_store.dart';
+import 'skins/ludo_skins_screen.dart';
+import 'package:hash/features/mini_games/arcade_analytics.dart';
 
-class LudoGameScreen extends StatelessWidget {
-  const LudoGameScreen({super.key});
+/// The entry point always offers a mode before creating a local board.
+class LudoGameScreen extends StatefulWidget {
+  const LudoGameScreen({super.key, this.source = 'arcade'});
+
+  /// Where the player came from, for `ludo_opened` (home / arcade / push /
+  /// deeplink / banner).
+  final String source;
 
   @override
-  Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => LudoProvider()..startGame(),
-      child: const _LudoRoot(),
-    );
-  }
+  State<LudoGameScreen> createState() => _LudoGameScreenState();
 }
 
-class _LudoRoot extends StatefulWidget {
-  const _LudoRoot({super.key});
+class _LudoGameScreenState extends State<LudoGameScreen>
+    with WidgetsBindingObserver {
+  bool _openingOnline = false;
+  String? _activeMatchId;
 
-  @override
-  State<_LudoRoot> createState() => _LudoRootState();
-}
-
-class _LudoRootState extends State<_LudoRoot> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Future.wait([
-        precacheImage(const AssetImage("assets/ludo/images/thankyou.gif"), context),
-        precacheImage(const AssetImage("assets/ludo/images/board.png"), context),
-        precacheImage(const AssetImage("assets/ludo/images/dice/1.png"), context),
-        precacheImage(const AssetImage("assets/ludo/images/dice/2.png"), context),
-        precacheImage(const AssetImage("assets/ludo/images/dice/3.png"), context),
-        precacheImage(const AssetImage("assets/ludo/images/dice/4.png"), context),
-        precacheImage(const AssetImage("assets/ludo/images/dice/5.png"), context),
-        precacheImage(const AssetImage("assets/ludo/images/dice/6.png"), context),
-        precacheImage(const AssetImage("assets/ludo/images/dice/draw.gif"), context),
-        precacheImage(const AssetImage("assets/ludo/images/crown/1st.png"), context),
-        precacheImage(const AssetImage("assets/ludo/images/crown/2nd.png"), context),
-        precacheImage(const AssetImage("assets/ludo/images/crown/3rd.png"), context),
-      ]);
-    });
+    LudoAnalytics.opened(widget.source);
+    ArcadeAnalytics.opened('ludo', source: widget.source);
+    _refreshMatch();
+    WidgetsBinding.instance.addObserver(this);
+    unawaited(LudoScoreService.instance.sync());
+    unawaited(LudoSkinStore.instance.load());
   }
 
   @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: MainScreen(), // this is your game’s original screen
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(LudoScoreService.instance.sync());
+      unawaited(_refreshMatch());
+    }
+  }
+
+  @override
+  void dispose() {
+    ArcadeAnalytics.closed('ludo');
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  Future<void> _refreshMatch() async {
+    try {
+      final id = await LudoMatchService().activeMatchId();
+      if (mounted) setState(() => _activeMatchId = id);
+    } catch (_) {
+      // Local modes remain available when the online service is unavailable.
+    }
+  }
+
+  void _openLocal({
+    required bool againstAi,
+    bool powerMode = false,
+    bool quickLudo = false,
+  }) {
+    LudoAnalytics.modeSelected(
+      quickLudo
+          ? 'quick_ludo'
+          : (!againstAi ? 'pass_and_play' : (powerMode ? 'power' : 'vs_ai')),
+    );
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ChangeNotifierProvider(
+          create: (_) =>
+              (quickLudo
+                    ? LudoProvider(
+                        againstAi: true,
+                        tokens: 2,
+                        // Opposite corners for a fair 1v1.
+                        seats: {LudoPlayerType.green, LudoPlayerType.blue},
+                      )
+                    : LudoProvider(againstAi: againstAi, powerMode: powerMode))
+                ..startGame(),
+          child: const MainScreen(),
+        ),
+      ),
     );
   }
+
+  /// Opens an online room: [matchId] to resume/join a known room, [quick] to
+  /// Quick Match into someone's waiting room, otherwise a new friends room.
+  Future<void> _openOnline({String? matchId, bool quick = false}) async {
+    if (_openingOnline) return;
+    if (quick && matchId == null) {
+      final wait = await LudoQuitCooldown.remaining();
+      if (!mounted) return;
+      if (wait > Duration.zero) {
+        LudoAnalytics.quitCooldownBlocked(waitSec: wait.inSeconds);
+        final m = wait.inMinutes;
+        final sec = (wait.inSeconds % 60).toString().padLeft(2, '0');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'You left your last matches early. Quick Match opens again in '
+              '$m:$sec — try Vs AI meanwhile.',
+            ),
+          ),
+        );
+        return;
+      }
+    }
+    setState(() => _openingOnline = true);
+    final String stage;
+    if (matchId != null) {
+      stage = 'open_room';
+    } else {
+      LudoAnalytics.modeSelected(quick ? 'quick' : 'friends');
+      stage = quick ? 'quick_match' : 'create_room';
+    }
+    try {
+      final service = LudoMatchService();
+      final String id;
+      if (matchId != null) {
+        id = matchId;
+      } else if (quick) {
+        final result = await service.quickMatch();
+        id = result.id;
+        if (result.created) LudoAnalytics.roomCreated('quick');
+      } else {
+        id = (await service.createMatch()).id;
+        LudoAnalytics.roomCreated('friends');
+      }
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => LudoMatchScreen(matchId: id)),
+      );
+      await _refreshMatch();
+    } catch (e) {
+      LudoAnalytics.syncFailed(stage: stage, error: e);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Couldn’t open the online room. Check your connection and sign-in, then try again.',
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _openingOnline = false);
+    }
+  }
+
+  Future<void> _joinWithCode() async {
+    final code = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => const _RoomCodeSheet(),
+    );
+    if (code == null || !mounted) return;
+    setState(() => _openingOnline = true);
+    String? id;
+    try {
+      id = await LudoMatchService().findByCode(code);
+    } catch (e) {
+      LudoAnalytics.syncFailed(stage: 'find_code', error: e);
+      id = null;
+    }
+    LudoAnalytics.roomCodeEntered(found: id != null);
+    if (!mounted) return;
+    setState(() => _openingOnline = false);
+    if (id == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No open room with that code. Check it with your friend and try again.',
+          ),
+        ),
+      );
+      return;
+    }
+    await _openOnline(matchId: id);
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: GameColors.bgBottom,
+    body: Stack(
+      children: [
+        const GameBackground(),
+        SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 560),
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 28),
+                children: [
+                  Row(
+                    children: [
+                      GameIconButton(
+                        icon: Icons.arrow_back_rounded,
+                        tooltip: 'Back',
+                        onPressed: () => Navigator.of(context).maybePop(),
+                      ),
+                      const Spacer(),
+                      const GameText('HASH ARCADE', size: 20),
+                      const Spacer(),
+                      const SizedBox(width: 44),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  _hero(),
+                  const SizedBox(height: 22),
+                  const GameText('CHOOSE YOUR MODE', size: 20),
+                  const SizedBox(height: 12),
+                  _modeCard(
+                    title: 'Quick Match',
+                    subtitle: 'Play someone online. Starts in 15s or less.',
+                    tag: 'Online · ranked',
+                    icon: Icons.bolt_rounded,
+                    colors: GameColors.green,
+                    tone: GameButtonTone.green,
+                    action: _openingOnline ? 'Opening' : 'Play',
+                    onTap: _openingOnline
+                        ? null
+                        : () => _openOnline(quick: true),
+                    footer: const LudoLiveCount(
+                      emptyText: 'Be the first in — others see you waiting',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _modeCard(
+                    title: 'Play with Friends',
+                    subtitle: 'Private room. Share the code on WhatsApp.',
+                    tag: '2–4 players',
+                    icon: Icons.public_rounded,
+                    colors: GameColors.green,
+                    tone: GameButtonTone.green,
+                    action: _openingOnline ? 'Opening' : 'Create',
+                    onTap: _openingOnline ? null : () => _openOnline(),
+                  ),
+                  const SizedBox(height: 8),
+                  Center(
+                    child: TextButton.icon(
+                      onPressed: _openingOnline ? null : _joinWithCode,
+                      icon: const Icon(
+                        Icons.vpn_key_rounded,
+                        size: 18,
+                        color: GameColors.soft,
+                      ),
+                      label: Text(
+                        'Have a room code? Join',
+                        style: gameFont(14, GameColors.soft),
+                      ),
+                    ),
+                  ),
+                  if (AppRemoteConfig.ludoQuickModeEnabled) ...[
+                    const SizedBox(height: 12),
+                    _modeCard(
+                      title: 'Quick Ludo',
+                      subtitle: '2 tokens, 1v1 against AI. About 5 minutes.',
+                      tag: 'New · fast · unranked',
+                      icon: Icons.timer_rounded,
+                      colors: GameColors.green,
+                      tone: GameButtonTone.green,
+                      action: 'Play',
+                      onTap: () => _openLocal(againstAi: true, quickLudo: true),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  _modeCard(
+                    title: 'Vs AI',
+                    subtitle: 'Play as Green against 3 bots.',
+                    tag: 'Solo · offline',
+                    icon: Icons.smart_toy_rounded,
+                    colors: GameColors.purple,
+                    tone: GameButtonTone.purple,
+                    action: 'Play',
+                    onTap: () => _openLocal(againstAi: true),
+                  ),
+                  const SizedBox(height: 12),
+                  _modeCard(
+                    title: 'Power Ludo',
+                    subtitle:
+                        'Vs AI. Start with Reroll, Lucky Six, Boost & Shield.',
+                    tag: 'New · power-ups · unranked',
+                    icon: Icons.bolt_rounded,
+                    colors: GameColors.yellow,
+                    tone: GameButtonTone.yellow,
+                    action: 'Play',
+                    onTap: () => _openLocal(againstAi: true, powerMode: true),
+                  ),
+                  const SizedBox(height: 12),
+                  _modeCard(
+                    title: 'Pass & Play',
+                    subtitle: '4 players on one phone. Unranked.',
+                    tag: 'Local',
+                    icon: Icons.groups_rounded,
+                    colors: GameColors.yellow,
+                    tone: GameButtonTone.yellow,
+                    action: 'Play',
+                    onTap: () => _openLocal(againstAi: false),
+                  ),
+                  const SizedBox(height: 12),
+                  _modeCard(
+                    title: 'Watch Live',
+                    subtitle: 'Spectate matches happening now.',
+                    tag: 'Spectate',
+                    icon: Icons.visibility_rounded,
+                    colors: GameColors.red,
+                    tone: GameButtonTone.red,
+                    action: 'Watch',
+                    onTap: () {
+                      LudoAnalytics.modeSelected('spectate');
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const LudoLiveMatchesScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  _modeCard(
+                    title: 'Skins & Boards',
+                    subtitle: 'Tokens, boards and dice your rivals see.',
+                    tag: 'HashCoins',
+                    icon: Icons.palette_rounded,
+                    colors: GameColors.purple,
+                    tone: GameButtonTone.purple,
+                    action: 'Shop',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const LudoSkinsScreen(),
+                      ),
+                    ),
+                  ),
+                  if (_activeMatchId != null) ...[
+                    const SizedBox(height: 20),
+                    GameButton(
+                      label: 'Resume Match',
+                      subtitle: 'Your online game is still on',
+                      icon: Icons.play_arrow_rounded,
+                      tone: GameButtonTone.red,
+                      height: 60,
+                      onPressed: _openingOnline
+                          ? null
+                          : () {
+                              LudoAnalytics.resume('resume_button');
+                              _openOnline(matchId: _activeMatchId);
+                            },
+                    ),
+                  ],
+                  const SizedBox(height: 18),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.wifi_off_rounded,
+                        size: 14,
+                        color: GameColors.soft,
+                      ),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          'Vs AI and Pass & Play work offline',
+                          style: gameFont(12, GameColors.soft),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Widget _hero() => GamePanel(
+    headerColors: GameColors.green,
+    headerHeight: 96,
+    header: Row(
+      children: [
+        Container(
+          width: 70,
+          height: 70,
+          padding: const EdgeInsets.all(3),
+          decoration: BoxDecoration(
+            color: GameColors.outline,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(15),
+            child: Image.asset(
+              'assets/mini_game_icons/ludo_icon.png',
+              fit: BoxFit.cover,
+            ),
+          ),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const GameText('LUDO', size: 34),
+              Text(
+                'Roll the dice. Race to home.',
+                style: gameFont(14, GameColors.outline.withValues(alpha: 0.75)),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+    child: GameTray(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          for (final (place, pts) in const [
+            ('1st', 400),
+            ('2nd', 300),
+            ('3rd', 200),
+            ('4th', 100),
+          ])
+            Column(
+              children: [
+                GameText('$pts', size: 18, color: GameColors.yellow.$1),
+                Text(place, style: gameFont(12, GameColors.soft)),
+              ],
+            ),
+        ],
+      ),
+    ),
+  );
+
+  Widget _modeCard({
+    required String title,
+    required String subtitle,
+    required String tag,
+    required IconData icon,
+    required (Color, Color) colors,
+    required GameButtonTone tone,
+    required String action,
+    required VoidCallback? onTap,
+    Widget? footer,
+  }) => GamePanel(
+    onTap: onTap,
+    padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+    child: Row(
+      children: [
+        Container(
+          width: 56,
+          height: 56,
+          padding: const EdgeInsets.all(3),
+          decoration: BoxDecoration(
+            color: GameColors.outline,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(13),
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [colors.$1, colors.$2],
+              ),
+            ),
+            child: Center(child: GameIcon(icon: icon, size: 28)),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              GameText(title, size: 20),
+              const SizedBox(height: 2),
+              Text(subtitle, style: gameFont(13, GameColors.soft)),
+              const SizedBox(height: 2),
+              Text(tag.toUpperCase(), style: gameFont(11, colors.$1)),
+              if (footer != null) ...[const SizedBox(height: 3), footer],
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        SizedBox(
+          width: 92,
+          child: GameButton(
+            label: action,
+            tone: tone,
+            height: 44,
+            onPressed: onTap,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+/// Bottom sheet that asks for a friend's room code.
+class _RoomCodeSheet extends StatefulWidget {
+  const _RoomCodeSheet();
+
+  @override
+  State<_RoomCodeSheet> createState() => _RoomCodeSheetState();
+}
+
+class _RoomCodeSheetState extends State<_RoomCodeSheet> {
+  final TextEditingController _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  bool get _valid =>
+      LudoMatchService.normalizeRoomCode(_controller.text).length == 6;
+
+  void _submit() {
+    if (!_valid) return;
+    Navigator.of(
+      context,
+    ).pop(LudoMatchService.normalizeRoomCode(_controller.text));
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: EdgeInsets.fromLTRB(
+      16,
+      0,
+      16,
+      16 + MediaQuery.of(context).viewInsets.bottom,
+    ),
+    child: SafeArea(
+      top: false,
+      child: GamePanel(
+        headerColors: GameColors.green,
+        header: const GameText('JOIN A ROOM', size: 22),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Enter the 6-character code your friend shared.',
+              textAlign: TextAlign.center,
+              style: gameFont(14, GameColors.soft),
+            ),
+            const SizedBox(height: 12),
+            GameTray(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: TextField(
+                controller: _controller,
+                autofocus: true,
+                maxLength: 7,
+                textAlign: TextAlign.center,
+                textCapitalization: TextCapitalization.characters,
+                style: gameFont(26, Colors.white),
+                cursorColor: GameColors.yellow.$1,
+                decoration: InputDecoration(
+                  border: InputBorder.none,
+                  counterText: '',
+                  hintText: 'ABC123',
+                  hintStyle: gameFont(
+                    26,
+                    GameColors.soft.withValues(alpha: 0.35),
+                  ),
+                ),
+                onChanged: (_) => setState(() {}),
+                onSubmitted: (_) => _submit(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            GameButton(
+              label: 'Join',
+              icon: Icons.login_rounded,
+              tone: GameButtonTone.green,
+              height: 50,
+              onPressed: _valid ? _submit : null,
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }

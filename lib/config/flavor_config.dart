@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 
-enum Flavor {
-  dev,
-  prod,
-}
+enum Flavor { dev, prod }
 
 class FlavorConfig {
   final Flavor flavor;
@@ -61,4 +58,4 @@ class FlavorConfig {
   static String getBaseUrl(String key) {
     return instance.baseUrls[key] ?? '';
   }
-} 
+}

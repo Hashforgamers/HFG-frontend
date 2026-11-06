@@ -77,7 +77,7 @@ class RGBFramePainter extends CustomPainter {
       colors: [
         Colors.red,
         Colors.yellow,
-        Colors.green,
+        const Color(0xff00DC00),
         Colors.cyan,
         Colors.blue,
         Colors.purpleAccent,

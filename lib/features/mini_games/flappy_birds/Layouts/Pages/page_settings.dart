@@ -16,8 +16,8 @@ class Settings extends StatefulWidget {
   @override
   State<Settings> createState() => _SettingsState();
 }
-class _SettingsState extends State<Settings> {
 
+class _SettingsState extends State<Settings> {
   @override
   Widget build(BuildContext context) {
     Size size = MediaQuery.of(context).size;
@@ -29,11 +29,18 @@ class _SettingsState extends State<Settings> {
         child: Column(
           children: [
             Container(
-              margin: EdgeInsets.only(top: size.height * 0.08,left: 8,bottom: 10),
-              alignment: Alignment(-1,0),
-              child: IconButton(onPressed: (){
-                Navigator.pop(context);
-              },icon: Icon(Icons.arrow_back,size: 50,color: Colors.white,)),
+              margin: EdgeInsets.only(
+                top: size.height * 0.08,
+                left: 8,
+                bottom: 10,
+              ),
+              alignment: Alignment(-1, 0),
+              child: IconButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+                icon: Icon(Icons.arrow_back, size: 50, color: Colors.white),
+              ),
             ),
             Container(
               width: size.width * 0.78,
@@ -43,18 +50,23 @@ class _SettingsState extends State<Settings> {
               decoration: frame(),
               child: Column(
                 children: [
-                  myText("Setting",Colors.pinkAccent,35),
+                  myText("Setting", Colors.pinkAccent, 35),
                   BirdSettings(),
                   ThemesSettings(),
                   MusicSettings(),
                   DifficultySettings(),
                   ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.cyan.shade300,
-                      ),
-                      onPressed: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (context) => FlappyBirds(),),);
-                      }, child: myText("Apply",Colors.white,35) ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.cyan.shade300,
+                    ),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => FlappyBirds()),
+                      );
+                    },
+                    child: myText("Apply", Colors.white, 35),
+                  ),
                 ],
               ),
             ),

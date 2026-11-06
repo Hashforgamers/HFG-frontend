@@ -32,6 +32,7 @@ double barrierMovement = 0.05;
 /// Screen Boundary
 double screenEnd = -1.9;
 double screenStart = 3.5;
+
 /// audio
 final player = AudioPlayer();
 bool play = true;

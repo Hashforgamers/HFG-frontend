@@ -6,6 +6,7 @@ import 'package:hash/utils/pem_provider.dart';
 import 'package:pointycastle/asymmetric/api.dart'; // For RSA key parsing
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
+import 'package:hash/core/utils/app_logger.dart';
 
 // String exampleDecode() {
 //   String jwtToken =
@@ -143,21 +144,18 @@ String? decodeJwtAndGetUid(String jwtToken) {
     // Split the JWT token into its three parts (header.payload.signature)
     final parts = jwtToken.split('.');
     if (parts.length != 3) {
-      print('Invalid JWT token format');
+      AppLogger.d('Invalid JWT token format');
       return null;
     }
 
     // Get the payload part (second part)
     final payload = parts[1];
 
-    // Add padding if necessary for base64 decoding
-    String paddedPayload = payload;
-    while (paddedPayload.length % 4 != 0) {
-      paddedPayload += '=';
-    }
+    // Normalize for base64url decoding
+    final normalized = base64Url.normalize(payload);
 
     // Decode the base64 payload
-    final decodedBytes = base64Url.decode(paddedPayload);
+    final decodedBytes = base64Url.decode(normalized);
     final decodedString = utf8.decode(decodedBytes);
 
     // Parse the JSON payload
@@ -168,7 +166,7 @@ String? decodeJwtAndGetUid(String jwtToken) {
 
     return uid?.toString();
   } catch (e) {
-    print('Error decoding JWT token: $e');
+    AppLogger.d('Error decoding JWT token: $e');
     return null;
   }
 }
@@ -182,30 +180,24 @@ Map<String, dynamic>? decodeJwtPayload(String jwtToken) {
     // Split the JWT token into its three parts (header.payload.signature)
     final parts = jwtToken.split('.');
     if (parts.length != 3) {
-      print('Invalid JWT token format');
+      AppLogger.d('Invalid JWT token format');
       return null;
     }
 
     // Get the payload part (second part)
     final payload = parts[1];
 
-    // Add padding if necessary for base64 decoding
-    String paddedPayload = payload;
-    while (paddedPayload.length % 4 != 0) {
-      paddedPayload += '=';
-    }
-
-    // Replace URL-safe characters
-    paddedPayload = paddedPayload.replaceAll('-', '+').replaceAll('_', '/');
+    // Normalize for base64url decoding
+    final normalized = base64Url.normalize(payload);
 
     // Decode the base64 payload
-    final decodedBytes = base64Url.decode(payload);
+    final decodedBytes = base64Url.decode(normalized);
     final decodedString = utf8.decode(decodedBytes);
 
     // Parse the JSON payload
     return json.decode(decodedString);
   } catch (e) {
-    print('Error decoding JWT payload: $e');
+    AppLogger.d('Error decoding JWT payload: $e');
     return null;
   }
 }
@@ -227,7 +219,7 @@ bool isJwtExpired(String jwtToken) {
 
     return currentTime.isAfter(expirationTime);
   } catch (e) {
-    print('Error checking JWT expiration: $e');
+    AppLogger.d('Error checking JWT expiration: $e');
     return true; // Consider invalid tokens as expired
   }
 }
@@ -271,7 +263,7 @@ String encodeJwt({
     // Combine all parts to create JWT
     return '$encodedHeader.$encodedPayload.$encodedSignature';
   } catch (e) {
-    print('Error encoding JWT token: $e');
+    AppLogger.d('Error encoding JWT token: $e');
     return '';
   }
 }
@@ -623,7 +615,7 @@ String? extractJwtFromResponse(dynamic response) {
 
     return authorizationHeader.substring(7); // Remove "Bearer " prefix
   } catch (e) {
-    print('Error extracting JWT from response: $e');
+    AppLogger.d('Error extracting JWT from response: $e');
     return null;
   }
 }

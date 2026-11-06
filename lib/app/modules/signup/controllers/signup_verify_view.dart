@@ -89,9 +89,9 @@
 //                         fieldWidth: 44,
 //                         inactiveColor: Colors.white24,
 //                         inactiveFillColor: Colors.black,
-//                         activeColor: Colors.greenAccent,
+//                         activeColor: const Color(0xff00DC00),
 //                         activeFillColor: Colors.black87,
-//                         selectedColor: Colors.greenAccent,
+//                         selectedColor: const Color(0xff00DC00),
 //                         selectedFillColor: Colors.black,
 //                       ),
 //                       onCompleted: (_) => _verifyOtp(), // auto-trigger
@@ -122,7 +122,7 @@
 //                               ),
 //                             ),
 //                             child: Obx(() => login.isLoading.value
-//                                 ? const RainbowLoadingBar(width: 280, height: 2)
+//                                 ? const AppLinearLoader(width: 280, height: 2)
 //                                 : Text(
 //                                     'Verify OTP',
 //                                     style: GoogleFonts.inter(
@@ -139,7 +139,7 @@
 //                       onPressed: login.isLoading.value ? null : _resendOtp,
 //                       child: Text(
 //                         'Resend OTP',
-//                         style: GoogleFonts.inter(color: const Color(0xFF3AFF6B)),
+//                         style: GoogleFonts.inter(color: const Color(0xff00DC00)),
 //                       ),
 //                     ),
 //                   ],
@@ -153,7 +153,7 @@
 //               ? Container(
 //                   color: Colors.black.withOpacity(0.55),
 //                   child: const Center(
-//                     child: RainbowLoadingBar(
+//                     child: AppLinearLoader(
 //                       valueColor:
 //                           AlwaysStoppedAnimation<Color>(Color(0xffDE3A3A)),
 //                     ),
@@ -169,7 +169,7 @@
 //   void _verifyOtp() {
 //     final otp = _otpController.text.trim();
 //     if (otp.length != 6) {
-//       Get.snackbar('Error', 'Enter a valid 6-digit OTP',
+//       AppSnackbar.show('Error', 'Enter a valid 6-digit OTP',
 //           snackPosition: SnackPosition.BOTTOM,
 //           backgroundColor: Colors.red,
 //           colorText: Colors.white);
@@ -186,7 +186,7 @@
 //
 //   void _resendOtp() {
 //     // your resend logic …
-//     Get.snackbar('Info', 'OTP resent',
+//     AppSnackbar.show('Info', 'OTP resent',
 //         snackPosition: SnackPosition.BOTTOM,
 //         backgroundColor: Colors.blue,
 //         colorText: Colors.white);

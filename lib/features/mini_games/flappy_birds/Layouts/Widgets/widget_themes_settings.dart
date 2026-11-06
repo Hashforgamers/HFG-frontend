@@ -12,38 +12,66 @@ class ThemesSettings extends StatefulWidget {
 }
 
 class _ThemesSettingsState extends State<ThemesSettings> {
-
   @override
   Widget build(BuildContext context) {
     return Container(
       margin: EdgeInsets.only(bottom: 10),
       child: Column(
         children: [
-          Center(child: Container(margin: EdgeInsets.symmetric(vertical: 10),child: Text("Themes",style: TextStyle(fontSize: 20,fontFamily: "Magic4"))),),
+          Center(
+            child: Container(
+              margin: EdgeInsets.symmetric(vertical: 10),
+              child: Text(
+                "Themes",
+                style: TextStyle(fontSize: 20, fontFamily: "Magic4"),
+              ),
+            ),
+          ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              GestureDetector(onTap: (){
-                setState(() {
-                  Str.image = "0";
-                  write("background", Str.image);
-                  background(Str.image);
-                });
-              },child: Image.asset("assets/flappy_birds/pics/0.png",width: 73,height: 70,)),
-              GestureDetector(onTap: (){
-                setState(() {
-                  Str.image = "1";
-                  write("background", Str.image);
-                  background(Str.image);
-                });
-              },child: Image.asset("assets/flappy_birds/pics/1.png",width: 73,height: 70,)),
-              GestureDetector(onTap: (){
-                setState(() {
-                  Str.image = "2";
-                  write("background", Str.image);
-                  background(Str.image);
-                });
-              },child: Image.asset("assets/flappy_birds/pics/2.png",width: 63,height: 66,)),
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    Str.image = "0";
+                    write("background", Str.image);
+                    background(Str.image);
+                  });
+                },
+                child: Image.asset(
+                  "assets/flappy_birds/pics/0.png",
+                  width: 73,
+                  height: 70,
+                ),
+              ),
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    Str.image = "1";
+                    write("background", Str.image);
+                    background(Str.image);
+                  });
+                },
+                child: Image.asset(
+                  "assets/flappy_birds/pics/1.png",
+                  width: 73,
+                  height: 70,
+                ),
+              ),
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    Str.image = "2";
+                    write("background", Str.image);
+                    background(Str.image);
+                  });
+                },
+                child: Image.asset(
+                  "assets/flappy_birds/pics/2.png",
+                  width: 63,
+                  height: 66,
+                ),
+              ),
             ],
           ),
         ],

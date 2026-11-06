@@ -1,76 +1,82 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:hash/utils/widgets/glow_neon_loader.dart';
+import 'package:hash/utils/widgets/home_section_title.dart';
 import 'package:shimmer/shimmer.dart';
 import '../controllers/viral_shorts_controller.dart';
+import '../widgets/short_card.dart';
 import 'short_video_player.dart';
 
 class ViralShotsSection extends StatelessWidget {
-  final controller = Get.put(YouTubeShortsController());
+  final YouTubeShortsController controller = Get.put(YouTubeShortsController());
 
   ViralShotsSection({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'TRENDING SHORTS',
-          style: GoogleFonts.inter(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
+    return Obx(() {
+      if (!controller.isLoading.value && controller.shorts.isEmpty) {
+        return const SizedBox.shrink();
+      }
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const HomeSectionTitle(
+            title: 'Trending ',
+            accent: 'Shorts',
+            brand: true,
           ),
-        ),
-        const SizedBox(height: 20),
-        Obx(() {
-          if (controller.isLoading.value) return _shimmerRow();
-          if (controller.shorts.isEmpty) {
-            return Center(
-              child: Text(
-                'No shorts found',
-                style: GoogleFonts.inter(color: Colors.white),
+          const SizedBox(height: 12),
+          Obx(() {
+            if (controller.isLoading.value) return _shimmerRow();
+            if (controller.shorts.isEmpty) {
+              return Center(
+                child: Text(
+                  'No shorts found',
+                  style: GoogleFonts.inter(color: Colors.white),
+                ),
+              );
+            }
+
+            return SizedBox(
+              height: 250,
+              child: ListView.separated(
+                cacheExtent: 600,
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.only(bottom: 12),
+                itemCount: controller.shorts.length,
+                separatorBuilder: (context, index) => const SizedBox(width: 12),
+                itemBuilder: (context, index) {
+                  final short = controller.shorts[index];
+                  return RepaintBoundary(child: _buildItem(short, index));
+                },
               ),
             );
-          }
-
-          return SizedBox(
-            height: 220,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: controller.shorts.length,
-              separatorBuilder: (_, __) => SizedBox(width: 20),
-              itemBuilder: (context, index) {
-                final short = controller.shorts[index];
-                return _buildItem(short, index);
-              },
-            ),
-          );
-        }),
-      ],
-    );
+          }),
+        ],
+      );
+    });
   }
 
   Widget _shimmerRow() {
     return SizedBox(
-      height: 220,
+      height: 250,
       child: Shimmer.fromColors(
-        baseColor: const Color(0xff1E1E1E),
-        highlightColor: const Color(0xff2C2C2C),
-        child: Row(
-          children: List.generate(
-            4,
-            (_) => Container(
-              margin: const EdgeInsets.all(5),
-              width: 120,
-              height: 220,
-              decoration: BoxDecoration(
-                color: Colors.grey[900],
-                borderRadius: BorderRadius.circular(10),
+        baseColor: const Color(0xFF1C1C1E),
+        highlightColor: const Color(0xFF2C2C2E),
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          physics: const NeverScrollableScrollPhysics(),
+          padding: const EdgeInsets.only(bottom: 12),
+          itemCount: 4,
+          separatorBuilder: (context, index) => const SizedBox(width: 12),
+          itemBuilder: (context, index) => Container(
+            width: 138,
+            decoration: const ShapeDecoration(
+              shape: ContinuousRectangleBorder(
+                borderRadius: BorderRadius.all(Radius.circular(40)),
               ),
+              color: Color(0xFF1C1C1E),
             ),
           ),
         ),
@@ -79,115 +85,13 @@ class ViralShotsSection extends StatelessWidget {
   }
 
   Widget _buildItem(YouTubeShort short, int index) {
-    return GestureDetector(
+    return ShortCard(
+      thumbnail: short.thumbnail,
+      title: short.title,
+      channelName: short.channelName,
+      channelImage: short.channelImage,
       onTap: () => Get.to(
         () => ShortVideoPlayer(shorts: controller.shorts, initialIndex: index),
-      ),
-      child: Container(
-        height: 220,
-        width: 125,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(15),
-          color: const Color(0xff1E1E1E),
-        ),
-        child: Stack(
-          alignment: Alignment.bottomCenter,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(15),
-              child: CachedNetworkImage(
-                imageUrl: short.thumbnail,
-                height: 220,
-                width: 125,
-                fit: BoxFit.cover,
-                placeholder: (_, _) =>
-                    const Center(child: RainbowGlowingLoader(size: 40)),
-                errorWidget: (_, _, _) =>
-                    const Icon(Icons.error, color: Colors.red),
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Colors.transparent, Colors.black.withOpacity(0.9)],
-                ),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(6),
-                        child: CachedNetworkImage(
-                          imageUrl: short.channelImage,
-                          height: 24,
-                          width: 24,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          short.channelName,
-                          style: GoogleFonts.inter(
-                            color: Colors.white,
-                            fontSize: 11,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const Spacer(),
-                  Text(
-                    short.title,
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  ElevatedButton(
-                    onPressed: () => Get.to(
-                      () => ShortVideoPlayer(
-                        shorts: controller.shorts,
-                        initialIndex: index,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xff75F94C),
-                      minimumSize: const Size(0, 26),
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 8,
-                        horizontal: 20,
-                      ),
-                      side: const BorderSide(color: Colors.white, width: 1.5),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(25),
-                      ),
-                    ),
-                    child: Text(
-                      'Watch',
-                      style: GoogleFonts.inter(
-                        color: Colors.black,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

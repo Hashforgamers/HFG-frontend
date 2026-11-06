@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0"
+    />
+    <title>Tap Blitz</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #07121f;
+        --card: rgba(12, 19, 33, 0.86);
+        --accent: #4de2c6;
+        --accent-2: #ffb454;
+        --text: #f4f7fb;
+        --muted: #8ea2bb;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: Arial, sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at top, rgba(77, 226, 198, 0.16), transparent 26%),
+          radial-gradient(circle at bottom right, rgba(255, 180, 84, 0.18), transparent 30%),
+          var(--bg);
+        overflow: hidden;
+      }
+
+      .shell {
+        padding: 18px;
+        display: grid;
+        gap: 16px;
+        height: 100vh;
+      }
+
+      .hud,
+      .arena,
+      .footer {
+        background: var(--card);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 22px;
+        backdrop-filter: blur(16px);
+      }
+
+      .hud {
+        padding: 18px;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .metric {
+        background: rgba(255, 255, 255, 0.04);
+        border-radius: 16px;
+        padding: 12px 14px;
+      }
+
+      .label {
+        color: var(--muted);
+        font-size: 12px;
+        margin-bottom: 6px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .value {
+        font-size: 24px;
+        font-weight: 700;
+      }
+
+      .arena {
+        position: relative;
+        flex: 1;
+        min-height: 0;
+      }
+
+      #target {
+        position: absolute;
+        width: 84px;
+        height: 84px;
+        border: none;
+        border-radius: 999px;
+        cursor: pointer;
+        background:
+          radial-gradient(circle at 30% 30%, #9ff8e8, transparent 28%),
+          linear-gradient(135deg, var(--accent), #158f78);
+        box-shadow: 0 16px 34px rgba(77, 226, 198, 0.28);
+      }
+
+      .footer {
+        padding: 16px 18px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      #status {
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      button.secondary {
+        border: none;
+        border-radius: 999px;
+        padding: 12px 16px;
+        cursor: pointer;
+        font-weight: 700;
+        color: #101521;
+        background: linear-gradient(135deg, var(--accent-2), #ffd38a);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <div class="hud">
+        <div class="metric">
+          <div class="label">Score</div>
+          <div class="value" id="score">0</div>
+        </div>
+        <div class="metric">
+          <div class="label">Time</div>
+          <div class="value" id="timer">20</div>
+        </div>
+        <div class="metric">
+          <div class="label">Mode</div>
+          <div class="value">Tap</div>
+        </div>
+      </div>
+
+      <div class="arena" id="arena">
+        <button id="target" aria-label="Tap target"></button>
+      </div>
+
+      <div class="footer">
+        <div id="status">Hit the moving target before the timer ends.</div>
+        <button class="secondary" id="restart">Restart</button>
+      </div>
+    </div>
+
+    <script>
+      const arena = document.getElementById("arena");
+      const target = document.getElementById("target");
+      const timerNode = document.getElementById("timer");
+      const scoreNode = document.getElementById("score");
+      const statusNode = document.getElementById("status");
+      const restartButton = document.getElementById("restart");
+
+      let score = 0;
+      let remaining = 20;
+      let finished = false;
+      let timerHandle = null;
+
+      function setStatus(message) {
+        statusNode.textContent = message;
+      }
+
+      function moveTarget() {
+        const width = Math.max(arena.clientWidth - 96, 0);
+        const height = Math.max(arena.clientHeight - 96, 0);
+        target.style.left = `${Math.random() * width + 12}px`;
+        target.style.top = `${Math.random() * height + 12}px`;
+      }
+
+      function submitScore() {
+        if (
+          window.flutter_inappwebview &&
+          typeof window.flutter_inappwebview.callHandler === "function"
+        ) {
+          window.flutter_inappwebview.callHandler("gameScore", { score });
+          setStatus(`Score ${score} sent to Flutter.`);
+          return;
+        }
+
+        setStatus(`Bridge unavailable. Final score: ${score}`);
+      }
+
+      function finishGame() {
+        finished = true;
+        clearInterval(timerHandle);
+        target.disabled = true;
+        setStatus("Round complete. Sending score...");
+        submitScore();
+      }
+
+      function startGame() {
+        clearInterval(timerHandle);
+        score = 0;
+        remaining = 20;
+        finished = false;
+        target.disabled = false;
+        scoreNode.textContent = "0";
+        timerNode.textContent = "20";
+        setStatus("Hit the moving target before the timer ends.");
+        moveTarget();
+
+        timerHandle = setInterval(() => {
+          remaining -= 1;
+          timerNode.textContent = String(remaining);
+          if (remaining <= 0) {
+            finishGame();
+          }
+        }, 1000);
+      }
+
+      target.addEventListener("click", () => {
+        if (finished) return;
+        score += 10;
+        scoreNode.textContent = String(score);
+        moveTarget();
+      });
+
+      restartButton.addEventListener("click", startGame);
+
+      window.addEventListener("load", startGame);
+      window.addEventListener("resize", moveTarget);
+    </script>
+  </body>
+</html>

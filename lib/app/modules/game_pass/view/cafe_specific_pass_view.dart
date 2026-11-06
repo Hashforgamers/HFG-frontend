@@ -1,13 +1,14 @@
 import 'dart:ui';
+import 'package:hash/core/utils/app_snackbar.dart';
 import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:get/get.dart';
-import 'package:http/http.dart' as http;
 import 'package:hash/app/modules/game_pass/cubit/game_pass_cubit.dart';
 import 'package:hash/core/repositories/model/get_pass_model.dart';
+import 'package:hash/core/network/network_config.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/config/flavor_config.dart';
 import 'package:hash/app/data/services/user_controller.dart';
@@ -18,6 +19,7 @@ import 'package:hash/utils/widgets/glow_neon_loader.dart';
 
 import '../../../../utils/widgets/bounce_tap_widget.dart';
 import '../../../../utils/widgets/loader.dart';
+import 'package:hash/core/localization/app_region.dart';
 
 class CafeSpecificPassView extends StatefulWidget {
   final TabController tabController;
@@ -33,7 +35,7 @@ class CafeSpecificPassView extends StatefulWidget {
 }
 
 class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
-  final RazorpayController _razorpayController = Get.put(RazorpayController());
+  late final RazorpayController _razorpayController;
   final UserController _userController = Get.find<UserController>();
   final _segmentService = locator<SegmentSdkService>();
   final _fbEventsService = locator<FbEventsService>();
@@ -44,6 +46,9 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
   @override
   void initState() {
     super.initState();
+    _razorpayController = Get.isRegistered<RazorpayController>()
+        ? Get.find<RazorpayController>()
+        : Get.put(RazorpayController());
     _setupPaymentListeners();
   }
 
@@ -105,6 +110,9 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
         paymentMethodSelected: 'razorpay',
       );
 
+      // Store pass info before opening checkout so success callback always has context.
+      _razorpayController.setPassIdForPurchase(pass.id);
+
       // Open Razorpay checkout
       _razorpayController.openCheckout(
         orderId: orderId,
@@ -120,13 +128,18 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
         paymentType: PaymentType.passPurchase,
       );
 
-      // Store pass info for payment success handling
-      _razorpayController.bookingIdList.value = [int.parse(pass.id)];
+      // Keep numeric fallback for legacy flows.
+      final passIdAsInt = int.tryParse(pass.id);
+      if (passIdAsInt != null) {
+        _razorpayController.bookingIdList.value = [passIdAsInt];
+      } else {
+        _razorpayController.bookingIdList.clear();
+      }
       // Clear slot IDs for pass purchases since passes don't have slots
       _razorpayController.slotIdsList.clear();
     } catch (e) {
       _processingPasses[passId] = false;
-      Get.snackbar(
+      AppSnackbar.show(
         'Error',
         'Failed to initiate payment: $e',
         snackPosition: SnackPosition.BOTTOM,
@@ -147,18 +160,18 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
       "receipt": receiptId,
     };
 
-    final response = await http.post(
-      Uri.parse(url),
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode(payload),
-    );
+    final dio = await locator<NetworkProvider>().auth();
+    final response = await dio.post(url, data: payload);
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      return data['id'];
-    } else {
-      throw Exception('Failed to create payment order: ${response.body}');
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final data = response.data is String
+          ? jsonDecode(response.data as String)
+          : response.data;
+      final orderId = (data['id'] ?? data['order_id'] ?? '').toString();
+      if (orderId.isNotEmpty) return orderId;
     }
+
+    throw Exception('Failed to create payment order: ${response.data}');
   }
 
   @override
@@ -167,10 +180,10 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
       builder: (context, state) {
         // Handle initial state - show loading to prevent flash of old data
         if (state is GamePassInitial) {
-          return const Center(child: RainbowLoadingBar());
+          return const Center(child: AppLinearLoader());
         }
         if (state is GamePassLoading) {
-          return const Center(child: RainbowLoadingBar());
+          return const Center(child: AppLinearLoader());
         }
         if (state is GamePassError) {
           return _buildError(context, state.message);
@@ -197,188 +210,190 @@ class _CafeSpecificPassViewState extends State<CafeSpecificPassView> {
   }
 
   Widget _buildCafePassCard(BuildContext context, GetPassModel pass) {
-    return BounceTap(
-      onTap: pass.isBought == true
-          ? null
-          : () {
-              _purchaseCafePass(pass);
-            },
-      child: Container(
-        height: 200,
-        width: MediaQuery.of(context).size.width,
-        decoration: BoxDecoration(borderRadius: BorderRadius.circular(25)),
-        child: Stack(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(25),
-              child: CachedNetworkImage(
-                imageUrl: (pass.vendorImages?.isNotEmpty == true)
-                    ? pass.vendorImages!.first.url
-                    : 'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075171/cafepass3_on04c0.png',
-                height: 200,
-                width: MediaQuery.of(context).size.width,
-                fit: BoxFit.cover,
-                placeholder: (_, _) =>
-                    const Center(child: RainbowGlowingLoader(size: 40)),
-                errorWidget: (_, _, _) => Container(
-                  color: Colors.grey,
-                  alignment: Alignment.center,
-                  child: const Icon(
-                    Icons.image_not_supported,
-                    color: Colors.white54,
-                    size: 40,
+    final Color accentColor = pass.name.toLowerCase().contains('24')
+        ? const Color(0xff00DC00)
+        : pass.name.toLowerCase().contains('7')
+        ? Colors.purpleAccent
+        : Colors.blueAccent;
+
+    final String bgImage =
+    (pass.vendorImages?.isNotEmpty == true)
+        ? pass.vendorImages!.first.url
+        : 'https://res.cloudinary.com/dxjjigepf/image/upload/v1755075171/cafepass3_on04c0.png';
+
+    return Obx(
+          () => BounceTap(
+        onTap: (pass.isBought == true || _processingPasses[pass.id] == true)
+            ? null
+            : () => _purchaseCafePass(pass),
+        child: Container(
+          height: 190,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white12),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                /// 🔹 BACKGROUND IMAGE
+                CachedNetworkImage(
+                  imageUrl: bgImage,
+                  fit: BoxFit.cover,
+                  placeholder: (_, __) =>
+                  const Center(child: RainbowGlowingLoader(size: 30)),
+                  errorWidget: (_, __, ___) =>
+                      Container(color: Colors.black),
+                ),
+
+                /// 🔹 BLUR LAYER
+                BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                  child: Container(
+                    color: Colors.black.withOpacity(0.65),
                   ),
                 ),
-              ),
-            ),
-            Positioned(
-              left: 0,
-              right: 0,
-              top: 0,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(25),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 16,
+
+                /// 🔹 FOREGROUND CONTENT
+                Row(
+                  children: [
+                    /// LEFT PROTOCOL STRIP
+                    Container(
+                      width: 44,
+                      decoration: BoxDecoration(
+                        color: accentColor.withOpacity(0.15),
+                        borderRadius: const BorderRadius.horizontal(
+                          left: Radius.circular(20),
+                        ),
+                      ),
+                      child: RotatedBox(
+                        quarterTurns: -1,
+                        child: Center(
+                          child: Text(
+                            'PROTOCOL',
+                            style: GoogleFonts.inter(
+                              color: accentColor,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1.2,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.1),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Column(
-                          mainAxisAlignment: MainAxisAlignment.start,
+
+                    /// MAIN CONTENT
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                        child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
                           children: [
+                            /// TOP ROW
                             Row(
+                              mainAxisAlignment:
+                              MainAxisAlignment.spaceBetween,
                               children: [
-                                Icon(
-                                  Icons.circle,
-                                  size: 8,
-                                  color: Colors.greenAccent,
-                                ),
-                                const SizedBox(width: 6),
                                 Text(
-                                  pass.vendorName,
+                                  'LIFECYCLE',
+                                  style: GoogleFonts.inter(
+                                    color: accentColor,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 1,
+                                  ),
+                                ),
+                                Text(
+                                  '${Money.symbol}${pass.price.toStringAsFixed(0)}',
                                   style: GoogleFonts.inter(
                                     color: Colors.white,
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
                                   ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 2),
-                            Row(
-                              children: [
-                                const SizedBox(width: 12),
-                                Row(
-                                  children: List.generate(
-                                    4,
-                                    (index) => const Icon(
-                                      Icons.star,
-                                      color: Color(0xFFE6D009),
-                                      size: 13,
-                                    ),
-                                  ),
+
+                            const SizedBox(height: 6),
+
+                            /// TITLE
+                            Text(
+                              pass.name.toUpperCase(),
+                              style: GoogleFonts.inter(
+                                color: Colors.white,
+                                fontSize: 26,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 1,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+
+                            const SizedBox(height: 10),
+
+                            /// META
+                            Text(
+                              pass.vendorName,
+                              style: GoogleFonts.inter(
+                                color: Colors.white70,
+                                fontSize: 13,
+                              ),
+                            ),
+
+                            const Spacer(),
+
+                            /// ACTION BUTTON
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 8,
                                 ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Pass: ${pass.name}',
+                                decoration: BoxDecoration(
+                                  color: pass.isBought == true
+                                      ? Colors.grey.withOpacity(0.3)
+                                      : accentColor,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: _processingPasses[pass.id] == true
+                                    ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: AppLinearLoader(),
+                                )
+                                    : Text(
+                                  pass.isBought == true
+                                      ? 'ACTIVE'
+                                      : 'INITIALIZE',
                                   style: GoogleFonts.inter(
-                                    color: Colors.white,
+                                    color: pass.isBought == true
+                                        ? Colors.white
+                                        : Colors.black,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 1,
                                     fontSize: 12,
                                   ),
                                 ),
-                                const SizedBox(width: 8),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                const SizedBox(width: 12),
-                                Text(
-                                  '₹${pass.price.toStringAsFixed(0)}',
-                                  style: GoogleFonts.inter(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
+                              ),
                             ),
                           ],
                         ),
-                        const Spacer(),
-                        Obx(
-                          () => BounceTap(
-                            onTap:
-                                (pass.isBought == true ||
-                                    _processingPasses[pass.id] == true)
-                                ? null
-                                : () => _purchaseCafePass(pass),
-                            child: Container(
-                              padding: EdgeInsets.symmetric(
-                                vertical: 5,
-                                horizontal: 8,
-                              ),
-                              decoration: BoxDecoration(
-                                color:
-                                    (pass.isBought == true ||
-                                        _processingPasses[pass.id] == true)
-                                    ? Colors.grey.withOpacity(0.3)
-                                    : Colors.transparent,
-                                border: Border.all(
-                                  color:
-                                      (pass.isBought == true ||
-                                          _processingPasses[pass.id] == true)
-                                      ? Colors.grey
-                                      : const Color(0xFFDADADA),
-                                  width: 1.5,
-                                ),
-                                borderRadius: BorderRadius.circular(25),
-                              ),
-                              child: Center(
-                                child: _processingPasses[pass.id] == true
-                                    ? const SizedBox(
-                                        width: 16,
-                                        height: 16,
-                                        child: RainbowLoadingBar(),
-                                      )
-                                    : Text(
-                                        pass.isBought == true
-                                            ? 'Already Bought'
-                                            : 'Buy Pass',
-                                        style: GoogleFonts.inter(
-                                          color: pass.isBought == true
-                                              ? Colors.white
-                                              : const Color(0xFFDADADA),
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-              ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
   }
+
+
 
   Widget _buildError(BuildContext context, String message) {
     return Center(

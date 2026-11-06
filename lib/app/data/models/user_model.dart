@@ -22,9 +22,29 @@ class User {
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
+    String? firstNonEmpty(List<dynamic> values) {
+      for (final value in values) {
+        final text = value?.toString().trim() ?? '';
+        if (text.isNotEmpty && text.toLowerCase() != 'null') {
+          return text;
+        }
+      }
+      return null;
+    }
+
     return User(
       name: json['name'] as String?,
-      photoUrl: json['photoUrl'] as String?,
+      photoUrl: firstNonEmpty([
+        json['photoUrl'],
+        json['photo_url'],
+        json['avatar'],
+        json['avatarUrl'],
+        json['avatar_url'],
+        json['profileImage'],
+        json['profile_image'],
+        json['imageUrl'],
+        json['image_url'],
+      ]),
       contact: json['contact'] != null ? Contact.fromJson(json['contact']) : null,
       dob: json['dob'] as String?,
       gameUserName: json['gameUserName'] as String?,

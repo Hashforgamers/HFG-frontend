@@ -1,0 +1,1690 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <title>Road Rumble</title>
+    <!--
+      The 3D world for Road Rumble. This page only draws: the Flutter screen
+      owns the race simulation, HUD, controls and sound, and drives this page
+      through window.RR:
+        RR.load(track)  once per race, with the road and its scenery
+        RR.frame(state) every tick, with where everyone is
+        RR.attract()    idle fly-along, used behind the menus
+      Opened on its own (no Flutter), it runs the fly-along over a made-up road.
+      Libraries and the sky are shared with ../super_over (see its ASSETS.md).
+    -->
+    <style>
+      html, body { margin: 0; height: 100%; background: #0c0816; overflow: hidden; }
+      canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+    </style>
+    <script type="importmap">
+      { "imports": { "three": "../super_over/lib/three.module.min.js", "three/addons/": "../super_over/lib/jsm/" } }
+    </script>
+  </head>
+  <body>
+    <script type="module">
+      import * as THREE from "three";
+      import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+      import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
+
+      // ------------------------------------------------------------ scale
+      // The simulation works in its own units; the scene is in metres.
+      const U = 1 / 416;
+      const SEG = 200 * U;            // length of one road segment
+      const HALF = 3200 * U;          // half the road's width
+      const TURN = 0.0014;            // radians of heading per unit of curve
+      const EYE = 1.5;
+      const TAU = Math.PI * 2;
+
+      const THEMES = {
+        forest: { ground: "forest_ground_04", wash: 0xd8ffc8, grass: 0x4f7f3a, verge: 0x7a6a48, fog: 0xb9cfe6, banks: 6.2, trees: ["pine", "pine", "pine", "bush", "rock"] },
+        coast: { ground: "coast_sand_01", wash: 0xffffff, grass: 0xc9b47c, verge: 0xa8935e, fog: 0xcfe6f4, banks: 2.2, trees: ["palm", "palm", "bush", "rock"] },
+        desert: { ground: "coast_sand_01", wash: 0xffd0a0, grass: 0xb07a4c, verge: 0xb89662, fog: 0xe8d8b8, banks: 3.6, trees: ["cactus", "cactus", "rock", "bush"] },
+        valley: { ground: "forest_ground_04", wash: 0xc8ffa0, grass: 0x5f9a3c, verge: 0x8a7a4c, fog: 0xc4dff2, banks: 7.6, trees: ["oak", "oak", "bush", "pine"] },
+        peaks: { ground: "rocks_ground_01", wash: 0xf0f4f0, grass: 0x66785a, verge: 0x7c7c74, fog: 0xa9c0e0, banks: 10, trees: ["pine", "rock", "rock", "pine", "bush"] },
+      };
+      // Jacket and helmet colours; 0 is the player, 15 the police.
+      const LOOKS = [
+        [0x3a3a44, 0xd8b43c], [0xb84038, 0xe8e8ec], [0x8a4aa8, 0xd878a8], [0x667840, 0x484e3c],
+        [0x3a9a62, 0x2c2c32], [0x9a7040, 0xccc4ac], [0xd0d0d8, 0xb83430], [0xd08030, 0x34343c],
+        [0x44444e, 0x74302e], [0x3a9aa8, 0xd8b43c], [0x4a58b8, 0x4a58b8], [0xd0608a, 0xb8c440],
+        [0x6e6e76, 0x8ab84a], [0xa03432, 0xa03432], [0xbcaa36, 0x3a54a8], [0x24346c, 0xf4f4f8],
+      ];
+      const CAR_PAINT = [0xa8322c, 0x2f4f9a, 0xd8d8d2, 0x2f7f76];
+
+      // --------------------------------------------------------- renderer
+      const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+      // Phones get a lighter budget: fewer pixels, cheaper shadows.
+      const PHONE = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || new URLSearchParams(location.search).has("phone");
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 0.95;
+      // A shadow map costs a phone a third of its frame rate; there, each
+      // vehicle sits on a soft dark patch instead.
+      renderer.shadowMap.enabled = !PHONE;
+      renderer.shadowMap.type = PHONE ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
+      document.body.appendChild(renderer.domElement);
+      const ANISO = Math.min(renderer.capabilities.getMaxAnisotropy(), PHONE ? 4 : 16);
+
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x9fc3ea);
+      // Only the stretch of road within sight is drawn; fog hides its end.
+      const SIGHT = PHONE ? 760 : 1100;   // segments ahead of the camera
+      const NEAR = PHONE ? 45 : 150;      // segments within which scenery is drawn in full detail
+      const BEHIND = 40;
+      const SHADE = PHONE ? 60 : 0;       // segments within which scenery casts shadows (0: all of it)
+      const MID = PHONE ? 80 : 400;       // segments past which scanned scenery gives way to a rough shape
+      // The detailed bikes are ~75k triangles each, so few riders get one.
+      const HI_BIKES = PHONE ? 0 : 6, HI_REACH = PHONE ? 5000 : 9000;
+      scene.fog = new THREE.Fog(0xb9cfe6, SIGHT * 0.12, SIGHT * 0.46);
+      const camera = new THREE.PerspectiveCamera(64, 1, 0.3, SIGHT * 0.5);
+
+      const sun = new THREE.DirectionalLight(0xfff2dc, 3.1);
+      sun.castShadow = !PHONE;
+      sun.shadow.mapSize.set(PHONE ? 1024 : 2048, PHONE ? 1024 : 2048);
+      sun.shadow.bias = -0.0004;
+      sun.shadow.normalBias = 0.04;
+      const sc = sun.shadow.camera;
+      const reach = PHONE ? 26 : 46;
+      sc.left = -reach; sc.right = reach; sc.top = reach; sc.bottom = -reach; sc.near = 1; sc.far = 260;
+      scene.add(sun, sun.target, camera);
+      scene.add(new THREE.HemisphereLight(0xcfe2ff, 0x5a5444, 0.55));
+
+      new RGBELoader().load("../super_over/sky/kloofendal_puresky_1k.hdr", (hdr) => {
+        hdr.mapping = THREE.EquirectangularReflectionMapping;
+        scene.background = hdr;
+        scene.environment = hdr;
+        scene.environmentIntensity = 1.0;
+      });
+
+      function resize() {
+        const w = window.innerWidth, h = window.innerHeight;
+        renderer.setSize(w, h, false);
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+      }
+      window.addEventListener("resize", resize);
+      resize();
+
+      // Foliage sways: vertices are pushed sideways by height, each
+      // instance out of step with its neighbours.
+      const wind = { value: 0 };
+      function sway(material, amount) {
+        material.onBeforeCompile = (shader) => {
+          shader.uniforms.uWind = wind;
+          shader.vertexShader = "uniform float uWind;\n" + shader.vertexShader.replace(
+            "#include <begin_vertex>",
+            `#include <begin_vertex>
+             #ifdef USE_INSTANCING
+               float phase = instanceMatrix[3].x * 0.37 + instanceMatrix[3].z * 0.23;
+             #else
+               float phase = 0.0;
+             #endif
+             float bend = max(position.y, 0.0) * ${amount.toFixed(4)};
+             transformed.x += sin(uWind * 1.7 + phase + position.y * 0.5) * bend;
+             transformed.z += cos(uWind * 1.3 + phase * 1.3) * bend * 0.6;`,
+          );
+        };
+        return material;
+      }
+      // Leaves overlap many deep, and on a phone the full surface model
+      // costs more per layer than the GPU has: there they are plainly lit,
+      // with a little of their own colour let through so the shaded side isn't black.
+      const plain = {};
+      const leafy = (m) => (PHONE ? (plain[m.uuid] ||= new THREE.MeshLambertMaterial({ name: m.name, map: m.map, color: m.color, side: m.side, alphaTest: m.alphaTest, emissive: 0x343434, emissiveMap: m.map })) : m);
+
+      // --------------------------------------------------------- textures
+      function rng(seed) {
+        let s = seed >>> 0;
+        return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
+      }
+      function canvasTexture(w, h, draw, repeatX = 1, repeatY = 1, colour = true) {
+        const c = document.createElement("canvas");
+        c.width = w; c.height = h;
+        draw(c.getContext("2d"), w, h);
+        const t = new THREE.CanvasTexture(c);
+        t.wrapS = t.wrapT = THREE.RepeatWrapping;
+        t.repeat.set(repeatX, repeatY);
+        t.anisotropy = ANISO;
+        if (colour) t.colorSpace = THREE.SRGBColorSpace;
+        return t;
+      }
+      function speckle(g, w, h, count, r, shades) {
+        for (let i = 0; i < count; i++) {
+          g.fillStyle = shades[(r() * shades.length) | 0];
+          const s = 1 + r() * 2.5;
+          g.fillRect(r() * w, r() * h, s, s);
+        }
+      }
+      // Scanned surfaces from Poly Haven (CC0): colour, normal, and a packed
+      // occlusion/roughness/metal map each.
+      const scans = {};
+      const textures = new THREE.TextureLoader();
+      function scan(name, repeatX = 1, repeatY = 1) {
+        const key = `${name}|${repeatX}|${repeatY}`;
+        if (scans[key]) return scans[key];
+        const one = (suffix, colour) => {
+          const t = textures.load(`tex/${name}_${suffix}.jpg`);
+          t.wrapS = t.wrapT = THREE.RepeatWrapping;
+          t.repeat.set(repeatX, repeatY);
+          t.anisotropy = ANISO;
+          if (colour) t.colorSpace = THREE.SRGBColorSpace;
+          return t;
+        };
+        const arm = one("arm", false);
+        return (scans[key] = { map: one("diff", true), normalMap: one("nor_gl", false), aoMap: arm, roughnessMap: arm, roughness: 1, metalness: 0 });
+      }
+
+      // The road markings, painted on a clear sheet laid over the tarmac: four lanes, double yellow
+      // centre, solid white edges. One tile is 12 segments long.
+      const roadMap = canvasTexture(1024, 1024, (g, w, h) => {
+        const r = rng(7);
+        g.clearRect(0, 0, w, h);
+        // Wheel tracks and tar seams.
+        for (const lane of [0.125, 0.375, 0.625, 0.875]) {
+          g.fillStyle = "rgba(20,20,22,0.16)";
+          g.fillRect(lane * w - 34, 0, 26, h); g.fillRect(lane * w + 8, 0, 26, h);
+        }
+        g.strokeStyle = "rgba(18,18,20,0.5)"; g.lineWidth = 2;
+        for (let i = 0; i < 7; i++) {
+          g.beginPath(); let x = r() * w, y = r() * h; g.moveTo(x, y);
+          for (let k = 0; k < 6; k++) { x += (r() - 0.5) * 70; y += r() * 60; g.lineTo(x, y); }
+          g.stroke();
+        }
+        const paint = (x, wide, colour, dashed) => {
+          g.fillStyle = colour;
+          if (dashed) { g.fillRect(x - wide / 2, 0, wide, h * 0.42); } else { g.fillRect(x - wide / 2, 0, wide, h); }
+        };
+        paint(w * 0.03, 12, "#e6e6e0"); paint(w * 0.97, 12, "#e6e6e0");
+        paint(w * 0.25, 10, "#e2e2dc", true); paint(w * 0.75, 10, "#e2e2dc", true);
+        paint(w * 0.5 - 11, 9, "#e0b62a"); paint(w * 0.5 + 11, 9, "#e0b62a");
+        // Wear: rub bits of the paint away.
+        g.globalCompositeOperation = "destination-out";
+        speckle(g, w, h, 14000, r, ["rgba(0,0,0,0.55)"]);
+        g.globalCompositeOperation = "source-over";
+      }, 1, 1);
+      const groundMap = canvasTexture(512, 512, (g, w, h) => {
+        const r = rng(3);
+        g.fillStyle = "#9a9a9a"; g.fillRect(0, 0, w, h);
+        speckle(g, w, h, 42000, r, ["#7c7c7c", "#b4b4b4", "#8c8c8c", "#c6c6c6", "#6e6e6e", "#a6a6a6"]);
+        for (let i = 0; i < 2600; i++) {
+          g.strokeStyle = r() > 0.5 ? "rgba(70,70,70,0.5)" : "rgba(210,210,210,0.45)";
+          g.beginPath(); const x = r() * w, y = r() * h; g.moveTo(x, y); g.lineTo(x + (r() - 0.5) * 5, y - 3 - r() * 7); g.stroke();
+        }
+      }, 1, 1);
+      const barkMap = canvasTexture(128, 256, (g, w, h) => {
+        const r = rng(5);
+        g.fillStyle = "#6a4a30"; g.fillRect(0, 0, w, h);
+        for (let i = 0; i < 380; i++) {
+          g.strokeStyle = ["#4a3220", "#7c5a3c", "#3c2818", "#8a6846"][(r() * 4) | 0];
+          g.lineWidth = 1 + r() * 2;
+          g.beginPath(); const x = r() * w, y = r() * h; g.moveTo(x, y); g.lineTo(x + (r() - 0.5) * 6, y + 14 + r() * 40); g.stroke();
+        }
+      }, 2, 2);
+      const leafMap = canvasTexture(256, 256, (g, w, h) => {
+        const r = rng(9);
+        g.fillStyle = "#8a8a8a"; g.fillRect(0, 0, w, h);
+        for (let i = 0; i < 5200; i++) {
+          const v = 70 + (r() * 150) | 0;
+          g.fillStyle = `rgb(${v},${v},${v})`;
+          g.beginPath(); g.ellipse(r() * w, r() * h, 2 + r() * 5, 1 + r() * 2.5, r() * TAU, 0, TAU); g.fill();
+        }
+      }, 3, 3);
+
+      // ------------------------------------------------------------ track
+      let strips = [];        // road and ground meshes, drawn a window at a time
+      let windows = [];       // instanced scenery, likewise
+      let track = null;       // centreline arrays for the loaded road
+      let world = null;       // everything built for it, disposed on reload
+      let theme = THEMES.forest;
+
+      function bank(f, side) {
+        return theme.banks * (0.22 + 0.78 * (0.5 + 0.5 * Math.sin(f * 0.011 + side * 2.1)) * (0.5 + 0.5 * Math.sin(f * 0.0043 + side * 0.7 + 1)));
+      }
+      // Lateral stations beyond the road edge, in half-road-widths, and how
+      // much of the embankment each carries.
+      const OUT = [1, 1.12, 1.6, 2.1, 2.6, 3.4, 4.2, 5.2, 6.4];
+      const RISE = [0, 0, 0.08, 0.2, 0.36, 0.56, 0.78, 1, 1.12];
+      function lift(f, k, side) {
+        if (RISE[k] === 0) return 0;
+        const lumps = Math.sin(f * 0.23 + k * 1.9 + side) * 0.36 + Math.sin(f * 0.61 + k * 0.7) * 0.17;
+        return bank(f, side) * RISE[k] + lumps * Math.min(1, RISE[k] * 2.5);
+      }
+      function terrain(f, x) {
+        const a = Math.abs(x), side = Math.sign(x);
+        if (a <= OUT[1]) return 0;
+        for (let k = 1; k < OUT.length - 1; k++) {
+          if (a <= OUT[k + 1]) {
+            const t = (a - OUT[k]) / (OUT[k + 1] - OUT[k]);
+            const lo = lift(f, k, side), hi = lift(f, k + 1, side);
+            return lo + (hi - lo) * t;
+          }
+        }
+        return lift(f, OUT.length - 1, side);
+      }
+
+      /** Position on the road at distance [z] (sim units) and lateral [x]. */
+      const _p = new THREE.Vector3();
+      function place(z, x, out = _p) {
+        const f = Math.min(Math.max(z / 200, 0), track.n - 1.001);
+        const i = Math.floor(f), t = f - i;
+        const cx = track.cx[i] + (track.cx[i + 1] - track.cx[i]) * t;
+        const cz = track.cz[i] + (track.cz[i + 1] - track.cz[i]) * t;
+        const cy = track.cy[i] + (track.cy[i + 1] - track.cy[i]) * t;
+        const th = track.th[i] + (track.th[i + 1] - track.th[i]) * t;
+        // Screen-right for a camera looking along the road.
+        const rx = -Math.cos(th), rz = Math.sin(th);
+        out.set(cx + rx * x * HALF, cy + terrain(f, x), cz + rz * x * HALF);
+        out.heading = th;
+        return out;
+      }
+
+      /** The road's slope at distance [z], measured over [span], as an angle. */
+      function grade(z, span) {
+        const h = (d) => { const f = Math.min(Math.max(d / 200, 0), track.n - 1.001), i = Math.floor(f); return track.cy[i] + (track.cy[i + 1] - track.cy[i]) * (f - i); };
+        return Math.atan2(h(z + span / 2) - h(z - span / 2), span * U);
+      }
+
+      function buildTrack(data) {
+        const n = data.curves.length;
+        const cx = new Float32Array(n + 1), cz = new Float32Array(n + 1), cy = new Float32Array(n + 1), th = new Float32Array(n + 1);
+        for (let i = 0; i < n; i++) {
+          cy[i] = data.heights[i] * U;
+          // A positive curve bends right, which is a falling heading here.
+          th[i + 1] = th[i] - data.curves[i] * TURN;
+          cx[i + 1] = cx[i] + Math.sin(th[i]) * SEG;
+          cz[i + 1] = cz[i] + Math.cos(th[i]) * SEG;
+        }
+        cy[n] = data.heights[n] * U;
+        return { n, cx, cz, cy, th };
+      }
+
+      function buildRoad() {
+        const n = track.n;
+        const lat = [];
+        for (let k = OUT.length - 1; k >= 0; k--) lat.push(-OUT[k]);
+        for (let k = 0; k < OUT.length; k++) lat.push(OUT[k]);
+        const cols = lat.length;
+        const pos = new Float32Array((n + 1) * cols * 3), uv = new Float32Array((n + 1) * cols * 2), col = new Float32Array((n + 1) * cols * 3);
+        const tmp = new THREE.Color();
+        const r = rng(21);
+        for (let i = 0; i <= n; i++) {
+          for (let c = 0; c < cols; c++) {
+            const o = (i * cols + c);
+            place(i * 200, lat[c]);
+            pos[o * 3] = _p.x; pos[o * 3 + 1] = _p.y; pos[o * 3 + 2] = _p.z;
+            uv[o * 2] = lat[c] * HALF / 3.2; uv[o * 2 + 1] = i * SEG / 3.2;
+            const edge = Math.abs(lat[c]) <= 1.13;
+            // The scan carries the detail; vertex colour only steers its tone,
+            // browner along the verge.
+            tmp.set(theme.wash).multiplyScalar(0.86 + r() * 0.26);
+            if (edge) tmp.set(0xffffff).multiplyScalar(0.84 + r() * 0.24);
+            col[o * 3] = tmp.r; col[o * 3 + 1] = tmp.g; col[o * 3 + 2] = tmp.b;
+          }
+        }
+        const idx = [], vergeIdx = [];
+        const mid = OUT.length - 1;   // the strip between the two road edges is the tarmac
+        for (let i = 0; i < n; i++) {
+          for (let c = 0; c < cols - 1; c++) {
+            if (c === mid) continue;
+            const a = i * cols + c, b = a + 1, d = a + cols, e = d + 1;
+            // The two strips either side of the tarmac are bare dirt.
+            const verge = Math.abs(c - mid) <= 2 && c !== mid;
+            (verge ? vergeIdx : idx).push(a, b, d, b, e, d);
+          }
+        }
+        const ground = new THREE.BufferGeometry();
+        ground.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+        ground.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
+        ground.setAttribute("color", new THREE.BufferAttribute(col, 3));
+        ground.setIndex(idx);
+        ground.computeVertexNormals();
+        const groundMesh = new THREE.Mesh(ground, new THREE.MeshStandardMaterial({ ...scan(theme.ground), vertexColors: true }));
+        groundMesh.receiveShadow = true;
+        groundMesh.frustumCulled = false;
+        groundMesh.userData.perRow = (cols - 6) * 6;
+        // The verge shares the ground's vertices but wears its own surface.
+        const vergeGeo = new THREE.BufferGeometry();
+        for (const name of ["position", "uv", "color"]) vergeGeo.setAttribute(name, ground.attributes[name]);
+        vergeGeo.setIndex(vergeIdx);
+        // Its own normals: the vertices on the road's edge belong to no
+        // ground triangle, so the ground's normals there are empty.
+        vergeGeo.computeVertexNormals();
+        const vergeMesh = new THREE.Mesh(vergeGeo, new THREE.MeshStandardMaterial({ ...scan("dirt_floor"), vertexColors: true }));
+        vergeMesh.receiveShadow = true;
+        vergeMesh.frustumCulled = false;
+        vergeMesh.userData.perRow = 4 * 6;
+
+        // Tarmac: its own strip so the markings map cleanly across it.
+        const rp = new Float32Array((n + 1) * 2 * 3), ru = new Float32Array((n + 1) * 2 * 2), ri = [];
+        for (let i = 0; i <= n; i++) {
+          for (let s = 0; s < 2; s++) {
+            place(i * 200, s ? 1 : -1);
+            const o = i * 2 + s;
+            rp[o * 3] = _p.x; rp[o * 3 + 1] = _p.y + 0.02; rp[o * 3 + 2] = _p.z;
+            ru[o * 2] = s; ru[o * 2 + 1] = i / 12;
+            // The roughness and normal maps tile by their own repeat.
+          }
+          if (i < n) { const a = i * 2; ri.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+        }
+        const road = new THREE.BufferGeometry();
+        road.setAttribute("position", new THREE.BufferAttribute(rp, 3));
+        road.setAttribute("uv", new THREE.BufferAttribute(ru, 2));
+        road.setIndex(ri);
+        road.computeVertexNormals();
+        const roadMesh = new THREE.Mesh(road, new THREE.MeshStandardMaterial({ ...scan("asphalt_track", 5, 2), color: 0xb8b8bc, envMapIntensity: 1.25 }));
+        const lines = new THREE.Mesh(road, new THREE.MeshStandardMaterial({ map: roadMap, transparent: true, roughness: 0.6, metalness: 0, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+        lines.receiveShadow = true; lines.frustumCulled = false; lines.userData.perRow = 6;
+        roadMesh.receiveShadow = true;
+        roadMesh.frustumCulled = false;
+        roadMesh.userData.perRow = 6;
+        strips = [groundMesh, vergeMesh, roadMesh, lines];
+        return [groundMesh, vergeMesh, roadMesh, lines];
+      }
+
+      // ---------------------------------------------------------- scenery
+      const tint = (hex) => sway(leafy(new THREE.MeshStandardMaterial({ map: leafMap, color: hex, roughness: 0.9 })), 0.012);
+      const MAT = {
+        bark: new THREE.MeshStandardMaterial({ ...scan("bark_brown_02", 2, 3) }),
+        pine: tint(0x2f6a3a), oak: tint(0x5a9a3e), palm: tint(0x5c9c44), cactus: tint(0x4a8a44),
+        rock: new THREE.MeshStandardMaterial({ map: groundMap, color: 0x8c8a84, roughness: 0.95 }),
+        metal: new THREE.MeshStandardMaterial({ color: 0xb8bcc4, roughness: 0.35, metalness: 0.9 }),
+        wood: new THREE.MeshStandardMaterial({ map: barkMap, color: 0xd8cdb8, roughness: 0.9 }),
+        barn: new THREE.MeshStandardMaterial({ map: barkMap, color: 0xc0463a, roughness: 0.9 }),
+        roof: new THREE.MeshStandardMaterial({ color: 0x4c4642, roughness: 0.6, metalness: 0.4 }),
+      };
+      function merge(parts) {
+        // Bakes each part's transform and joins them into one geometry.
+        let count = 0;
+        for (const [g] of parts) count += g.toNonIndexed ? (g.index ? g.index.count : g.attributes.position.count) : 0;
+        const pos = [], nor = [], uv = [];
+        for (const [g, m] of parts) {
+          const flat = g.index ? g.toNonIndexed() : g;
+          if (m) flat.applyMatrix4(m);
+          pos.push(...flat.attributes.position.array); nor.push(...flat.attributes.normal.array); uv.push(...flat.attributes.uv.array);
+        }
+        const out = new THREE.BufferGeometry();
+        out.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+        out.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3));
+        out.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+        return out;
+      }
+      const at = (x, y, z, sx = 1, sy = 1, sz = 1, rx = 0, rz = 0) =>
+        new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, 0, rz)), new THREE.Vector3(sx, sy, sz));
+      /** A sphere pushed about so it reads as a clump, not a ball. */
+      function clump(radius, seed, detail = 3) {
+        const g = new THREE.IcosahedronGeometry(radius, detail);
+        const p = g.attributes.position, r = rng(seed), v = new THREE.Vector3();
+        const bumps = [];
+        for (let i = 0; i < 14; i++) bumps.push(new THREE.Vector3(r() - 0.5, r() - 0.5, r() - 0.5).normalize());
+        for (let i = 0; i < p.count; i++) {
+          v.fromBufferAttribute(p, i);
+          const d = v.clone().normalize();
+          let k = 1;
+          for (const b of bumps) k += 0.2 * Math.max(0, d.dot(b) - 0.55) * 2.2;
+          v.multiplyScalar(k * (0.9 + 0.1 * Math.sin(d.x * 9 + d.y * 7)));
+          p.setXYZ(i, v.x, v.y, v.z);
+        }
+        g.computeVertexNormals();
+        return g;
+      }
+      // Photo-scanned rocks and shrubs (Poly Haven, CC0), reduced for phones.
+      // Each becomes [geometry, material] parts sized to [size] metres and
+      // sat on the ground; null until loaded, when the built shapes are used.
+      const scanned = {};
+      function useScan(name, gltf, size, cutout) {
+        gltf.scene.updateMatrixWorld(true);
+        const box = new THREE.Box3().setFromObject(gltf.scene), dim = box.getSize(new THREE.Vector3()), mid = box.getCenter(new THREE.Vector3());
+        const k = size / Math.max(dim.x, dim.y, dim.z);
+        const fix = new THREE.Matrix4().makeScale(k, k, k).multiply(new THREE.Matrix4().makeTranslation(-mid.x, -box.min.y - dim.y * 0.06, -mid.z));
+        const parts = [];
+        gltf.scene.traverse((o) => {
+          if (!o.isMesh) return;
+          const g = o.geometry.clone().applyMatrix4(new THREE.Matrix4().multiplyMatrices(fix, o.matrixWorld));
+          const m = cutout ? leafy(o.material) : o.material;
+          m.transparent = false; m.depthWrite = true;
+          if (cutout) { m.alphaTest = 0.45; m.alphaToCoverage = true; m.side = THREE.DoubleSide; sway(m, 0.05); }
+          parts.push([g, m]);
+        });
+        scanned[name] = parts;
+      }
+
+      const ROUGH_DETAIL = PHONE ? 1 : 2;
+      const ROUGH = {
+        rock: () => [[merge([[clump(1.0, 51, ROUGH_DETAIL), at(0, 0.45, 0, 1.1, 0.7, 0.95)], [clump(0.55, 52, ROUGH_DETAIL), at(0.75, 0.25, 0.4, 1, 0.7, 1)]]), MAT.rock]],
+        bush: () => [[merge([[clump(0.8, 61, ROUGH_DETAIL), at(0, 0.6, 0, 1, 0.8, 1)], [clump(0.6, 62, ROUGH_DETAIL), at(-0.7, 0.45, 0.2, 1, 0.8, 1)], [clump(0.62, 63, ROUGH_DETAIL), at(0.68, 0.48, -0.1, 1, 0.8, 1)]]), MAT.oak]],
+      };
+      const lod = (near, far) => (near ? { near, far, split: MID } : far);
+      // Each kind: a list of [geometry, material] drawn as instanced meshes,
+      // or { near, far } lists to swap between at [split] segments (NEAR if unset).
+      const KINDS = {
+        pine: () => {
+          const tiers = [];
+          const r = rng(31);
+          for (let i = 0; i < 7; i++) {
+            const y = 1.3 + i * 0.72, rad = 2.0 - i * 0.24;
+            const cone = new THREE.ConeGeometry(rad, 1.75, PHONE ? 12 : 16, PHONE ? 2 : 3, true);
+            const p = cone.attributes.position;
+            for (let k = 0; k < p.count; k++) {
+              // Ragged skirt.
+              const low = 1 - (p.getY(k) + 0.875) / 1.75;
+              const j = 1 + (r() - 0.5) * 0.34 * low;
+              p.setXYZ(k, p.getX(k) * j, p.getY(k) - low * r() * 0.3, p.getZ(k) * j);
+            }
+            cone.computeVertexNormals();
+            tiers.push([cone, at(0, y, 0)]);
+          }
+          return [[merge([[new THREE.CylinderGeometry(0.13, 0.2, 2.2, 10), at(0, 1.1, 0)]]), MAT.bark], [merge(tiers), MAT.pine]];
+        },
+        oak: () => {
+          const tree = (detail) => [
+            [merge([
+              [new THREE.CylinderGeometry(0.2, 0.3, 2.5, 10), at(0, 1.25, 0)],
+              [new THREE.CylinderGeometry(0.08, 0.14, 1.5, 8), at(-0.5, 2.7, 0.2, 1, 1, 1, 0, 0.7)],
+              [new THREE.CylinderGeometry(0.08, 0.14, 1.5, 8), at(0.55, 2.8, -0.2, 1, 1, 1, 0, -0.7)],
+            ]), MAT.bark],
+            [merge([
+              [clump(1.9, 41, detail), at(0, 3.9, 0, 1, 0.8, 1)], [clump(1.3, 42, detail), at(-1.4, 3.2, 0.5, 1, 0.85, 1)],
+              [clump(1.4, 43, detail), at(1.35, 3.3, -0.4, 1, 0.85, 1)], [clump(1.3, 44, detail), at(0.3, 4.9, 0.2, 1, 0.8, 1)],
+            ]), MAT.oak],
+          ];
+          return { near: tree(3), far: tree(1), split: MID };
+        },
+        palm: () => {
+          const leaves = sway(leafy(new THREE.MeshStandardMaterial({ map: leafMap, color: 0x5c9c44, roughness: 0.9, side: THREE.DoubleSide })), 0.02);
+          const tree = (across, along) => {
+            const fronds = [];
+            for (let i = 0; i < 11; i++) {
+              const a = (i / 11) * TAU;
+              const leaf = new THREE.PlaneGeometry(0.7, 2.7, across, along);
+              const p = leaf.attributes.position;
+              for (let k = 0; k < p.count; k++) {
+                const t = (p.getY(k) + 1.35) / 2.7;   // 0 at the crown
+                const w = Math.sin(Math.min(1, t * 1.15) * Math.PI) * 0.9 + 0.1;
+                p.setXYZ(k, p.getX(k) * w, 0.55 * Math.sin(t * 1.3) - t * t * 1.25 - Math.abs(p.getX(k)) * 0.5, t * 2.7);
+              }
+              leaf.computeVertexNormals();
+              fronds.push([leaf, new THREE.Matrix4().makeRotationY(a).setPosition(0.42, 5.25, 0)]);
+            }
+            const trunk = new THREE.CylinderGeometry(0.11, 0.18, 5.3, across > 1 ? 10 : 5, across > 1 ? 8 : 4);
+            const tp = trunk.attributes.position;
+            for (let k = 0; k < tp.count; k++) { const t = (tp.getY(k) + 2.65) / 5.3; tp.setX(k, tp.getX(k) + t * t * 0.42); }
+            trunk.computeVertexNormals();
+            return [[merge([[trunk, at(0, 2.65, 0)]]), MAT.bark], [merge(fronds), leaves]];
+          };
+          return { near: tree(4, 8), far: tree(1, 3), split: MID };
+        },
+        cactus: () => {
+          const plant = (cap, around) => [[merge([
+            [new THREE.CapsuleGeometry(0.27, 2.7, cap, around), at(0, 1.6, 0)],
+            [new THREE.CapsuleGeometry(0.17, 0.5, cap, around), at(-0.45, 1.45, 0, 1, 1, 1, 0, Math.PI / 2)], [new THREE.CapsuleGeometry(0.16, 0.9, cap, around), at(-0.75, 2.0, 0)],
+            [new THREE.CapsuleGeometry(0.17, 0.5, cap, around), at(0.45, 1.95, 0, 1, 1, 1, 0, Math.PI / 2)], [new THREE.CapsuleGeometry(0.16, 0.8, cap, around), at(0.75, 2.45, 0)],
+          ]), MAT.cactus]];
+          return { near: plant(5, 12), far: plant(2, 6) };
+        },
+        // The scans run to thousands of triangles, so past MID each is
+        // swapped for the rough shape that also stands in if it never loads.
+        rock: () => lod(scanned.rock_07, ROUGH.rock()),
+        rockB: () => lod(scanned.rock_09, ROUGH.rock()),
+        rockC: () => lod(scanned.rock_face_01, ROUGH.rock()),
+        bush: () => lod(scanned.shrub_03, ROUGH.bush()),
+        pole: () => [[merge([
+          [new THREE.CylinderGeometry(0.09, 0.12, 5.6, 10), at(0, 2.8, 0)],
+          [new THREE.BoxGeometry(1.15, 0.12, 0.12), at(0, 5.05, 0)],
+        ]), MAT.bark]],
+        barn: () => {
+          const roof = new THREE.CylinderGeometry(3.1, 3.1, 5.3, 3, 1).rotateX(Math.PI / 2).rotateZ(Math.PI / 6);
+          return [
+            [merge([[new THREE.BoxGeometry(6.3, 3, 5), at(0, 1.5, 0)]]), MAT.barn],
+            [merge([[roof, at(0, 3.75, 0, 1.18, 0.62, 1)]]), MAT.roof],
+          ];
+        },
+        fence: () => [[merge([
+          [new THREE.BoxGeometry(0.18, 1.4, 0.18), at(0, 0.7, -0.72)], [new THREE.BoxGeometry(0.18, 1.4, 0.18), at(0, 0.7, 0.72)],
+          [new THREE.BoxGeometry(0.1, 0.2, 2.95), at(0, 1.06, 0)], [new THREE.BoxGeometry(0.1, 0.2, 2.95), at(0, 0.55, 0)],
+        ]), MAT.wood]],
+      };
+
+      function board(text, sub, colour) {
+        return canvasTexture(512, 256, (g, w, h) => {
+          const sky = g.createLinearGradient(0, 0, 0, h);
+          sky.addColorStop(0, colour); sky.addColorStop(1, "#f4e6c8");
+          g.fillStyle = sky; g.fillRect(0, 0, w, h);
+          g.fillStyle = "#101020"; g.font = "900 104px Arial"; g.textAlign = "center";
+          g.fillText(text, w / 2 + 4, 138); g.fillStyle = "#ffe040"; g.fillText(text, w / 2, 134);
+          g.fillStyle = "#ffffff"; g.font = "700 44px Arial"; g.fillText(sub, w / 2, 204);
+        });
+      }
+      const hoarding = board("HASH", "FOR GAMERS", "#2a56b0");
+
+      /** Instanced meshes for [parts] that show only instances whose segment
+       *  is between [lo] and [hi] of the camera's. */
+      function addWindow(segs, all, parts, lo, hi, shadows) {
+        // Room for the busiest stretch of this road.
+        let most = 1;
+        for (let a = 0, b = 0; a < segs.length; a++) {
+          while (b < segs.length && segs[b] < segs[a] + (hi - lo)) b++;
+          most = Math.max(most, b - a);
+        }
+        const meshes = parts.map(([g, mat]) => {
+          const im = new THREE.InstancedMesh(g, mat, most);
+          im.count = 0;
+          im.frustumCulled = false;
+          im.castShadow = shadows;
+          im.receiveShadow = true;
+          return im;
+        });
+        windows.push({ segs, all, meshes, lo, hi });
+        return meshes;
+      }
+
+      function buildScenery(props) {
+        const groups = {};
+        const flat = [];
+        const r = rng(77);
+        for (const [seg, kind, x] of props) {
+          // Rocks come in three scanned shapes; the big outcrop only where
+          // there is room for it.
+          let pick = kind === "rock" ? ["rock", "rockB", Math.abs(x) > 2 ? "rockC" : "rock"][seg % 3] : kind;
+          // Pines are the downloaded firs, in four shapes, once loaded.
+          if (kind === "pine" && firs.length) pick = `fir${(seg * 7 + Math.round(x * 10)) & 3}`;
+          if (KINDS[pick]) (groups[pick] ||= []).push([seg, x]);
+          else flat.push([seg, kind, x]);
+        }
+        const out = [];
+        const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
+        windows = [];
+        for (const kind in groups) {
+          // Kept in road order so the part near the camera is one slice.
+          const list = groups[kind].sort((a, b) => a[0] - b[0]);
+          const segs = new Int32Array(list.length), all = new Float32Array(list.length * 16);
+          list.forEach(([seg, x], i) => {
+            place(seg * 200, x);
+            const aligned = kind === "fence" || kind === "barn";
+            q.setFromAxisAngle(up, aligned ? _p.heading : r() * TAU);
+            const size = aligned ? 1 : 0.8 + r() * 0.45;
+            s.set(size, size * (0.9 + r() * 0.25), size);
+            m.compose(_p, q, s);
+            m.toArray(all, i * 16);
+            segs[i] = seg;
+          });
+          const tall = kind === "pine" || kind === "oak" || kind === "palm" || kind === "barn" || kind.startsWith("fir");
+          const made = KINDS[kind]();
+          // A kind with detail levels is drawn full close up and as a
+          // cut-out further off.
+          const split = made.split || NEAR;
+          const levels = Array.isArray(made) ? [[made, -BEHIND, SIGHT, tall]] : [[made.near, -BEHIND, split, PHONE ? tall : true], [made.far, split, SIGHT, false]];
+          for (const [parts, lo, hi, shadows] of levels) {
+            // Only what stands near enough to reach the shadow map is drawn into it.
+            if (shadows && SHADE && hi > SHADE) out.push(...addWindow(segs, all, parts, lo, SHADE, true), ...addWindow(segs, all, parts, SHADE, hi, false));
+            else out.push(...addWindow(segs, all, parts, lo, hi, shadows));
+          }
+        }
+        // Flat things: hoardings, bend signs, the start and finish banners.
+        for (const [seg, kind, x] of flat) {
+          place(seg * 200, x);
+          const g = new THREE.Group();
+          g.position.copy(_p); g.rotation.y = _p.heading;
+          if (kind === "billboard") {
+            const face = new THREE.Mesh(new THREE.BoxGeometry(6.2, 2.9, 0.16), [MAT.roof, MAT.roof, MAT.roof, MAT.roof, MAT.roof, new THREE.MeshStandardMaterial({ map: hoarding, roughness: 0.7 })]);
+            face.position.y = 3.6;
+            g.add(face);
+            for (const px of [-2.2, 2.2]) { const post = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 2.3, 8), MAT.bark); post.position.set(px, 1.15, 0); g.add(post); }
+            g.rotation.y += x > 0 ? -0.5 : 0.5;
+          } else if (kind === "signLeft" || kind === "signRight") {
+            const tex = canvasTexture(128, 128, (c, w, h) => {
+              c.fillStyle = "#f2c81e"; c.fillRect(0, 0, w, h); c.fillStyle = "#16161a"; c.lineWidth = 6; c.strokeRect(6, 6, w - 12, h - 12);
+              c.beginPath(); const d = kind === "signRight" ? 1 : -1; const cx = w / 2;
+              c.moveTo(cx - 34 * d, 24); c.lineTo(cx - 6 * d, 24); c.lineTo(cx + 34 * d, 64); c.lineTo(cx - 6 * d, 104); c.lineTo(cx - 34 * d, 104); c.lineTo(cx + 6 * d, 64); c.fill();
+            });
+            const face = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.1, 0.05), [MAT.metal, MAT.metal, MAT.metal, MAT.metal, MAT.metal, new THREE.MeshStandardMaterial({ map: tex, roughness: 0.6 })]);
+            face.position.y = 1.8;
+            const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.4, 8), MAT.metal); post.position.y = 0.7;
+            g.add(face, post);
+          } else if (kind === "start" || kind === "finish") {
+            const tex = canvasTexture(1024, 128, (c, w, h) => {
+              c.fillStyle = "#f4f4f4"; c.fillRect(0, 0, w, h);
+              for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) if ((i + j) % 2) { c.fillStyle = "#16161a"; c.fillRect(i * 16, j * 16, 16, 16); c.fillRect(w - 128 + i * 16, j * 16, 16, 16); }
+              c.fillStyle = "#d82020"; c.font = "900 96px Arial"; c.textAlign = "center"; c.fillText(kind.toUpperCase(), w / 2, 98);
+            });
+            const span = HALF * 2.3;
+            const banner = new THREE.Mesh(new THREE.BoxGeometry(span, 1.5, 0.2), [MAT.metal, MAT.metal, MAT.metal, MAT.metal, MAT.metal, new THREE.MeshStandardMaterial({ map: tex, roughness: 0.7 })]);
+            banner.position.y = 6.2;
+            g.add(banner);
+            for (const px of [-span / 2, span / 2]) { const post = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 6.9, 12), MAT.metal); post.position.set(px, 3.45, 0); g.add(post); }
+          } else {
+            continue;
+          }
+          g.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+          out.push(g);
+        }
+        return out;
+      }
+
+      // Clumps of grass along the verges, as crossed cut-out cards.
+      const grassMap = (() => {
+        const c = document.createElement("canvas"); c.width = 128; c.height = 128;
+        const g = c.getContext("2d"), r = rng(17);
+        for (let i = 0; i < 90; i++) {
+          const x = 8 + r() * 112, top = 10 + r() * 80, bend = (r() - 0.5) * 40, v = 150 + ((r() * 90) | 0);
+          g.strokeStyle = `rgb(${v},${v},${v})`; g.lineWidth = 2 + r() * 3; g.lineCap = "round";
+          g.beginPath(); g.moveTo(x, 128); g.quadraticCurveTo(x + bend * 0.3, 70, x + bend, top); g.stroke();
+        }
+        const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+      })();
+      const grassGeo = merge([[new THREE.PlaneGeometry(1.1, 0.75).translate(0, 0.375, 0), null], [new THREE.PlaneGeometry(1.1, 0.75).translate(0, 0.375, 0), new THREE.Matrix4().makeRotationY(Math.PI / 2)]]);
+      function buildGrass() {
+        const r = rng(91), list = [];
+        for (let i = 20; i < track.n - 2; i++) for (let k = 0; k < 4; k++) list.push([i, (r() > 0.5 ? 1 : -1) * (1.2 + r() * r() * 2.8)]);
+        const segs = new Int32Array(list.length), all = new Float32Array(list.length * 16);
+        const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
+        list.forEach(([seg, x], i) => {
+          place(seg * 200 + r() * 200, x);
+          q.setFromAxisAngle(up, r() * TAU);
+          const size = 0.45 + r() * 0.6;
+          s.set(size, size * (0.6 + r() * 0.7), size);
+          m.compose(_p, q, s); m.toArray(all, i * 16); segs[i] = seg;
+        });
+        const mat = sway(Object.assign(leafy(new THREE.MeshStandardMaterial({ map: grassMap, color: new THREE.Color(theme.grass).multiplyScalar(1.5), alphaTest: 0.4, side: THREE.DoubleSide, roughness: 1 })), { alphaToCoverage: true }), 0.09);
+        const im = new THREE.InstancedMesh(grassGeo, mat, (SIGHT + BEHIND) * 4 + 16);
+        im.count = 0; im.frustumCulled = false; im.receiveShadow = true;
+        im.visible = quality.grass;
+        windows.push({ segs, all, meshes: [im], lo: -BEHIND, hi: SIGHT, grass: true });
+        return [im];
+      }
+
+      function buildRails() {
+        // Armco along the outside of the tighter bends.
+        const pts = [], idx = [];
+        for (let i = 0; i < track.n - 1; i++) {
+          const bend = track.curve[i];
+          if (Math.abs(bend) < 1.2) continue;
+          const side = bend > 0 ? -1.07 : 1.07;
+          const a = place(i * 200, side).clone(), b = place((i + 1) * 200, side).clone();
+          const o = pts.length / 3;
+          pts.push(a.x, a.y + 0.42, a.z, a.x, a.y + 0.78, a.z, b.x, b.y + 0.42, b.z, b.x, b.y + 0.78, b.z);
+          idx.push(o, o + 2, o + 1, o + 1, o + 2, o + 3);
+        }
+        if (!pts.length) return [];
+        const g = new THREE.BufferGeometry();
+        g.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
+        g.setIndex(idx); g.computeVertexNormals();
+        const mesh = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: 0xc8ccd2, roughness: 0.35, metalness: 0.85, side: THREE.DoubleSide }));
+        mesh.castShadow = true;
+        return [mesh];
+      }
+
+      // ------------------------------------------------------------- cars
+      function carParts(truck) {
+        // The body is a side profile pushed out to the car's width, so it has
+        // a real bonnet, screen rake and boot rather than being a box.
+        const body = new THREE.Shape();
+        const cab = new THREE.Shape();
+        if (truck) {
+          body.moveTo(-2.3, 0.35); body.lineTo(2.3, 0.35); body.lineTo(2.35, 0.95); body.lineTo(1.5, 1.05); body.lineTo(1.2, 1.78); body.lineTo(-0.1, 1.82); body.lineTo(-0.15, 1.02); body.lineTo(-2.3, 1.02); body.closePath();
+          cab.moveTo(1.38, 1.1); cab.lineTo(1.14, 1.7); cab.lineTo(-0.02, 1.74); cab.lineTo(-0.04, 1.1); cab.closePath();
+        } else {
+          body.moveTo(-2.15, 0.32); body.lineTo(2.15, 0.32); body.lineTo(2.2, 0.72); body.lineTo(1.45, 0.86); body.lineTo(0.75, 1.38); body.lineTo(-0.85, 1.4); body.lineTo(-1.55, 0.92); body.lineTo(-2.2, 0.86); body.closePath();
+          cab.moveTo(1.32, 0.9); cab.lineTo(0.72, 1.33); cab.lineTo(-0.82, 1.35); cab.lineTo(-1.42, 0.94); cab.closePath();
+        }
+        const ext = (shape, depth, bevel) => new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: true, bevelSize: bevel, bevelThickness: bevel, bevelSegments: 4, curveSegments: 6 }).translate(0, 0, -depth / 2);
+        const parts = { body: ext(body, 1.62, 0.09), glass: ext(cab, 1.7, 0.02) };
+        const wheel = new THREE.CylinderGeometry(0.34, 0.34, 0.24, 20).rotateX(Math.PI / 2);
+        const hub = new THREE.CylinderGeometry(0.2, 0.2, 0.26, 14).rotateX(Math.PI / 2);
+        const tyres = [], hubs = [], lamps = { tail: [], head: [] };
+        for (const x of [-1.42, 1.42]) for (const z of [-0.84, 0.84]) { tyres.push([wheel, at(x, 0.34, z)]); hubs.push([hub, at(x, 0.34, z)]); }
+        const lamp = new THREE.BoxGeometry(0.06, 0.16, 0.36);
+        const back = truck ? -2.36 : -2.26, front = truck ? 2.4 : 2.26;
+        for (const z of [-0.6, 0.6]) { lamps.tail.push([lamp, at(back, 0.74, z)]); lamps.head.push([lamp, at(front, 0.62, z)]); }
+        parts.tyres = merge(tyres); parts.hubs = merge(hubs); parts.tail = merge(lamps.tail); parts.head = merge(lamps.head);
+        return parts;
+      }
+      const carGeo = [carParts(false), carParts(true)];
+      const carMat = {
+        glass: new THREE.MeshPhysicalMaterial({ color: 0x1a222c, roughness: 0.08, metalness: 0.2, clearcoat: 1 }),
+        tyre: new THREE.MeshStandardMaterial({ color: 0x18181a, roughness: 0.9 }),
+        hub: new THREE.MeshStandardMaterial({ color: 0xc8ccd2, roughness: 0.3, metalness: 0.9 }),
+        tail: new THREE.MeshStandardMaterial({ color: 0x500808, emissive: 0xff2010, emissiveIntensity: 1.4 }),
+        head: new THREE.MeshStandardMaterial({ color: 0xfff4d0, emissive: 0xfff0c0, emissiveIntensity: 1.2 }),
+        paint: CAR_PAINT.map((c) => new THREE.MeshPhysicalMaterial({ color: c, roughness: 0.32, metalness: 0.55, clearcoat: 1, clearcoatRoughness: 0.12 })),
+      };
+      const VAN_PAINT = [0xffffff, 0x8fa6c8, 0xc9ccd2, 0xd9c9a0, 0x9c3a34];
+      const vanPaint = {};
+      const blobMat = (() => {
+        const c = document.createElement("canvas"); c.width = c.height = 64;
+        const g = c.getContext("2d"), grad = g.createRadialGradient(32, 32, 6, 32, 32, 32);
+        grad.addColorStop(0, "rgba(0,0,0,0.8)"); grad.addColorStop(0.6, "rgba(0,0,0,0.5)"); grad.addColorStop(1, "rgba(0,0,0,0)");
+        g.fillStyle = grad; g.fillRect(0, 0, 64, 64);
+        return new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
+      })();
+      const blobGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+      /** The dark patch a vehicle [wide] by [long] sits on. */
+      function blob(wide, long) {
+        const patch = new THREE.Mesh(blobGeo, blobMat);
+        patch.scale.set(wide, 1, long); patch.position.y = 0.04; patch.renderOrder = 1;
+        return patch;
+      }
+      function makeCar(look) {
+        const car = buildCar(look);
+        if (PHONE) {
+          const box = new THREE.Box3().setFromObject(car), size = box.getSize(new THREE.Vector3()), mid = box.getCenter(new THREE.Vector3());
+          const patch = blob(size.x * 1.12, size.z * 1.25);
+          patch.position.x = mid.x; patch.position.z = mid.z;
+          car.add(patch);
+        }
+        car.rotation.order = "YXZ";   // heading, then the road's slope
+        return car;
+      }
+      function buildCar(look) {
+        // Traffic is the two downloaded vehicles, the van in several
+        // colours; the cars built here only stand in if those fail to load.
+        const model = look % 4 === 3 || look % 8 === 4 ? truckModel || vanModel : vanModel || truckModel;
+        if (model) {
+          // Downloads face +Z; the built cars, and the code that places
+          // them, face +X.
+          const body = model.clone(true);
+          body.rotation.y = Math.PI / 2;
+          if (model === truckModel) body.scale.setScalar(0.8);
+          const hue = VAN_PAINT[(look >> 1) % VAN_PAINT.length];
+          body.traverse((o) => {
+            if (!o.isMesh) return;
+            o.castShadow = true; o.receiveShadow = true;
+            if (o.material.transparent) { o.material.transparent = false; o.material.alphaTest = 0.3; }
+            if (model === vanModel && /^MAINBODY(\.\d+)?$/.test(o.material.name)) {
+              const base = o.material;
+              o.material = vanPaint[hue] ||= Object.assign(base.clone(), { name: base.name });
+              o.material.color.set(hue);
+            }
+          });
+          const wrap = new THREE.Group();
+          wrap.add(body);
+          return wrap;
+        }
+        const geo = carGeo[look & 1];
+        const g = new THREE.Group();
+        const add = (geometry, material) => { const mesh = new THREE.Mesh(geometry, material); mesh.castShadow = true; mesh.receiveShadow = true; g.add(mesh); };
+        add(geo.body, carMat.paint[(look >> 1) % 4]); add(geo.glass, carMat.glass); add(geo.tyres, carMat.tyre); add(geo.hubs, carMat.hub); add(geo.tail, carMat.tail); add(geo.head, carMat.head);
+        return g;
+      }
+
+      // ------------------------------------------------------------ bikes
+      // A sport bike assembled from primitives, grouped by material so each
+      // bike is a handful of draw calls. Forward is +Z; the ground is y = 0.
+      const bikeMat = {
+        rubber: new THREE.MeshStandardMaterial({ color: 0x141416, roughness: 0.92 }),
+        black: new THREE.MeshStandardMaterial({ color: 0x1c1c20, roughness: 0.55, metalness: 0.3 }),
+        chrome: new THREE.MeshStandardMaterial({ color: 0xd4d8de, roughness: 0.16, metalness: 1 }),
+        engine: new THREE.MeshStandardMaterial({ color: 0x55585e, roughness: 0.42, metalness: 0.85 }),
+        seat: new THREE.MeshStandardMaterial({ color: 0x101012, roughness: 0.75 }),
+        glass: new THREE.MeshPhysicalMaterial({ color: 0x22303c, roughness: 0.05, metalness: 0.1, transparent: true, opacity: 0.55, clearcoat: 1 }),
+        tail: new THREE.MeshStandardMaterial({ color: 0x400606, emissive: 0xff1c10, emissiveIntensity: 1.6 }),
+        head: new THREE.MeshStandardMaterial({ color: 0xfff6dc, emissive: 0xfff2c8, emissiveIntensity: 1.1 }),
+      };
+      const paintFor = {};
+      const paint = (hex) => (paintFor[hex] ||= new THREE.MeshPhysicalMaterial({ color: hex, roughness: 0.34, metalness: 0.15, clearcoat: 1, clearcoatRoughness: 0.1 }));
+      const rot = (x, y, z, rx = 0, ry = 0, rz = 0, sx = 1, sy = 1, sz = 1) =>
+        new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz)), new THREE.Vector3(sx, sy, sz));
+      /** A bar between two points. */
+      function strut(a, b, radius, sides = 10) {
+        const from = new THREE.Vector3(...a), to = new THREE.Vector3(...b);
+        const g = new THREE.CylinderGeometry(radius, radius, from.distanceTo(to), sides);
+        const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), to.clone().sub(from).normalize());
+        return [g, new THREE.Matrix4().compose(from.clone().add(to).multiplyScalar(0.5), q, new THREE.Vector3(1, 1, 1))];
+      }
+      const SEAT = { hips: [0, 0.95, -0.33], cruiser: [0, 0.86, -0.36], hand: [0.29, 1.02, 0.36], peg: [0.2, 0.4, -0.2] };
+      const bikeGeo = (() => {
+        const side = (pts, depth, bevel) => {
+          // A side profile in (z, y), pushed out sideways and centred.
+          const shape = new THREE.Shape();
+          pts.forEach(([z, y], i) => (i ? shape.lineTo(z, y) : shape.moveTo(z, y)));
+          shape.closePath();
+          return new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: true, bevelSize: bevel, bevelThickness: bevel, bevelSegments: 5, curveSegments: 8 })
+            .translate(0, 0, -depth / 2).rotateY(-Math.PI / 2);
+        };
+        const g = { rubber: [], black: [], chrome: [], engine: [], seat: [], glass: [], tail: [], head: [], paint: [] };
+        // Each wheel is built about its own axle so it can spin.
+        const wheels = [];
+        for (const [z, tube, r] of [[-0.71, 0.085, 0.225], [0.71, 0.066, 0.244]]) {
+          const w = { rubber: [], black: [], chrome: [] };
+          w.rubber.push([new THREE.TorusGeometry(r, tube, 14, 36).rotateY(Math.PI / 2), null]);
+          w.black.push([new THREE.TorusGeometry(r - tube * 0.75, 0.022, 8, 30).rotateY(Math.PI / 2), null]);
+          w.chrome.push([new THREE.CylinderGeometry(0.045, 0.045, 0.16, 14).rotateZ(Math.PI / 2), null]);
+          for (let k = 0; k < 5; k++) w.black.push([new THREE.BoxGeometry(0.03, r * 0.92, 0.024), rot(0, 0, 0, (k / 5) * TAU, 0, 0).multiply(rot(0, r * 0.46, 0))]);
+          for (const x of z > 0 ? [-0.075, 0.075] : [0.07]) {
+            w.chrome.push([new THREE.CylinderGeometry(0.13, 0.13, 0.008, 28).rotateZ(Math.PI / 2), rot(x, 0, 0)]);
+            // Drilled holes, so the disc is seen to turn.
+            for (let k = 0; k < 6; k++) w.black.push([new THREE.CylinderGeometry(0.012, 0.012, 0.012, 8).rotateZ(Math.PI / 2), rot(x, 0, 0, (k / 6) * TAU, 0, 0).multiply(rot(0, 0.095, 0))]);
+          }
+          wheels.push({ z, parts: { rubber: merge(w.rubber), black: merge(w.black), chrome: merge(w.chrome) } });
+        }
+        // Swingarm, forks, front guard.
+        for (const x of [-0.085, 0.085]) {
+          g.black.push(strut([x, 0.31, -0.71], [x, 0.44, -0.1], 0.03, 8));
+          g.chrome.push(strut([x * 1.25, 0.31, 0.71], [x * 1.25, 0.72, 0.56], 0.026));
+          g.black.push(strut([x * 1.25, 0.7, 0.57], [x * 1.25, 1.03, 0.43], 0.033));
+        }
+        g.paint.push([new THREE.TorusGeometry(0.335, 0.05, 8, 20, Math.PI * 0.62).rotateY(Math.PI / 2), rot(0, 0.31, 0.71, -Math.PI * 0.58, 0, 0, 2.2, 1, 1)]);
+        // Engine, radiator, exhaust.
+        g.engine.push([new THREE.BoxGeometry(0.3, 0.3, 0.44), rot(0, 0.45, 0.06)]);
+        g.engine.push([new THREE.BoxGeometry(0.26, 0.2, 0.26), rot(0, 0.64, 0.16, -0.35)]);
+        g.engine.push([new THREE.CylinderGeometry(0.1, 0.1, 0.34, 16).rotateZ(Math.PI / 2), rot(0, 0.4, -0.08)]);
+        g.black.push([new THREE.BoxGeometry(0.3, 0.26, 0.03), rot(0, 0.62, 0.36, -0.25)]);
+        g.chrome.push(strut([0.13, 0.36, 0.2], [0.17, 0.34, -0.3], 0.028));
+        g.chrome.push([new THREE.CapsuleGeometry(0.058, 0.4, 6, 14), rot(0.19, 0.5, -0.62, Math.PI / 2 - 0.42)]);
+        // Bodywork: tank, nose and belly fairings, tail.
+        g.paint.push([new THREE.SphereGeometry(1, 28, 18), rot(0, 0.87, 0.1, -0.12, 0, 0, 0.19, 0.13, 0.31)]);
+        g.paint.push([side([[0.22, 0.62], [0.6, 0.56], [0.9, 0.76], [0.94, 0.92], [0.8, 1.06], [0.5, 1.08], [0.3, 0.98], [0.2, 0.8]], 0.3, 0.05), null]);
+        g.paint.push([side([[-0.2, 0.28], [0.42, 0.24], [0.6, 0.5], [0.24, 0.56], [-0.16, 0.44]], 0.26, 0.04), null]);
+        g.paint.push([side([[-0.18, 0.84], [-0.5, 0.86], [-0.98, 1.02], [-0.96, 0.92], [-0.5, 0.74], [-0.16, 0.74]], 0.2, 0.045), null]);
+        g.seat.push([new THREE.BoxGeometry(0.25, 0.07, 0.4), rot(0, 0.875, -0.3, 0.06)]);
+        g.seat.push([new THREE.BoxGeometry(0.2, 0.06, 0.22), rot(0, 0.96, -0.62, 0.3)]);
+        g.glass.push([new THREE.SphereGeometry(0.21, 20, 12, 0, TAU, 0, Math.PI * 0.42), rot(0, 1.0, 0.62, 0.95, 0, 0, 0.8, 1, 1.25)]);
+        g.head.push([new THREE.BoxGeometry(0.2, 0.07, 0.04), rot(0, 0.86, 0.985, 0.3)]);
+        g.tail.push([new THREE.BoxGeometry(0.14, 0.045, 0.03), rot(0, 0.985, -1.0)]);
+        g.black.push([new THREE.BoxGeometry(0.16, 0.12, 0.012), rot(0, 0.72, -0.98, -0.35)]);
+        // Bars, mirrors, pegs.
+        for (const x of [-1, 1]) {
+          g.black.push(strut([x * 0.12, 1.03, 0.44], [x * 0.33, 1.01, 0.34], 0.017, 8));
+          g.rubber.push(strut([x * 0.25, 1.018, 0.378], [x * 0.33, 1.01, 0.34], 0.022, 8));
+          g.black.push(strut([x * 0.2, 1.06, 0.56], [x * 0.34, 1.2, 0.5], 0.008, 6));
+          g.black.push([new THREE.BoxGeometry(0.11, 0.06, 0.02), rot(x * 0.36, 1.21, 0.5)]);
+          g.black.push(strut([x * 0.1, 0.42, -0.18], [x * 0.23, 0.4, -0.2], 0.016, 8));
+        }
+        const out = {};
+        for (const key in g) out[key] = merge(g[key]);
+        return { body: out, wheels };
+      })();
+      // Riders further off ride a light cut of the detailed sport bike: the
+      // same shape in two pieces, bodywork and the rest.
+      // Both pieces are matt: the cut-down shape has rough normals, and a
+      // glossy finish on it breaks the sky's reflection into speckles.
+      const farRest = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, metalness: 0.05 });
+      const farPaints = {};
+      const farPaint = (hex) => (farPaints[hex] ||= new THREE.MeshStandardMaterial({ color: hex, roughness: 0.6, metalness: 0.05 }));
+      function makeBike(colour) {
+        if (bikeFar) {
+          const bike = bikeFar.clone(true);
+          bike.traverse((o) => { if (o.isMesh) { o.material = o.material.name === "paint" ? farPaint(colour) : farRest; o.receiveShadow = true; } });
+          bike.userData.wheels = [];
+          return bike;
+        }
+        const group = new THREE.Group();
+        for (const key in bikeGeo.body) {
+          const mesh = new THREE.Mesh(bikeGeo.body[key], key === "paint" ? paint(colour) : bikeMat[key]);
+          mesh.castShadow = key !== "glass";
+          mesh.receiveShadow = true;
+          // Fittings too small to miss on a bike some way off.
+          mesh.userData.fitting = key !== "paint" && key !== "black" && key !== "engine";
+          group.add(mesh);
+        }
+        group.userData.wheels = bikeGeo.wheels.map((w) => {
+          const wheel = new THREE.Group();
+          wheel.position.set(0, 0.31, w.z);
+          for (const key in w.parts) { const mesh = new THREE.Mesh(w.parts[key], bikeMat[key]); mesh.castShadow = true; mesh.userData.fitting = key !== "rubber"; wheel.add(mesh); }
+          group.add(wheel);
+          return wheel;
+        });
+        return group;
+      }
+
+      // ----------------------------------------------------------- riders
+      // The rider is the rigged avatar bundled for Super Over, posed onto the
+      // bike by turning its bones; one pose table is worked out at load.
+      let avatar = null;
+      const POSES = ["ride", "punchL", "punchR", "kickL", "kickR", "punchL", "punchR"];   // index = simulation pose
+      const poseTable = {};
+      const BONES = ["Hips", "Spine", "Spine1", "Spine2", "Neck", "Head", "LeftArm", "LeftForeArm", "LeftHand", "RightArm", "RightForeArm", "RightHand", "LeftUpLeg", "LeftLeg", "LeftFoot", "RightUpLeg", "RightLeg", "RightFoot"];
+      const CHILD = { Spine: "Spine1", Spine1: "Spine2", Spine2: "Neck", Neck: "Head", LeftArm: "LeftForeArm", LeftForeArm: "LeftHand", RightArm: "RightForeArm", RightForeArm: "RightHand", LeftUpLeg: "LeftLeg", LeftLeg: "LeftFoot", LeftFoot: "LeftToeBase", RightUpLeg: "RightLeg", RightLeg: "RightFoot", RightFoot: "RightToeBase" };
+
+      /** A bone by its standard name; exports from Sketchfab append "_12". */
+      function findBone(root, name) {
+        let hit = root.getObjectByName(name);
+        if (!hit) root.traverse((o) => { if (!hit && o.name.replace(/_\d+$/, "") === name) hit = o; });
+        return hit;
+      }
+
+      function buildPoses(rig) {
+        const bone = (n) => findBone(rig, n);
+        const rest = {};
+        for (const n of BONES) rest[n] = { q: bone(n).quaternion.clone(), p: bone(n).position.clone() };
+        const a = new THREE.Vector3(), b = new THREE.Vector3(), q = new THREE.Quaternion(), bw = new THREE.Quaternion(), pw = new THREE.Quaternion();
+        /** Turns [name] so the line to its child points along [dir] (rider space, +X is the rider's left). */
+        const aim = (name, dir) => {
+          rig.updateMatrixWorld(true);
+          const bn = bone(name), child = bone(CHILD[name]);
+          if (!bn || !child) return;
+          bn.getWorldPosition(a); child.getWorldPosition(b);
+          q.setFromUnitVectors(b.sub(a).normalize(), new THREE.Vector3(...dir).normalize());
+          bn.getWorldQuaternion(bw); bn.parent.getWorldQuaternion(pw);
+          bn.quaternion.copy(pw.invert().multiply(q.multiply(bw)));
+        };
+        const reset = () => { for (const n of BONES) { bone(n).quaternion.copy(rest[n].q); bone(n).position.copy(rest[n].p); } };
+        const save = (key) => { poseTable[key] = {}; for (const n of BONES) poseTable[key][n] = { q: bone(n).quaternion.clone(), p: bone(n).position.clone() }; };
+        // [wind] is the drawn-back moment before a blow; [own] the player's
+        // own body, whose blows go forward into what the camera sees.
+        const seated = (action, side, cruiser = false, own = false, wind = false) => {
+          reset();
+          const hips = bone("Hips");
+          // Move the hips onto the seat, in the rig's own units.
+          rig.updateMatrixWorld(true);
+          const world = hips.getWorldPosition(new THREE.Vector3());
+          const want = new THREE.Vector3(...(cruiser ? SEAT.cruiser : SEAT.hips));
+          hips.position.add(hips.parent.worldToLocal(want).sub(hips.parent.worldToLocal(world)));
+          // Lean into a punch and away from a kick.
+          const tilt = own ? 0 : side * (action === 1 ? 0.2 : action === 2 ? -0.18 : 0) * (wind ? -0.4 : 1);
+          // The player's own body leans back out of sight to kick.
+          const back = own && action === 2;
+          for (const n of ["Spine", "Spine1", "Spine2"]) aim(n, back ? [0, 0.85, -0.5] : cruiser ? [tilt, 0.98, 0.16] : [tilt, 0.74, 0.62]);
+          aim("Neck", cruiser ? [0, 1, 0.05] : [0, 0.96, 0.2]);
+          for (const [S, x] of [["Left", 1], ["Right", -1]]) {
+            const hit = side === x;
+            if (hit && action === 2 && wind) { aim(S + "UpLeg", own ? [x * 0.3, 0.5, 0.8] : [x * 0.45, 0.1, 0.9]); aim(S + "Leg", own ? [x * 0.1, -0.9, 0.35] : [x * 0.15, -0.95, -0.25]); aim(S + "Foot", [x * 0.1, -0.3, 0.95]); }
+            else if (hit && action === 2 && own) { aim(S + "UpLeg", [x * 0.5, 0.25, 0.83]); aim(S + "Leg", [x * 0.5, 0.25, 0.83]); aim(S + "Foot", [x * 0.4, 0.8, 0.45]); }
+            else if (hit && action === 2) { aim(S + "UpLeg", [x * 0.72, -0.3, 0.62]); aim(S + "Leg", [x * 0.9, -0.2, 0.38]); aim(S + "Foot", [x * 0.5, 0.3, 0.8]); }
+            else if (cruiser) { aim(S + "UpLeg", [x * 0.34, -0.12, 0.93]); aim(S + "Leg", [x * 0.05, -0.97, 0.22]); aim(S + "Foot", [x * 0.1, -0.2, 0.97]); }
+            else { aim(S + "UpLeg", [x * 0.3, -0.3, 0.9]); aim(S + "Leg", [-x * 0.06, -0.86, -0.5]); aim(S + "Foot", [x * 0.05, -0.32, 0.94]); }
+            if (back) { aim(S + "Arm", [x * 0.2, -0.95, 0.1]); aim(S + "ForeArm", [x * 0.1, -0.9, 0.3]); }
+            else if (hit && action === 1 && wind) { aim(S + "Arm", own ? [x * 0.5, -0.6, 0.1] : [x * 0.45, -0.55, -0.25]); aim(S + "ForeArm", own ? [x * 0.3, 0.35, 0.9] : [x * 0.35, 0.5, 0.8]); }
+            else if (hit && action === 1 && own) { aim(S + "Arm", [x * 0.4, 0.16, 0.9]); aim(S + "ForeArm", [x * 0.4, 0.16, 0.9]); }
+            else if (hit && action === 1) { aim(S + "Arm", [x * 0.9, 0, 0.42]); aim(S + "ForeArm", [x * 0.95, 0.06, 0.3]); }
+            else if (cruiser) { aim(S + "Arm", [x * 0.3, -0.42, 0.86]); aim(S + "ForeArm", [-x * 0.05, 0.12, 0.99]); }
+            else { aim(S + "Arm", [x * 0.14, -0.5, 0.86]); aim(S + "ForeArm", [-x * 0.1, -0.2, 0.97]); }
+          }
+        };
+        // One set for riders, one sat upright for the police cruiser (c_),
+        // and one for the player's own body (f_).
+        for (const [pre, cruiser, own] of [["c_", true, false], ["", false, false], ["f_", false, true]]) {
+          seated(0, 0, cruiser, own); save(`${pre}ride`);
+          for (const [name, action, side] of [["punchL", 1, 1], ["punchR", 1, -1], ["kickL", 2, 1], ["kickR", 2, -1]]) {
+            seated(action, side, cruiser, own, true); save(`${pre}${name}_w`);
+            seated(action, side, cruiser, own); save(`${pre}${name}`);
+          }
+        }
+        for (const [key, lead] of [["runA", 1], ["runB", -1]]) {
+          reset();
+          for (const n of ["Spine", "Spine1", "Spine2"]) aim(n, [0, 0.97, 0.22]);
+          for (const [S, x] of [["Left", 1], ["Right", -1]]) {
+            const f = lead * x;
+            aim(S + "UpLeg", [0, -1, 0.5 * f]); aim(S + "Leg", [0, -1, f > 0 ? -0.15 : -0.8]);
+            aim(S + "Arm", [x * 0.14, -1, -0.5 * f]); aim(S + "ForeArm", [0, -0.75, -0.5 * f + 0.65]);
+          }
+          save(key);
+        }
+        // Thrown from the bike and lying where they landed.
+        reset();
+        for (const [S, x] of [["Left", 1], ["Right", -1]]) {
+          aim(S + "Arm", [x * 0.75, 0.65, 0.1]); aim(S + "ForeArm", [x * 0.35, 0.9, 0.2]);
+          aim(S + "UpLeg", [x * 0.22, -0.97, 0.05]); aim(S + "Leg", [x * 0.12, -0.98, -0.15]);
+        }
+        save("sprawl");
+        reset();
+      }
+
+      const loader = new GLTFLoader();
+      let cloneRig = null;
+      const ready = Promise.all([
+        import("three/addons/utils/SkeletonUtils.js").then((m) => { cloneRig = m.clone; }),
+        loader.loadAsync("models/rider.glb").then((g) => { avatar = g.scene; }),
+      ]).then(() => buildPoses(avatar)).catch((e) => console.warn("Road Rumble rider failed to load", e));
+
+      const scans3d = Promise.all([
+        ["rock_07", 1.7, false], ["rock_09", 1.2, false], ["rock_face_01", 3.4, false], ["shrub_03", 2.6, true],
+      ].map(([name, size, cutout]) => loader.loadAsync(`models/${name}.glb`).then((g) => useScan(name, g, size, cutout)).catch((e) => console.warn("Road Rumble scan missing", name, e))));
+
+      // Sketchfab downloads (CC BY 4.0, credited in ASSETS.md), reduced for
+      // phones: four fir trees at two detail levels, a sport bike for the
+      // riders nearest the camera, and a van and a lorry for the traffic.
+      const firs = [];
+      let bikeHi = null, bikeFar = null, policeBike = null, vanModel = null, truckModel = null;
+      const cutout = (m, wind) => { m.transparent = false; m.depthWrite = true; m.alphaTest = 0.4; m.alphaToCoverage = true; m.side = THREE.DoubleSide; if (wind) sway(m, wind); return m; };
+      function bake(scene, prefix) {
+        // [geometry, material] for every mesh under nodes named [prefix]*.
+        const parts = [];
+        scene.updateMatrixWorld(true);
+        scene.traverse((o) => {
+          if (!o.isMesh) return;
+          let n = o; while (n && !n.name.startsWith(prefix)) n = n.parent;
+          if (n) parts.push([o.geometry.clone().applyMatrix4(o.matrixWorld), o.material]);
+        });
+        return parts;
+      }
+      const downloads = Promise.all([
+        loader.loadAsync("models/firs.glb").then((g) => {
+          g.scene.traverse((o) => { if (o.isMesh && o.material.name !== "Bark_Mat") o.material = cutout(leafy(o.material), o.material.name === "Brunches_Mat" ? 0.004 : 0); });
+          for (let i = 0; i < 4; i++) firs.push({ near: [...bake(g.scene, `fir${i}_bark`), ...bake(g.scene, `fir${i}_leaf`)], far: bake(g.scene, `fir${i}_far`), split: PHONE ? 110 : 150 });
+        }),
+        loader.loadAsync("models/sports_bike.glb").then((g) => { bikeHi = g.scene; }),
+        loader.loadAsync("models/sports_bike_far.glb").then((g) => { bikeFar = g.scene; }),
+        loader.loadAsync("models/police_bike.glb").then((g) => { policeBike = g.scene; }),
+        loader.loadAsync("models/van.glb").then((g) => { vanModel = g.scene; }),
+        loader.loadAsync("models/truck.glb").then((g) => { truckModel = g.scene; }),
+      ].map((p) => p.catch((e) => console.warn("Road Rumble download missing", e))));
+      for (let i = 0; i < 4; i++) KINDS[`fir${i}`] = () => firs[i];
+
+
+      /** [map] re-coloured toward [hex]: the art is blue, so its hue is
+       *  turned to the target's and its strength and brightness matched.
+       *  One texture per rider look is kept. */
+      const dyes = {};
+      function dyed(map, part, look, hex) {
+        const key = `${part}${look}`;
+        if (dyes[key]) return dyes[key];
+        const img = map.image, c = document.createElement("canvas");
+        c.width = img.width; c.height = img.height;
+        const g = c.getContext("2d");
+        if (!("filter" in g)) return map;   // older browsers: leave it blue
+        const hsl = {}; new THREE.Color(hex).getHSL(hsl);
+        const grey = hsl.s < 0.18;
+        g.filter = `hue-rotate(${Math.round(hsl.h * 360 - 215)}deg) saturate(${grey ? 0.08 : Math.min(1.5, 0.6 + hsl.s)}) brightness(${(0.55 + hsl.l * 1.1).toFixed(2)})`;
+        g.drawImage(img, 0, 0);
+        const t = new THREE.CanvasTexture(c);
+        t.flipY = map.flipY; t.colorSpace = map.colorSpace; t.wrapS = map.wrapS; t.wrapT = map.wrapT;
+        return (dyes[key] = t);
+      }
+
+      function makeRider(look, withBike = true) {
+        const [jacket, helmet] = LOOKS[look % LOOKS.length];
+        const root = new THREE.Group();
+        root.rotation.order = "YXZ";      // heading, then the road's slope
+        const lean = new THREE.Group();   // rolls about the tyre contact line
+        root.add(lean);
+        const rider = { root, lean, bones: {}, body: null, bike: null, pose: "", cop: look === 15 };
+        if (withBike) {
+          rider.bike = makeBike(look === 15 ? 0xf2f2f4 : jacket);
+          lean.add(rider.bike);
+          rider.paint = look === 15 ? 0xf2f2f4 : jacket;
+        }
+        if (avatar && cloneRig) {
+          const body = cloneRig(avatar);
+          body.traverse((o) => {
+            if (!o.isMesh) return;
+            o.frustumCulled = false;
+            // Parts are told apart by their material's name.
+            const part = o.material.name.replace("Wolf3D_", "");
+            // Nobody sees a face inside a helmet.
+            if (part === "Eye" || part === "Teeth") { o.visible = false; return; }
+            const m = (o.material = o.material.clone());
+            // The helmet is exported see-through; riders are solid.
+            m.transparent = false; m.opacity = 1; m.depthWrite = true;
+            // The racing suit and helmet are re-dyed for each rider.
+            if (part === "Outfit_Top" && m.map) m.map = dyed(m.map, "suit", look, jacket);
+            else if (part === "Headwear" && m.map) m.map = dyed(m.map, "lid", look, helmet);
+          });
+          for (const n of BONES) rider.bones[n] = findBone(body, n);
+          rider.body = body;
+          lean.add(body);
+        }
+        root.traverse((o) => { if (o.isMesh) o.receiveShadow = true; });
+        if (rider.bike) {
+          rider.bike.traverse((o) => { o.userData.bikePart = true; });
+          if (PHONE) root.add(blob(1.1, 2.7));
+        }
+        shade(rider, 2);
+        return rider;
+      }
+      // On phones a bike's shadow is thrown by a plain block its size, not
+      // by its tens of thousands of triangles.
+      const shadeGeo = new THREE.BoxGeometry(0.3, 0.75, 1.9).translate(0, 0.5, 0);
+      const shadeMat = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false });
+      /** [level] 2: the rider throws a full shadow; 1: on phones, only the
+       *  block does; 0: none. */
+      function shade(rider, level) {
+        rider.root.traverse((o) => { if (o.isMesh) o.castShadow = PHONE ? (o.geometry === shadeGeo ? level > 0 : level > 1 && !o.userData.bikePart) : level > 0; });
+      }
+      /** A rider knocked down leaves the bike: flung forward, turning over
+       *  once, then lying on the road ahead of it until they get back on. */
+      function spill(rider, dt) {
+        const body = rider.body;
+        if (!body) return;
+        if (!rider.spilt) { rider.spilt = true; rider.downT = 0; rider.root.add(body); }
+        rider.downT += dt;
+        const air = Math.min(1, rider.downT / 0.55), slid = rider.downT > 0.55 ? 0.9 * (1 - Math.exp(-(rider.downT - 0.55) * 3)) : 0;
+        body.position.set(0.45, 0.14 + Math.sin(air * Math.PI) * 0.9, 0.5 + 2.6 * air + slid);
+        body.rotation.set(Math.PI / 2 * air + (air < 1 ? air * Math.PI * 2 : 0), 0, 0);
+      }
+      function remount(rider) {
+        rider.spilt = false;
+        rider.lean.add(rider.body);
+        rider.body.position.set(0, 0, 0); rider.body.rotation.set(0, 0, 0);
+      }
+      /** Drops a far-off bike's small fittings, each of which is a draw of its own. */
+      function trim(rider, far) {
+        rider.bike?.traverse((o) => { if (o.userData.fitting) o.visible = !far; });
+      }
+      /** Swaps a rider between the built bike and the detailed download. */
+      function detail(rider, on) {
+        const model = rider.cop ? policeBike : bikeHi;
+        if (!rider.bike || !model || rider.hiOn === on) return;
+        rider.hiOn = on;
+        if (on && !rider.bikeHi) {
+          const hi = model.clone(true);
+          hi.traverse((o) => {
+            if (!o.isMesh) return;
+            o.castShadow = !PHONE; o.receiveShadow = true; o.userData.bikePart = true;
+            // Repaint the sport bike's bodywork in the rider's colour.
+            if (!rider.cop && /paintRed|carpaint/i.test(o.material.name)) { o.material = o.material.clone(); o.material.color.set(rider.paint); }
+          });
+          rider.bikeHi = hi;
+          rider.lean.add(hi);
+        }
+        if (rider.bikeHi) rider.bikeHi.visible = on;
+        rider.bike.visible = !on;
+      }
+      function setPose(rider, name) {
+        if (rider.pose === name) return;
+        rider.pose = name;
+        if (!rider.body) return;
+        rider.body.visible = name !== "";
+        // Police sit upright on their cruiser.
+        const pre = rider.cop ? "c_" : rider.own ? "f_" : "";
+        rider.want = poseTable[pre + name] || poseTable[name] || null;
+        // A blow is drawn back for a moment first, then thrown.
+        rider.wind = poseTable[`${pre}${name}_w`] || null;
+        rider.poseAge = 0;
+      }
+      const _tq = new THREE.Quaternion(), _roll = new THREE.Quaternion(), _axisZ = new THREE.Vector3(0, 0, 1), _axisX = new THREE.Vector3(1, 0, 0);
+      /** Eases the rider toward their pose and adds the small movements of
+       *  riding: wheels turning, the bike riding its suspension, the rider
+       *  shifting their weight into bends. */
+      function animate(rider, dt, travelled, lean, seed) {
+        const want = rider.wind && rider.poseAge < 0.06 ? rider.wind : rider.want;
+        rider.poseAge += dt;
+        if (want && rider.body) {
+          const k = rider.posed ? 1 - Math.exp(-dt * (rider.wind ? 30 : 16)) : 1;
+          rider.posed = true;
+          for (const n of BONES) {
+            const bone = rider.bones[n];
+            if (!bone) continue;
+            _tq.copy(want[n].q);
+            if (n === "Spine1") _tq.multiply(_roll.setFromAxisAngle(_axisZ, lean * 0.22));
+            if (n === "Head") _tq.multiply(_roll.setFromAxisAngle(_axisZ, -lean * 0.3)).multiply(_roll.setFromAxisAngle(_axisX, Math.sin(clock * 2.1 + seed) * 0.03));
+            if (n === "Spine") _tq.multiply(_roll.setFromAxisAngle(_axisX, Math.sin(clock * 9 + seed) * 0.012));
+            bone.quaternion.slerp(_tq, k);
+            bone.position.lerp(want[n].p, k);
+          }
+        }
+        if (rider.bike) {
+          for (const wheel of rider.bike.userData.wheels) wheel.rotation.x += travelled / 0.31;
+          // Suspension chatter grows with speed.
+          const speed = Math.min(1, Math.abs(travelled) / (dt * 40 + 1e-6));
+          rider.bike.position.y = Math.sin(clock * 23 + seed) * 0.006 * speed;
+          if (rider.body && !rider.spilt) rider.body.position.y = Math.sin(clock * 23 + seed - 0.6) * 0.008 * speed;
+        }
+      }
+
+      // ------------------------------------------------------------- dust
+      const DUST = 260;
+      const dust = (() => {
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(DUST * 3), 3));
+        geo.setAttribute("alpha", new THREE.BufferAttribute(new Float32Array(DUST), 1));
+        const sprite = (() => { const c = document.createElement("canvas"); c.width = c.height = 64; const g = c.getContext("2d"), grad = g.createRadialGradient(32, 32, 2, 32, 32, 30); grad.addColorStop(0, "rgba(255,255,255,1)"); grad.addColorStop(1, "rgba(255,255,255,0)"); g.fillStyle = grad; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
+        const mat = new THREE.PointsMaterial({ map: sprite, size: 1.6, transparent: true, depthWrite: false, color: 0xc8b48c, opacity: 0.5, sizeAttenuation: true });
+        const points = new THREE.Points(geo, mat);
+        points.frustumCulled = false;
+        scene.add(points);
+        return { geo, mat, life: new Float32Array(DUST), vel: new Float32Array(DUST * 3), next: 0 };
+      })();
+      function puff(at, colour) {
+        const i = dust.next; dust.next = (i + 1) % DUST;
+        const p = dust.geo.attributes.position;
+        p.setXYZ(i, at.x + (Math.random() - 0.5) * 0.4, at.y + 0.2, at.z + (Math.random() - 0.5) * 0.4);
+        dust.vel[i * 3] = (Math.random() - 0.5) * 0.8; dust.vel[i * 3 + 1] = 0.6 + Math.random() * 0.9; dust.vel[i * 3 + 2] = (Math.random() - 0.5) * 0.8;
+        dust.life[i] = 1;
+        dust.mat.color.set(colour);
+      }
+      function stepDust(dt) {
+        const p = dust.geo.attributes.position;
+        for (let i = 0; i < DUST; i++) {
+          if (dust.life[i] <= 0) continue;
+          dust.life[i] -= dt * 0.9;
+          if (dust.life[i] <= 0) { p.setY(i, -999); continue; }
+          p.setXYZ(i, p.getX(i) + dust.vel[i * 3] * dt, p.getY(i) + dust.vel[i * 3 + 1] * dt, p.getZ(i) + dust.vel[i * 3 + 2] * dt);
+        }
+        p.needsUpdate = true;
+      }
+
+      // ------------------------------------------------------------ world
+      const actors = new THREE.Group();
+      scene.add(actors);
+      let riders = new Map(), cars = new Map(), wreck = null, thrown = null;   // by the simulation's numbering
+      let own = null, ownT = 0, ownBlow = "";   // the player's body, seen only while striking
+
+      function clearWorld() {
+        if (world) {
+          for (const o of world) {
+            scene.remove(o);
+            o.traverse?.((m) => { if (m.isMesh || m.isInstancedMesh) m.geometry?.dispose(); });
+          }
+        }
+        world = null;
+        actors.clear();
+        if (own) camera.remove(own.root);
+        riders = new Map(); cars = new Map(); wreck = null; thrown = null; own = null;
+        strips = []; windows = []; shownAt = -1; lastPz = -1;
+      }
+
+      async function load(data, as = "race") {
+        await ready;
+        await scans3d;
+        await downloads;
+        clearWorld();
+        theme = THEMES[data.theme] || THEMES.forest;
+        scene.fog.color.set(theme.fog);
+        track = buildTrack(data);
+        track.curve = data.curves;
+        world = [...buildRoad(), ...buildScenery(data.props), ...buildGrass(), ...buildRails()];
+        for (const o of world) scene.add(o);
+        wreck = makeRider(0); wreck.root.visible = false; setPose(wreck, "");
+        thrown = makeRider(0, false); thrown.root.visible = false;
+        own = makeRider(0, false); own.own = true; own.root.visible = false;
+        if (own.body) {
+          // The camera sits where the head is.
+          findBone(own.body, "Head")?.scale.setScalar(0.001);
+          own.body.traverse((o) => { if (o.isMesh) o.castShadow = false; });
+        }
+        // It hangs off the camera, shoulders just behind and below the
+        // lens, so only a limb thrown forward reaches into view, whatever
+        // the road is doing.
+        own.root.rotation.set(0, Math.PI, 0);
+        camera.add(own.root);
+        actors.add(wreck.root, thrown.root);
+        state = before = base = null;
+        // The shop keeps the screen until it is left.
+        if (mode === "shop") shop.back = as; else mode = as;
+        settle = 3;
+      }
+
+      // The latest state from the simulation.
+      let mode = "idle";
+      let state = null;
+      let clock = 0;
+
+      /** Draws only the road, ground and scenery near segment [at]. */
+      let shownAt = -1;
+      function lowerBound(a, v) { let lo = 0, hi = a.length; while (lo < hi) { const mid = (lo + hi) >> 1; if (a[mid] < v) lo = mid + 1; else hi = mid; } return lo; }
+      function show(at) {
+        const from = Math.max(0, at - BEHIND), to = Math.min(track.n, at + SIGHT);
+        for (const mesh of strips) mesh.geometry.setDrawRange(from * mesh.userData.perRow, (to - from) * mesh.userData.perRow);
+        // Scenery only needs refreshing every few segments.
+        if (Math.abs(at - shownAt) < 8) return;
+        shownAt = at;
+        for (const w of windows) {
+          const a = lowerBound(w.segs, Math.max(0, at + w.lo)), b = lowerBound(w.segs, Math.min(track.n, at + w.hi));
+          for (const im of w.meshes) {
+            im.instanceMatrix.array.set(w.all.subarray(a * 16, b * 16));
+            im.count = b - a;
+            im.instanceMatrix.needsUpdate = true;
+          }
+        }
+      }
+
+      const CLOSE = new URLSearchParams(location.search).has("close");   // pose check
+      // The race is seen from behind the player's own bike; ?cockpit puts
+      // the camera back at the rider's eyes.
+      const COCKPIT = new URLSearchParams(location.search).has("cockpit");
+      let DT = 1 / 60, lastPz = -1;
+      const fwd = new THREE.Vector3(), eye = new THREE.Vector3(), look = new THREE.Vector3();
+      function apply(s) {
+        // Camera on the player.
+        show(Math.floor(s.pz / 200));
+        const p = place(s.pz, s.px);
+        const th = p.heading;
+        fwd.set(Math.sin(th), 0, Math.cos(th));
+        const pull = s.chase ? 1 : s.crash > 0 ? Math.min(1, s.crashAge / 0.4) : 0;
+        // Speed, worked out from how far the player moved since last frame.
+        const moved = lastPz < 0 ? 0 : (s.pz - lastPz) * U;
+        lastPz = s.pz;
+        const pace = Math.min(1, Math.abs(moved) / (DT * 42 + 1e-6));
+        eye.copy(p).addScaledVector(fwd, -3.3 * pull); eye.y += EYE + 0.9 * pull;
+        if (CLOSE) { eye.copy(place(s.pz + 2100, s.px + 0.32)); eye.y += 1.25; }
+        const ahead = place(s.pz + 4200, s.px * 0.7, look);
+        // From behind, the view tips down to lift the player's bike clear of the instruments.
+        look.y += 1.0 - 0.9 * pull;
+        camera.position.copy(eye);
+        camera.up.set(0, 1, 0);
+        camera.lookAt(look);
+        if (pull === 0) {
+          camera.rotateZ(-s.lean * 0.07);
+          // Buffeting and a widening view as the speed builds.
+          camera.position.y += Math.sin(clock * 31) * 0.012 * pace;
+          camera.position.x += Math.sin(clock * 27) * 0.008 * pace;
+        }
+        const fov = 62 + 11 * pace * (pull === 0 ? 1 : 0.3);
+        if (Math.abs(camera.fov - fov) > 0.05) { camera.fov += (fov - camera.fov) * Math.min(1, DT * 3); camera.updateProjectionMatrix(); }
+        // Shadows follow the camera.
+        sun.target.position.copy(eye).addScaledVector(fwd, PHONE ? 12 : 22);
+        sun.position.copy(sun.target.position).add(new THREE.Vector3(-60, 95, -40));
+
+        // Only the nearest few riders ahead get the detailed bike; police
+        // keep their cruiser from further off, as the built bike is a sport one.
+        const gap = (r) => (r.down || r.z < s.pz - 2000 || r.z - s.pz > (r.look === 15 ? HI_REACH * 4 : HI_REACH) ? Infinity : r.z - s.pz);
+        const hiCut = HI_BIKES ? s.riders.map(gap).sort((a, b) => a - b)[HI_BIKES - 1] ?? Infinity : -Infinity;
+        const shadeCut = s.riders.map((r) => Math.abs(r.z - s.pz)).sort((a, b) => a - b)[(PHONE ? 4 : 8) - 1] ?? Infinity;
+        // Each rider keeps their own body from one frame to the next, so
+        // nobody is rebuilt as others come into and drop out of range.
+        for (const a of riders.values()) a.root.visible = false;
+        for (const r of s.riders) {
+          let actor = riders.get(r.id);
+          if (!actor) { actor = makeRider(r.look); riders.set(r.id, actor); actors.add(actor.root); }
+          actor.root.visible = true;
+          // Shadows and fittings are for those close by: a pack of riders is
+          // otherwise hundreds of draws.
+          const off = Math.abs(r.z - s.pz);
+          const near = off >= 14000 ? 0 : off <= shadeCut ? 2 : 1;
+          detail(actor, gap(r) < Infinity && gap(r) <= hiCut);
+          if (actor.near !== near) { actor.near = near; shade(actor, near); }
+          const far = PHONE && off > 9000;
+          if (actor.far !== far) { actor.far = far; trim(actor, far); }
+          place(r.z, r.x);
+          actor.root.position.copy(_p);
+          actor.root.rotation.set(-grade(r.z, 600), _p.heading, 0);
+          if (r.down) {
+            actor.lean.rotation.z = -1.35;
+            actor.lean.position.y = 0.28;
+            setPose(actor, "sprawl");
+            spill(actor, DT);
+          } else {
+            if (actor.spilt) remount(actor);
+            actor.lean.rotation.z = -r.lean * 0.42;
+            actor.lean.position.y = 0;
+            setPose(actor, POSES[r.pose] || "ride");
+          }
+          const gone = actor.lastZ === undefined ? 0 : (r.z - actor.lastZ) * U;
+          actor.lastZ = r.z;
+          animate(actor, DT, r.down ? 0 : gone, r.down ? 0 : r.lean, r.look * 1.7);
+          // Kick up dirt off the tarmac.
+          if (!r.down && Math.abs(r.x) > 1.05 && gone > 0.05 && Math.random() < 0.5) puff(_p, theme.verge);
+        }
+
+        for (const car of cars.values()) car.visible = false;
+        for (const c of s.cars) {
+          let car = cars.get(c.id);
+          if (!car || car.userData.look !== c.look) {
+            // New to the road, or this number now belongs to a different vehicle.
+            if (car) actors.remove(car);
+            car = makeCar(c.look);
+            car.userData.look = c.look;
+            cars.set(c.id, car); actors.add(car);
+          }
+          car.visible = true;
+          place(c.z, c.x);
+          car.position.copy(_p);
+          // Car models face +X.
+          car.rotation.y = _p.heading - Math.PI / 2 + (c.oncoming ? Math.PI : 0);
+          car.rotation.z = grade(c.z, 1200) * (c.oncoming ? -1 : 1);
+        }
+
+        // The player's own bike is only seen after a wipeout.
+        const crashed = s.crash > 0 || s.chase;
+        wreck.root.visible = crashed;
+        // The player's own arm or boot comes into view for a blow.
+        const striking = s.pose > 0 && !crashed;
+        ownT = striking ? 0.18 : ownT - DT;
+        own.root.visible = ownT > 0 && !crashed && !CLOSE;
+        if (own.root.visible) {
+          if (striking) {
+            ownBlow = POSES[s.pose];
+            // Sat higher and further forward to kick, so the boot clears the dashboard.
+            if (s.pose >= 3) own.root.position.set(0, -EYE + 0.25, -0.55); else own.root.position.set(0, -EYE + 0.06, -0.3);
+          }
+          // Afterwards the limb is drawn back out of view.
+          setPose(own, striking ? ownBlow : `${ownBlow}_w`);
+          animate(own, DT, 0, 0, 0);
+        }
+        thrown.root.visible = s.crash > 0;
+        if (crashed) {
+          place(s.pz, s.px);
+          wreck.root.position.copy(_p);
+          wreck.root.rotation.set(-grade(s.pz, 600), _p.heading, 0);
+          if (s.chase && s.crash > 0) { wreck.lean.rotation.z = -1.35; wreck.lean.position.y = 0.28; setPose(wreck, ""); }
+          else if (s.chase) { wreck.lean.rotation.z = -s.lean * 0.42; wreck.lean.position.y = 0; setPose(wreck, POSES[s.pose] || "ride"); }
+          else { wreck.lean.rotation.z = -1.35; wreck.lean.position.y = 0.28; setPose(wreck, ""); }
+          detail(wreck, true);
+          const riding = s.chase && !(s.crash > 0);
+          animate(wreck, DT, riding ? moved : 0, riding ? s.lean : 0, 0);
+          // Smoke off the wreck.
+          if (!riding && Math.random() < 0.3) puff(_p, 0x6a6a6a);
+        }
+        if (s.crash > 0) {
+          place(s.pz + s.riderOffset, s.px + 0.05);
+          thrown.root.position.copy(_p);
+          if (s.crash === 1) {
+            // Tumbling through the air.
+            thrown.root.position.y += 1.2 + Math.sin(Math.min(1, s.crashAge) * Math.PI) * 1.2;
+            thrown.root.rotation.set(clock * 11, _p.heading, 0);
+            setPose(thrown, "ride");
+          } else {
+            thrown.root.rotation.set(0, _p.heading + Math.PI, 0);
+            setPose(thrown, Math.floor(clock * 4.5) % 2 ? "runA" : "runB");
+          }
+          animate(thrown, DT, 0, 0, 3);
+        }
+      }
+
+      // ----------------------------------------------------- attract mode
+      // A made-up road and a pack to follow, for the menus and for opening
+      // this page on its own.
+      let demo = null;
+      async function attract(themeName) {
+        const r = rng(5 + (themeName ? themeName.length : 0));
+        const curves = [], heights = [0], props = [];
+        let c = 0, target = 0, y = 0, slope = 0;
+        const names = Object.keys(THEMES);
+        const picked = themeName || names[(Math.random() * names.length) | 0];
+        const kinds = THEMES[picked].trees;
+        for (let i = 0; i < 2600; i++) {
+          if (i % 90 === 0) { target = (r() - 0.5) * 6; slope = (r() - 0.5) * 60; }
+          c += (target - c) * 0.03;
+          y += slope; y *= 0.999;
+          curves.push(c); heights.push(y);
+          if (i > 20 && i % 18 === 0) props.push([i, "pole", -1.2]);
+          for (let k = 0; k < 2; k++) if (i > 20 && r() < 0.42) props.push([i, kinds[(r() * kinds.length) | 0], (r() > 0.5 ? 1 : -1) * (1.3 + r() * 2.3)]);
+          if (i % 260 === 130) props.push([i, "billboard", r() > 0.5 ? 1.9 : -1.9]);
+          if (Math.abs(c) > 2.2 && i % 10 === 0) props.push([i, c > 0 ? "signRight" : "signLeft", c > 0 ? -1.14 : 1.14]);
+        }
+        props.push([18, "start", 0]);
+        await load({ theme: picked, curves, heights, props }, "idle");
+        demo = { z: 3000, speed: 9000, pack: Array.from({ length: 9 }, (_, i) => ({ x: 0.2 + (i % 3) * 0.28, z: 4200 + i * 520 + r() * 300, look: i === 1 ? 15 : 1 + i, sway: r() * 6 })), cars: Array.from({ length: 10 }, (_, i) => ({ x: i % 2 ? -0.25 : 0.75, z: 12000 + i * 21000, look: i })) };
+        if (mode === "shop") shop.back = "attract"; else mode = "attract";
+      }
+      function stepDemo(dt) {
+        const d = demo, end = (track.n - 60) * 200;
+        d.z += d.speed * dt;
+        if (d.z > end - 9000) { d.z = 3000; d.pack.forEach((r, i) => (r.z = 4200 + i * 520)); d.cars.forEach((c, i) => (c.z = 12000 + i * 21000)); }
+        for (const r of d.pack) r.z += (d.speed + Math.sin(clock * 0.3 + r.sway) * 500) * dt;
+        for (const c of d.cars) c.z += (c.x < 0 ? -5000 : 4800) * dt;
+        const i = Math.floor(d.z / 200);
+        apply({
+          pz: d.z, px: 0.5 + Math.sin(clock * 0.2) * 0.2, lean: track.curve[i] * 0.16, crash: 0, crashAge: 0, riderOffset: 0, chase: true,
+          riders: d.pack.map((r, id) => ({ id, x: r.x + Math.sin(clock * 0.5 + r.sway) * 0.05, z: r.z, lean: track.curve[Math.floor(r.z / 200)] * 0.16, pose: 0, down: false, look: r.look })),
+          cars: d.cars.map((c, id) => ({ id, ...c })).filter((c) => c.z > d.z - 3000 && c.z < d.z + 90000 && c.z < end).map((c) => ({ id: c.id, x: c.x, z: c.z, look: c.look, oncoming: c.x < 0 })),
+        });
+      }
+
+      // ------------------------------------------------------------- shop
+      // The bike shop: one bike at a time on a turntable in a showroom,
+      // stood to the right so the list of bikes has the left of the screen.
+      const SHOP_PAINT = [0x9aa4b0, 0x2f6fd0, 0xd8a020, 0x1f9a58, 0xd03a2a, 0x18181c];
+      const shop = (() => {
+        const room = new THREE.Scene();
+        room.background = new THREE.Color(0x0b0910);
+        room.add(new THREE.HemisphereLight(0xdfe8ff, 0x30283a, 0.9));
+        const key = new THREE.DirectionalLight(0xfff2dc, 2.8); key.position.set(3, 5, 4); room.add(key);
+        const rim = new THREE.DirectionalLight(0x88aaff, 1.4); rim.position.set(-4, 3, -3); room.add(rim);
+        const floor = new THREE.Mesh(new THREE.CircleGeometry(10, 48).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x1c1a22, roughness: 0.22, metalness: 0.65 }));
+        const plinth = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.6, 0.14, 48), new THREE.MeshStandardMaterial({ color: 0x2c2a34, roughness: 0.35, metalness: 0.7 }));
+        plinth.position.y = 0.07;
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(1.52, 0.02, 8, 64).rotateX(Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xf07020 }));
+        ring.position.y = 0.145;
+        const sign = new THREE.CanvasTexture((() => {
+          const c = document.createElement("canvas"); c.width = 1024; c.height = 384;
+          const g = c.getContext("2d");
+          g.fillStyle = "#15121c"; g.fillRect(0, 0, 1024, 384);
+          g.strokeStyle = "#262230"; g.lineWidth = 4;
+          for (let x = 0; x <= 1024; x += 128) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, 384); g.stroke(); }
+          g.fillStyle = "#f07020"; g.font = "900 120px Arial"; g.textAlign = "center"; g.fillText("BIKE SHOP", 512, 290);
+          g.fillStyle = "#f0e8b8"; g.font = "700 40px Arial"; g.fillText("RIDE IT HOME TODAY", 512, 345);
+          return c;
+        })());
+        sign.colorSpace = THREE.SRGBColorSpace;
+        const wall = new THREE.Mesh(new THREE.PlaneGeometry(16, 6), new THREE.MeshStandardMaterial({ map: sign, roughness: 0.85 }));
+        wall.position.set(0, 3, -4.5);
+        const stand = new THREE.Group(); stand.position.y = 0.14;
+        room.add(floor, plinth, ring, wall, stand);
+        const cam = new THREE.PerspectiveCamera(38, 1, 0.1, 60);
+        cam.position.set(-0.6, 1.3, 4.7); cam.lookAt(-1.15, 0.62, 0);
+        return { room, stand, cam, shown: -1, back: "idle" };
+      })();
+      /** Puts bike [index] on show; a negative index leaves the shop. */
+      async function showBike(index) {
+        if (index < 0) { if (mode === "shop") mode = shop.back; return; }
+        if (mode !== "shop") shop.back = mode;
+        mode = "shop";
+        if (shop.shown === index) return;
+        shop.shown = index;
+        await downloads;
+        if (shop.shown !== index) return;
+        shop.stand.clear();
+        const hue = SHOP_PAINT[index % SHOP_PAINT.length];
+        let bike;
+        if (bikeHi) {
+          bike = bikeHi.clone(true);
+          bike.traverse((o) => { if (o.isMesh && /paintRed|carpaint/i.test(o.material.name)) { o.material = o.material.clone(); o.material.color.set(hue); } });
+        } else {
+          bike = makeBike(hue);
+        }
+        // Dearer bikes are bigger machines.
+        bike.scale.multiplyScalar(0.94 + index * 0.025);
+        shop.stand.add(bike);
+      }
+
+      // ------------------------------------------------------ engine note
+      // Two loops cut from one recording of a sport bike, low revs and high,
+      // both playing all the time: the revs set their pitch and how much of
+      // each is heard, so the note climbs without a seam or a step.
+      const audio = { ctx: null, on: false, master: null, parts: [] };
+      async function startAudio() {
+        const ctx = (audio.ctx = new (window.AudioContext || window.webkitAudioContext)());
+        audio.master = ctx.createGain(); audio.master.gain.value = 0; audio.master.connect(ctx.destination);
+        for (const [file, base] of [["engine_low.wav", 95], ["engine_high.wav", 150]]) {
+          const buffer = await ctx.decodeAudioData(await (await fetch(file)).arrayBuffer());
+          const src = ctx.createBufferSource(); src.buffer = buffer; src.loop = true;
+          const gain = ctx.createGain(); gain.gain.value = 0;
+          src.connect(gain); gain.connect(audio.master); src.start();
+          audio.parts.push({ src, gain, base });
+        }
+        audio.master.gain.value = audio.on ? 1 : 0;
+        window.flutter_inappwebview?.callHandler?.("rrAudio", ctx.state, audio.parts.length);
+      }
+      function sound(on) {
+        audio.on = !!on;
+        if (on && !audio.ctx) startAudio().catch((e) => { console.warn("Road Rumble engine sound failed", e); window.flutter_inappwebview?.callHandler?.("rrAudio", `failed: ${e}`, 0); });
+        if (!audio.ctx || !audio.master) return;
+        if (on) audio.ctx.resume();
+        audio.master.gain.setTargetAtTime(on ? 1 : 0, audio.ctx.currentTime, 0.04);
+      }
+      /** [revs] 0 at idle to 1 at the red line; [volume] 0 to 1. */
+      function rev(revs, volume) {
+        if (!audio.parts.length) return;
+        if (audio.on && audio.ctx.state !== "running") audio.ctx.resume();
+        const t = audio.ctx.currentTime, hz = 74 + 116 * revs, high = Math.min(1, Math.max(0, (hz - 102) / 40));
+        audio.parts.forEach((part, i) => {
+          part.src.playbackRate.setTargetAtTime(hz / part.base, t, 0.05);
+          part.gain.gain.setTargetAtTime(volume * Math.sqrt(i ? high : 1 - high), t, 0.05);
+        });
+      }
+
+      // -------------------------------------------------------------- api
+      /** Unpacks the flat array the Flutter side sends, some thirty times a
+       *  second, stamped with the simulation's clock. */
+      let before = null, base = null;
+      function frame(a) {
+        if (!track || mode !== "race") return;
+        let k = 0;
+        const s = { t: a[k++], pz: a[k++], px: a[k++], lean: a[k++], crash: a[k++], crashAge: a[k++], riderOffset: a[k++], pose: a[k++], revs: a[k++], volume: a[k++], chase: !COCKPIT, riders: [], cars: [], riderAt: new Map(), carAt: new Map() };
+        const riderCount = a[k++];
+        for (let i = 0; i < riderCount; i++) { const r = { id: a[k++], x: a[k++], z: a[k++], lean: a[k++], pose: a[k++], down: a[k++] > 0, look: a[k++] }; s.riders.push(r); s.riderAt.set(r.id, r); }
+        const carCount = a[k++];
+        for (let i = 0; i < carCount; i++) { const c = { id: a[k++], x: a[k++], z: a[k++], look: a[k++], oncoming: a[k++] > 0 }; s.cars.push(c); s.carAt.set(c.id, c); }
+        // Where the simulation's clock sits against this page's, eased so
+        // that frames arriving early or late don't jolt it.
+        const sample = performance.now() - s.t * 1000;
+        base = base === null || Math.abs(sample - base) > 150 ? sample : base + (sample - base) * 0.05;
+        before = state;
+        state = s;
+        rev(s.revs, s.volume);
+      }
+      /** The newest frame carried forward to [now] at the speed everything
+       *  was last moving, so motion is even however unevenly frames arrive. */
+      function predict(now) {
+        const s = state, p = before;
+        const gap = p ? s.t - p.t : 0;
+        if (gap <= 0 || gap > 0.25 || s.crash !== p.crash) return s;
+        const k = Math.min(0.1, Math.max(0, (now - base) / 1000 - s.t)) / gap;
+        const on = (was, is) => is + (is - was) * k;
+        return {
+          ...s, pz: on(p.pz, s.pz), px: on(p.px, s.px), lean: on(p.lean, s.lean),
+          riders: s.riders.map((r) => { const q = p.riderAt.get(r.id); return q ? { ...r, x: on(q.x, r.x), z: on(q.z, r.z), lean: on(q.lean, r.lean) } : r; }),
+          cars: s.cars.map((c) => { const q = p.carAt.get(c.id); return q ? { ...c, x: on(q.x, c.x), z: on(q.z, c.z) } : c; }),
+        };
+      }
+      window.RR = { load, frame, attract, ready, sound, shop: showBike, idle: () => { if (mode !== "attract" && !(mode === "shop" && shop.back === "attract")) attract(); }, stats: () => ({ calls: renderer.info.render.calls, triangles: renderer.info.render.triangles }) };
+
+      // Quality steps down by itself when frames come slowly, one notch at a
+      // time, and never back up within a session (that would see-saw).
+      const quality = { tier: 0, grass: true };
+      const STEPS = PHONE ? [
+        () => { renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.6)); resize(); },
+        () => { quality.grass = false; for (const w of windows) if (w.grass) for (const im of w.meshes) im.visible = false; },
+        () => { renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25)); resize(); },
+        () => { renderer.setPixelRatio(1); resize(); },
+      ] : [
+        () => { quality.grass = false; for (const w of windows) if (w.grass) for (const im of w.meshes) im.visible = false; },
+        () => { renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25)); resize(); },
+        () => { renderer.shadowMap.enabled = false; sun.castShadow = false; scene.traverse((o) => { if (o.material) [].concat(o.material).forEach((m) => (m.needsUpdate = true)); }); },
+        () => { renderer.setPixelRatio(1); resize(); },
+      ];
+      // The app remembers the step this phone settled on, so a race doesn't
+      // open at a quality it is known not to hold.
+      for (const known = Math.min(STEPS.length, +new URLSearchParams(location.search).get("tier") || 0); quality.tier < known;) STEPS[quality.tier++]();
+      let frames = 0, span = 0, settle = 3;
+      function watchSpeed(dt) {
+        // Loading and the first seconds of a scene don't count.
+        if (settle > 0) { settle -= dt; return; }
+        frames++; span += dt;
+        if (span < 1.5) return;
+        const fps = frames / span;
+        frames = 0; span = 0;
+        if (fps < 44 && quality.tier < STEPS.length) { STEPS[quality.tier++](); settle = 1.5; }
+        window.flutter_inappwebview?.callHandler?.("rrStats", Math.round(fps), quality.tier, renderer.info.render.triangles);
+      }
+
+      let last = performance.now();
+      function tick(now) {
+        const dt = Math.min(0.05, (now - last) / 1000);
+        last = now; clock += dt; DT = dt || 1 / 60;
+        stepDust(dt);
+        if (mode === "shop") {
+          shop.stand.rotation.y += dt * 0.55;
+          shop.room.environment = scene.environment;
+          if (shop.cam.aspect !== camera.aspect) { shop.cam.aspect = camera.aspect; shop.cam.updateProjectionMatrix(); }
+          renderer.render(shop.room, shop.cam);
+        } else if (track) {
+          if (mode === "attract" && demo) stepDemo(dt);
+          else if (mode === "race" && state) apply(predict(now));
+          wind.value = clock;
+          renderer.render(scene, camera);
+          watchSpeed(dt);
+        }
+        requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+
+      // On its own, or until the app says otherwise, fly along a demo road.
+      const wanted = new URLSearchParams(location.search).get("theme");
+      attract(wanted || undefined).then(() => window.flutter_inappwebview?.callHandler?.("rrReady"));
+    </script>
+  </body>
+</html>

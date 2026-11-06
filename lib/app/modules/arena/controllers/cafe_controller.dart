@@ -1,12 +1,40 @@
 import 'package:get/get.dart';
+import 'package:hash/core/utils/app_snackbar.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 
 class CybercafesController extends GetxController {
   final RemoteRepoInterface remoteRepo;
-  
+  static const Duration _cacheTtl = Duration(minutes: 15);
+  static List<dynamic>? _cachedCybercafes;
+  static DateTime? _cacheTime;
+  Future<void>? _fetchRequest;
+
   CybercafesController({required this.remoteRepo});
-  
+
   var cybercafes = [].obs; // Observable list to store cybercafes data
+
+  /// Cafe name for a booking map. Bookings come back with
+  /// `gaming_type_id.cafe_name: null`, so this falls back to the cafe list
+  /// already loaded on home, matched by vendor id. Null when neither has it.
+  static String? cafeNameForBooking(Map booking) {
+    final slot = booking['slot'];
+    final type = slot is Map ? slot['gaming_type_id'] : null;
+    final cafe = type is Map ? type['cafe_name'] : null;
+    final direct = cafe is Map ? '${cafe['cafe_name'] ?? ''}'.trim() : '';
+    if (direct.isNotEmpty) return direct;
+
+    final vendorId =
+        '${(type is Map ? type['vendor_id'] : null) ?? booking['vendor_id'] ?? ''}';
+    if (vendorId.isEmpty) return null;
+    for (final c in _cachedCybercafes ?? const []) {
+      if (c is Map && '${c['vendor_id']}' == vendorId) {
+        final name = '${c['cafe_name'] ?? ''}'.trim();
+        return name.isEmpty ? null : name;
+      }
+    }
+    return null;
+  }
+
   var isLoading = false.obs; // Observable to manage loading state
 
   @override
@@ -15,13 +43,48 @@ class CybercafesController extends GetxController {
     fetchCybercafes(); // Fetch cafes on initialization
   }
 
-  Future<void> fetchCybercafes() async {
+  Future<void> fetchCybercafes({bool forceRefresh = false}) {
+    final cacheIsFresh =
+        !forceRefresh &&
+        _cachedCybercafes != null &&
+        _cacheTime != null &&
+        DateTime.now().difference(_cacheTime!) < _cacheTtl;
+
+    if (cacheIsFresh) {
+      cybercafes.assignAll(_cachedCybercafes!);
+      return Future.value();
+    }
+
+    // Stale-while-revalidate: show the last list right away (the API can take
+    // a while to wake up) and refresh it behind the scenes.
+    final stale = _cachedCybercafes;
+    if (stale != null && cybercafes.isEmpty) cybercafes.assignAll(stale);
+
+    final inFlight = _fetchRequest;
+    if (inFlight != null) return inFlight;
+
+    final request = _loadCybercafes();
+    _fetchRequest = request;
+    return request.whenComplete(() {
+      if (identical(_fetchRequest, request)) {
+        _fetchRequest = null;
+      }
+    });
+  }
+
+  Future<void> _loadCybercafes() async {
     isLoading.value = true;
     try {
       final cafes = await remoteRepo.fetchCybercafes();
-      cybercafes.value = cafes;
+      cybercafes.assignAll(cafes);
+      _cachedCybercafes = List<dynamic>.from(cafes);
+      _cacheTime = DateTime.now();
     } catch (e) {
-      Get.snackbar('Error', 'Failed to fetch data: $e');
+      if (_cachedCybercafes != null) {
+        cybercafes.assignAll(_cachedCybercafes!);
+      } else {
+        AppSnackbar.show('Error', 'Failed to fetch data: $e');
+      }
     } finally {
       isLoading.value = false;
     }

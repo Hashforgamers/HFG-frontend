@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:hash/core/utils/app_snackbar.dart';
 import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -7,9 +8,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:get/get.dart';
 import 'package:hash/app/modules/game_pass/cubit/game_pass_cubit.dart';
 import 'package:hash/utils/widgets/bounce_tap_widget.dart';
-import 'package:http/http.dart' as http;
 import 'package:hash/core/repositories/model/get_pass_model.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
+import 'package:hash/core/network/network_config.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/config/flavor_config.dart';
 import 'package:hash/app/data/services/user_controller.dart';
@@ -17,14 +18,11 @@ import 'package:hash/app/modules/payment/razorpay_controller.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
+import 'package:hash/core/utils/haptics.dart';
 
 import '../../../../utils/widgets/loader.dart';
-
-enum GlobalPassCardBtnType { btnCenter, btnRight }
-
-enum GlobalPassCardTitleType { titleCenter, titleLeft }
-
-enum GlobalPassCardSubTitleType { up, down }
+import 'package:hash/core/utils/app_logger.dart';
+import 'package:hash/core/localization/app_region.dart';
 
 class GlobalPassView extends StatefulWidget {
   final TabController tabController;
@@ -40,7 +38,7 @@ class GlobalPassView extends StatefulWidget {
 }
 
 class _GlobalPassViewState extends State<GlobalPassView> {
-  final RazorpayController _razorpayController = Get.put(RazorpayController());
+  late final RazorpayController _razorpayController;
   final UserController _userController = Get.find<UserController>();
   final _remoteRepo = locator<RemoteRepoInterface>();
   final _segmentService = locator<SegmentSdkService>();
@@ -52,6 +50,9 @@ class _GlobalPassViewState extends State<GlobalPassView> {
   @override
   void initState() {
     super.initState();
+    _razorpayController = Get.isRegistered<RazorpayController>()
+        ? Get.find<RazorpayController>()
+        : Get.put(RazorpayController());
     _setupPaymentListeners();
   }
 
@@ -119,6 +120,10 @@ class _GlobalPassViewState extends State<GlobalPassView> {
         amount: pass.price,
         paymentMethodSelected: 'razorpay',
       );
+      await Haptics.medium();
+
+      // Store pass info before opening checkout so success callback always has context.
+      _razorpayController.setPassIdForPurchase(pass.id);
 
       // Open Razorpay checkout
       _razorpayController.openCheckout(
@@ -135,14 +140,20 @@ class _GlobalPassViewState extends State<GlobalPassView> {
         paymentType: PaymentType.passPurchase,
       );
 
-      // Store pass info for payment success handling
-      _razorpayController.bookingIdList.value = [int.parse(pass.id)];
+      // Keep numeric fallback for legacy flows.
+      final passIdAsInt = int.tryParse(pass.id);
+      if (passIdAsInt != null) {
+        _razorpayController.bookingIdList.value = [passIdAsInt];
+      } else {
+        _razorpayController.bookingIdList.clear();
+      }
       // Clear slot IDs for pass purchases since passes don't have slots
       _razorpayController.slotIdsList.clear();
     } catch (e) {
       _processingPasses[passId] = false;
+      await Haptics.long();
 
-      Get.snackbar(
+      AppSnackbar.show(
         'Error',
         'Failed to initiate payment: $e',
         snackPosition: SnackPosition.BOTTOM,
@@ -170,18 +181,18 @@ class _GlobalPassViewState extends State<GlobalPassView> {
       "receipt": receiptId,
     };
 
-    final response = await http.post(
-      Uri.parse(url),
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode(payload),
-    );
+    final dio = await locator<NetworkProvider>().auth();
+    final response = await dio.post(url, data: payload);
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      return data['id'];
-    } else {
-      throw Exception('Failed to create payment order: ${response.body}');
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final data = response.data is String
+          ? jsonDecode(response.data as String)
+          : response.data;
+      final orderId = (data['id'] ?? data['order_id'] ?? '').toString();
+      if (orderId.isNotEmpty) return orderId;
     }
+
+    throw Exception('Failed to create payment order: ${response.data}');
   }
 
   @override
@@ -189,7 +200,7 @@ class _GlobalPassViewState extends State<GlobalPassView> {
     return BlocBuilder<GamePassCubit, GamePassState>(
       builder: (context, state) {
         if (state is GamePassLoading) {
-          return const Center(child: RainbowLoadingBar());
+          return const Center(child: AppLinearLoader());
         }
 
         if (state is GamePassError) {
@@ -251,83 +262,29 @@ class _GlobalPassViewState extends State<GlobalPassView> {
     required String info,
     required VoidCallback onTap,
   }) {
-    const gradients = [
-      LinearGradient(
-        begin: Alignment.centerLeft,
-        end: Alignment.centerRight,
-        colors: [Color(0xFF302C2A), Color(0xFF968983)],
-      ),
-      LinearGradient(
-        begin: Alignment.centerLeft,
-        end: Alignment.centerRight,
-        colors: [Color(0xFF331F45), Color(0xFF745195)],
-      ),
-      LinearGradient(
-        begin: Alignment.centerLeft,
-        end: Alignment.centerRight,
-        colors: [Color(0xFF144542), Color(0xFF6EAAA9)],
-      ),
-    ];
+    final Color accentColor = pass.passType.toLowerCase().contains('daily')
+        ? const Color(0xff00DC00)
+        : pass.passType.toLowerCase().contains('weekly')
+        ? Colors.purpleAccent
+        : Colors.blueAccent;
 
-    // 🔹 Apply exact params for the first 3 passes
-    final Gradient btnColor = index < gradients.length
-        ? gradients[index]
-        : const LinearGradient(
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-            colors: [Color(0xFF444444), Color(0xFF888888)], // fallback
-          );
-
-    const tops = [30.0, 70.0, 40.0];
-    final double top = index < tops.length ? tops[index] : 30.0;
-
-    const titleTypes = [
-      GlobalPassCardTitleType.titleCenter,
-      GlobalPassCardTitleType.titleCenter,
-      GlobalPassCardTitleType.titleLeft,
-    ];
-
-    final titleType = index < titleTypes.length
-        ? titleTypes[index]
-        : GlobalPassCardTitleType.titleCenter;
-
-    const subTitleTypes = [
-      GlobalPassCardSubTitleType.down,
-      GlobalPassCardSubTitleType.up,
-      GlobalPassCardSubTitleType.down,
-    ];
-
-    final subTitleType = index < subTitleTypes.length
-        ? subTitleTypes[index]
-        : GlobalPassCardSubTitleType.down;
-
-    const btnTypes = [
-      GlobalPassCardBtnType.btnRight,
-      GlobalPassCardBtnType.btnCenter,
-      GlobalPassCardBtnType.btnRight,
-    ];
-
-    final btnType = index < btnTypes.length
-        ? btnTypes[index]
-        : GlobalPassCardBtnType.btnRight;
-
-    print("pass image $image");
+    AppLogger.d("pass image $image");
     return BounceTap(
       onTap: pass.isBought == true ? null : onTap,
       child: Container(
-        height: 200,
+        height: 190,
         width: MediaQuery.of(context).size.width,
-        decoration: BoxDecoration(borderRadius: BorderRadius.circular(26)),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white12),
+        ),
         child: Stack(
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(25),
+              borderRadius: BorderRadius.circular(20),
               child: CachedNetworkImage(
                 imageUrl: image,
-                height: 200,
-                filterQuality:
-                    FilterQuality.high, // 👈 improves scaling quality
-
+                height: 190,
                 width: MediaQuery.of(context).size.width,
                 fit: BoxFit.cover,
                 placeholder: (_, _) =>
@@ -343,126 +300,138 @@ class _GlobalPassViewState extends State<GlobalPassView> {
                 ),
               ),
             ),
-            Positioned(
-              top: top,
-              left: titleType == GlobalPassCardTitleType.titleCenter ? 60 : 30,
-              right: titleType == GlobalPassCardTitleType.titleCenter
-                  ? 60
-                  : 110,
-              child: Column(
-                crossAxisAlignment:
-                    titleType == GlobalPassCardTitleType.titleCenter
-                    ? CrossAxisAlignment.center
-                    : CrossAxisAlignment.start,
-                children: [
-                  subTitleType == GlobalPassCardSubTitleType.up
-                      ? Text(
-                          'PREMIUM',
-                          style: GoogleFonts.merriweather(
-                            color: Color(0xFFA09F9F),
-                            fontSize: 16,
-                            letterSpacing: 6,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        )
-                      : const SizedBox(),
-                  Text(
-                    title,
-                    textAlign: titleType == GlobalPassCardTitleType.titleCenter
-                        ? TextAlign.center
-                        : TextAlign.start,
-                    style: GoogleFonts.merriweather(
-                      color: Color(0xFFDADADA),
-                      fontSize: 20,
-                      letterSpacing: 2,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  subTitleType == GlobalPassCardSubTitleType.down
-                      ? Text(
-                          'PREMIUM',
-                          style: GoogleFonts.merriweather(
-                            color: Color(0xFFA09F9F),
-                            fontSize: 16,
-                            letterSpacing: 6,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        )
-                      : const SizedBox(),
-                ],
+            ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                child: Container(color: Colors.black.withOpacity(0.65)),
               ),
             ),
-            Positioned(
-              bottom: 24,
-              right: btnType == GlobalPassCardBtnType.btnRight ? 30 : 120,
-              child: Column(
-                crossAxisAlignment: btnType == GlobalPassCardBtnType.btnRight
-                    ? CrossAxisAlignment.end
-                    : CrossAxisAlignment.center,
-                children: [
-                  Text(
-                    info,
-                    style: GoogleFonts.merriweather(
-                      color: Color(0xFFB3B3B3),
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
+            Row(
+              children: [
+                Container(
+                  width: 44,
+                  decoration: BoxDecoration(
+                    color: accentColor.withOpacity(0.15),
+                    borderRadius: const BorderRadius.horizontal(
+                      left: Radius.circular(20),
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Obx(
-                    () => GestureDetector(
-                      onTap:
-                          (pass.isBought == true ||
-                              _processingPasses[pass.id] == true)
-                          ? null
-                          : () => _purchaseGamePass(pass),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 4,
-                          horizontal: 24,
+                  child: RotatedBox(
+                    quarterTurns: -1,
+                    child: Center(
+                      child: Text(
+                        'PROTOCOL',
+                        style: GoogleFonts.inter(
+                          color: accentColor,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.2,
+                          fontSize: 12,
                         ),
-                        decoration: BoxDecoration(
-                          // color: (pass.isBought == true || _processingPasses[pass.id] == true)
-                          //     ? Colors.grey
-                          //     : color,
-                          gradient: btnColor,
-                          borderRadius: BorderRadius.circular(25),
-                        ),
-                        child: _processingPasses[pass.id] == true
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: RainbowLoadingBar(),
-                              )
-                            : Text(
-                                pass.isBought == true
-                                    ? 'Already Bought'
-                                    : 'Get Now',
-                                style: GoogleFonts.merriweather(
-                                  // color: pass.isBought == true
-                                  //     ? Colors.white
-                                  //     : Colors.black,
-                                  color: Colors.white,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
                       ),
                     ),
                   ),
-                ],
-              ),
-            ),
-            Positioned(
-              left: 100,
-              bottom: 4,
-              child: Text(
-                'can be used to book at any cafe',
-                style: GoogleFonts.merriweather(
-                  color: Color(0xFF717171),
-                  fontSize: 10,
                 ),
-              ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'GLOBAL ACCESS',
+                              style: GoogleFonts.inter(
+                                color: accentColor,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                            Text(
+                              '${Money.symbol}${pass.price.toStringAsFixed(0)}',
+                              style: GoogleFonts.inter(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          title.toUpperCase(),
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          info,
+                          style: GoogleFonts.inter(
+                            color: Colors.white70,
+                            fontSize: 13,
+                          ),
+                        ),
+                        const Spacer(),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: Obx(
+                            () => GestureDetector(
+                              onTap:
+                                  (pass.isBought == true ||
+                                      _processingPasses[pass.id] == true)
+                                    ? null
+                                      : () async {
+                                          await Haptics.selection();
+                                          await _purchaseGamePass(pass);
+                                        },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: pass.isBought == true
+                                      ? Colors.grey.withOpacity(0.3)
+                                      : accentColor,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: _processingPasses[pass.id] == true
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: AppLinearLoader(),
+                                      )
+                                    : Text(
+                                        pass.isBought == true
+                                            ? 'ACTIVE'
+                                            : 'INITIALIZE',
+                                        style: GoogleFonts.inter(
+                                          color: pass.isBought == true
+                                              ? Colors.white
+                                              : Colors.black,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 1,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

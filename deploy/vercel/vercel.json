@@ -1,0 +1,32 @@
+{
+  "headers": [
+    {
+      "source": "/.well-known/apple-app-site-association",
+      "headers": [
+        { "key": "Content-Type", "value": "application/json" },
+        { "key": "Cache-Control", "value": "public, max-age=3600" }
+      ]
+    },
+    {
+      "source": "/.well-known/assetlinks.json",
+      "headers": [
+        { "key": "Content-Type", "value": "application/json" },
+        { "key": "Cache-Control", "value": "public, max-age=3600" }
+      ]
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/:path((?!\\.well-known/).*)",
+      "has": [{ "type": "host", "value": "hashforgamers.com" }],
+      "destination": "https://www.hashforgamers.com/:path",
+      "permanent": true
+    },
+    {
+      "source": "/:path((?!\\.well-known/).*)",
+      "has": [{ "type": "host", "value": "www.hashforgamers.co.in" }],
+      "destination": "https://hashforgamers.co.in/:path",
+      "permanent": true
+    }
+  ]
+}

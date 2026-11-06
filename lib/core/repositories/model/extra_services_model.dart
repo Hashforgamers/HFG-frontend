@@ -20,11 +20,7 @@ class ExtraServiceItem {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'category_id': categoryId,
-      'item_id': itemId,
-      'quantity': quantity,
-    };
+    return {'category_id': categoryId, 'item_id': itemId, 'quantity': quantity};
   }
 
   @override
@@ -50,9 +46,7 @@ class ExtraServiceItem {
 class ExtraServicesModel {
   final List<ExtraServiceItem> items;
 
-  ExtraServicesModel({
-    required this.items,
-  });
+  ExtraServicesModel({required this.items});
 
   factory ExtraServicesModel.fromJson(List<dynamic> json) {
     return ExtraServicesModel(

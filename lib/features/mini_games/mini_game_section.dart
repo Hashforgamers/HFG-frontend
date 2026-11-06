@@ -1,79 +1,408 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:hash/app/modules/home/widgets/home_design.dart';
 import 'package:get/get.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:hash/features/mini_games/arrow_escape/arrow_escape_screen.dart';
 import 'package:hash/features/mini_games/pacman/HomePage.dart';
 import 'package:hash/features/mini_games/plant_vs_zombies/Screens/home_page.dart';
-import 'flappy_birds/Layouts/Pages/page_game.dart';
+import 'package:hash/features/mini_games/road_rumble/road_rumble_screen.dart';
+import 'package:hash/core/service/fb_events_service.dart';
+import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service_locator.dart';
+import 'package:hash/features/mini_games/html_games/models/html_mini_game.dart';
+import 'package:hash/features/mini_games/html_games/services/html_mini_game_catalog_service.dart';
+import 'package:hash/features/mini_games/html_games/views/html_game_player_screen.dart';
+import 'package:hash/features/mini_games/html_games/widgets/html_mini_game_card.dart';
+import 'package:hash/features/mini_games/score/mini_game_leaderboard_page.dart';
+import 'package:hash/features/mini_games/ludo/ludo_game_screen.dart';
+import 'package:hash/features/mini_games/ludo/online/ludo_presence_widgets.dart';
+import 'package:hash/features/mini_games/snakes_ladders/snl_game_screen.dart';
+import 'package:hash/utils/widgets/home_section_title.dart';
+import 'package:hash/utils/widgets/game_button.dart';
+import 'package:hash/utils/widgets/game_panel.dart';
 import 'flappy_birds/Layouts/Pages/page_start_screen.dart';
-import 'ludo/ludo_game_screen.dart';
+import 'wordly/wordly_screen.dart';
+import 'all_games_screen.dart';
 import 'mini_game_card.dart';
 import '../../../../features/mini_games/fruit_ninja/fruit_ninja_screen.dart';
 import 'models/minigame_model.dart';
+import 'score/mini_game_score_service.dart';
+import 'score/mini_game_leaderboard_service.dart';
 
-class MiniGamesSection extends StatelessWidget {
+class MiniGamesSection extends StatefulWidget {
   const MiniGamesSection({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final games = [
+  State<MiniGamesSection> createState() => _MiniGamesSectionState();
+}
+
+class _MiniGamesSectionState extends State<MiniGamesSection> {
+  late final List<MiniGame> _games;
+  late final List<HtmlMiniGame> _htmlGames;
+  final MiniGameScoreService _scoreService = MiniGameScoreService();
+  final MiniGameLeaderboardService _leaderboardService =
+      MiniGameLeaderboardService();
+  final SegmentSdkService _segmentService = locator<SegmentSdkService>();
+  final FbEventsService _fbEventsService = locator<FbEventsService>();
+  bool _scoresLoaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _games = [
       MiniGame(
-        title: "Fruit Cutting",
-        subtitle: "Slice & earn coins",
-        imageUrl:
-        "assets/mini_game_icons/fruit_cutting.png",
-        onTap: () => Get.to(() => FruitCuttingScreen()),
-      ),
-      MiniGame(
-        title: "Plant vs Zombie",
-        subtitle: "Test gaming knowledge",
-        imageUrl:
-        "assets/mini_game_icons/pvz.png",
-        onTap: () => Get.to(PlantVsZombie()),
-      ),
-      MiniGame(
-        title: "Pac Man",
-        subtitle: "Daily rewards",
-        imageUrl:
-        "assets/mini_game_icons/pacman.png",
-        onTap: () => Get.to(PacManHome()),
-      ),MiniGame(
-        title: "Laggy Bird",
-        subtitle: "Daily rewards",
-        imageUrl:
-        "assets/mini_game_icons/flappy_birds.png",
-        onTap: () => Get.to(GamePage()),
-      ),MiniGame(
+        id: 'ludo',
         title: "Ludo",
-        subtitle: "Daily rewards",
-        imageUrl:
-        "assets/mini_game_icons/ludo_icon.png",
-        onTap: () =>Get.to(() => const LudoGameScreen()),
+        subtitle: "Roll & race · 2–4 players",
+        icon: const AssetImage("assets/mini_game_icons/ludo_icon.png"),
+        onTap: () async {
+          await Get.to(() => const LudoGameScreen(source: 'home'));
+          await _loadScores();
+        },
+      ),
+      MiniGame(
+        id: 'snakes_ladders',
+        title: "Snakes & Ladders",
+        subtitle: "Race to 100 · 2–4 players",
+        icon: const AssetImage("assets/mini_game_icons/snakes_ladders.png"),
+        onTap: () async {
+          await Get.to(() => const SnlGameScreen());
+          await _loadScores();
+        },
+      ),
+      MiniGame(
+        id: 'road_rumble',
+        title: "Road Rumble",
+        subtitle: "Race & brawl · win cash",
+        icon: const AssetImage("assets/mini_game_icons/road_rumble.png"),
+        onTap: () async {
+          await Get.to(() => const RoadRumbleScreen());
+          await _loadScores();
+        },
+      ),
+      MiniGame(
+        id: 'arrow_escape',
+        title: "Arrow Escape",
+        subtitle: "Untangle arrows · +coins",
+        icon: const AssetImage("assets/mini_game_icons/arrow_escape.png"),
+        onTap: () async {
+          await Get.to(() => const ArrowEscapeScreen());
+          await _loadScores();
+        },
+      ),
+      MiniGame(
+        id: 'fruit_cutting',
+        title: "Fruit Cutting",
+        subtitle: "Slice fruit · +coins daily",
+        icon: const AssetImage("assets/mini_game_icons/fruit_cutting.png"),
+        onTap: () async {
+          await Get.to(() => const FruitCuttingScreen());
+          await _loadScores();
+        },
+      ),
+      MiniGame(
+        id: 'plant_vs_zombie',
+        title: "Plant vs Zombie",
+        subtitle: "Defend the lawn · +coins",
+        icon: const AssetImage("assets/mini_game_icons/pvz.png"),
+        onTap: () async {
+          await Get.to(() => const PlantVsZombie());
+          await _loadScores();
+        },
+      ),
+      MiniGame(
+        id: 'pac_man',
+        title: "Pac Man",
+        subtitle: "Dodge ghosts · +coins",
+        icon: const AssetImage("assets/mini_game_icons/pacman.png"),
+        onTap: () async {
+          await Get.to(() => const PacManHome());
+          await _loadScores();
+        },
+      ),
+      MiniGame(
+        id: 'wordly',
+        title: "Wordly",
+        subtitle: "Guess the word · race friends",
+        icon: const AssetImage("assets/mini_game_icons/wordly.png"),
+        onTap: () async {
+          await Get.to(() => const WordlyGame());
+          await _loadScores();
+        },
+      ),
+      MiniGame(
+        id: 'laggy_bird',
+        title: "Laggy Bird",
+        subtitle: "Tap to fly · +coins",
+        icon: const AssetImage("assets/mini_game_icons/flappy_birds.png"),
+        onTap: () async {
+          await Get.to(() => const FlappyBirds());
+          await _loadScores();
+        },
       ),
     ];
+    _htmlGames = const HtmlMiniGameCatalogService().getGames();
 
+    // Precache icons to avoid jank on first scroll/tap.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      for (final game in _games) {
+        precacheImage(game.icon, context);
+      }
+      for (final game in _htmlGames) {
+        if (game.thumbnail.isEmpty) continue;
+        precacheImage(AssetImage(game.thumbnail), context);
+      }
+    });
+
+    _loadScores();
+  }
+
+  Future<void> _loadScores() async {
+    await _scoreService.ensureLoaded();
+    if (mounted) {
+      setState(() => _scoresLoaded = true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Ludo gets its own featured card; the row holds the other games.
+    final ludo = _games.where((game) => game.id == 'ludo').firstOrNull;
+    final games = _games.where((game) => game.id != 'ludo').toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 5.0, vertical: 10.0),
-          child: Text(
-            "Mini Games 🎮",
-            style: GoogleFonts.inter(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Row(
+            children: [
+              const HomeSectionTitle(
+                title: 'Hash ',
+                accent: 'Arcade',
+                brand: true,
+              ),
+              const Spacer(),
+              GestureDetector(
+                onTap: () => _showLeaderboard(context, _scoreService),
+                // trophy + total only, so "See all" fits beside it on phones
+                child: GameBadge(label: '🏆 ${_scoreService.totalScore}'),
+              ),
+              const SizedBox(width: 4),
+              TextButton(
+                onPressed: _openAllGames,
+                style: TextButton.styleFrom(
+                  foregroundColor: HomeTokens.coral,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: const Size(44, 44),
+                ),
+                child: const Text('See all'),
+              ),
+            ],
           ),
         ),
-        SizedBox(
-          height: 112,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: games.length,
-            itemBuilder: (context, index) => MiniGameCard(game: games[index]),
+        if (ludo != null) ...[
+          _FeaturedGameTile(
+            game: ludo,
+            best: _scoresLoaded ? _scoreService.bestScore('ludo') : null,
           ),
+          const SizedBox(height: 12),
+        ],
+        Builder(
+          builder: (context) {
+            // Row order: the newest games lead (newest first), then everything
+            // else in catalogue order (natives, then HTML games), with the
+            // games pinned to the end last.
+            const newestFirst = [
+              'hash_arcade',
+              'odd_one_out',
+              'hash_rush',
+              'arrow_escape',
+              'super_over',
+            ];
+            const pinnedLast = ['road_rumble'];
+            String idAt(int slot) => slot < games.length
+                ? (games[slot].id ?? '')
+                : _htmlGames[slot - games.length].gameId;
+            int rank(int slot) {
+              final id = idAt(slot);
+              final last = pinnedLast.indexOf(id);
+              if (last >= 0) return newestFirst.length + 1 + last;
+              final i = newestFirst.indexOf(id);
+              return i < 0 ? newestFirst.length : i;
+            }
+
+            final order =
+                List<int>.generate(games.length + _htmlGames.length, (i) => i)
+                  ..sort((a, b) {
+                    final byRank = rank(a).compareTo(rank(b));
+                    return byRank != 0 ? byRank : a.compareTo(b);
+                  });
+            return SizedBox(
+              height: 132,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                itemCount: order.length,
+                separatorBuilder: (context, index) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  final slot = order[index];
+                  if (slot < games.length) {
+                    final nativeGame = games[slot];
+                    return RepaintBoundary(
+                      child: MiniGameCard(
+                        game: nativeGame,
+                        scoresLoaded: _scoresLoaded,
+                        scoreService: _scoreService,
+                      ),
+                    );
+                  }
+
+                  final game = _htmlGames[slot - games.length];
+                  return HtmlMiniGameCard(
+                    game: game,
+                    compact: true,
+                    bestScore: _scoresLoaded
+                        ? _scoreService.bestScore(game.gameId)
+                        : null,
+                    onTap: () => _openHtmlGame(game),
+                  );
+                },
+              ),
+            );
+          },
         ),
       ],
+    );
+  }
+
+  Future<void> _openAllGames() async {
+    await Get.to(
+      () => AllGamesScreen(
+        games: _games,
+        htmlGames: _htmlGames,
+        scoreService: _scoreService,
+        onOpenHtml: _openHtmlGame,
+      ),
+    );
+    await _loadScores();
+  }
+
+  void _openHtmlGame(HtmlMiniGame game) {
+    unawaited(HtmlGamePlayerScreen.open(game, source: 'home'));
+  }
+
+  void _showLeaderboard(
+    BuildContext context,
+    MiniGameScoreService scoreService,
+  ) {
+    unawaited(
+      _segmentService.onCustomEvent('Arcade Leaderboard Entry Tapped', {
+        'entry_point': 'mini_games_section',
+        'total_score': _scoreService.totalScore,
+      }),
+    );
+    unawaited(
+      _fbEventsService.onCustomEvent('Arcade Leaderboard Entry Tapped', {
+        'entry_point': 'mini_games_section',
+        'total_score': _scoreService.totalScore,
+      }),
+    );
+    Get.to(
+      () => MiniGameLeaderboardPage(
+        scoreService: scoreService,
+        leaderboardService: _leaderboardService,
+      ),
+    );
+  }
+}
+
+/// Featured card for Ludo: chunky game panel with a Play button.
+class _FeaturedGameTile extends StatelessWidget {
+  const _FeaturedGameTile({required this.game, required this.best});
+
+  final MiniGame game;
+  final int? best;
+
+  @override
+  Widget build(BuildContext context) {
+    return GamePanel(
+      onTap: game.onTap,
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+      child: Row(
+        children: [
+          Container(
+            width: 76,
+            height: 76,
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              color: GameColors.outline,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(17),
+              child: Image(image: game.icon, fit: BoxFit.cover),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // title + badge shrink together on narrow screens instead of overflowing
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const GameText('LUDO', size: 26),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFF3B30),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: GameColors.outline,
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Text(
+                          'ONLINE',
+                          style: gameFont(10, Colors.white),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  'Online · vs AI · Pass & Play',
+                  style: gameFont(12.5, GameColors.soft),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  best == null || best == 0 ? 'No best yet' : 'Best $best',
+                  style: gameFont(12, GameColors.yellow.$1),
+                ),
+                const LudoLiveCount(),
+              ],
+            ),
+          ),
+          SizedBox(
+            width: 92,
+            child: GameButton(
+              label: 'Play',
+              tone: GameButtonTone.green,
+              height: 48,
+              onPressed: game.onTap,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -14,6 +14,7 @@ class SliceTrailComponent extends Component {
   final Paint paint = Paint()
     ..color = AppColors.white
     ..strokeWidth = 7
+    ..strokeCap = StrokeCap.round
     ..style = PaintingStyle.stroke;
   final Random random = Random();
 
@@ -21,7 +22,11 @@ class SliceTrailComponent extends Component {
   void render(Canvas canvas) {
     if (trailPoints.length > 1) {
       for (int i = 0; i < trailPoints.length - 1; i++) {
-        canvas.drawLine(trailPoints[i].toOffset(), trailPoints[i + 1].toOffset(), paint);
+        canvas.drawLine(
+          trailPoints[i].toOffset(),
+          trailPoints[i + 1].toOffset(),
+          paint,
+        );
       }
     }
   }

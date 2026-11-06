@@ -5,6 +5,8 @@ plugins {
     id("com.android.application")
     // START: FlutterFire Configuration
     id("com.google.gms.google-services")
+    id("com.google.firebase.crashlytics")
+    id("com.google.firebase.firebase-perf")
     // END: FlutterFire Configuration
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
@@ -17,17 +19,11 @@ val keystoreProps = Properties().apply {
     val file = rootProject.file("key.properties")
     if (file.exists()) file.inputStream().use { load(it) }
 }
-val localProps = Properties().apply {
-    val file = rootProject.file("local.properties")
-    if (file.exists()) file.inputStream().use { load(it) }
-}
-val flutterVersionCode   = (localProps["flutter.versionCode"] ?: "1").toString().toInt()
-val flutterVersionName   =  localProps["flutter.versionName"] ?: "1.0"
 
 /* ───────── android block ───────── */
 android {
     namespace = "com.hfg.hash"
-    compileSdk = 35
+    compileSdk = 36
     ndkVersion = "27.0.12077973"
     lint {
         disable.add("PackagedPrivateKey")
@@ -36,10 +32,11 @@ android {
     }
     defaultConfig {
         applicationId = "com.hfg.hash"
-        minSdk = 23                                   // bumped for Firebase Auth
-        targetSdk = 35
-        versionCode = 25
-        versionName = flutterVersionName.toString()
+        minSdk = flutter.minSdkVersion                                  // bumped for Firebase Auth
+        targetSdk = 36
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
+
     }
 
     /* signing (release) */
@@ -61,6 +58,10 @@ android {
             signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 
@@ -94,9 +95,10 @@ android {
 /* ───────── dependencies ───────── */
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
-    implementation("com.guardsquare:proguard-annotations:7.4.1")
+    //implementation("com.guardsquare:proguard-annotations:7.4.1")
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.appcompat:appcompat:1.6.1")
+    implementation("com.google.android.gms:play-services-ads-identifier:18.2.0")
     // add other libs below …
     // Needed for Theme.Material3.*
     implementation("com.google.android.material:material:1.12.0")

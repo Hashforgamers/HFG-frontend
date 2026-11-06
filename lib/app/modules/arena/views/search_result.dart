@@ -1,18 +1,27 @@
+import 'package:hash/app/modules/arena/views/arena_detail/arena_detail_info_section.dart';
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:ui';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:location/location.dart' as loc;
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:hash/app/modules/arena/controllers/cafe_controller.dart';
-import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
-import 'package:hash/core/service_locator.dart';
-import 'package:hash/utils/widgets/glow_neon_loader.dart';
+import 'package:hash/app/modules/arena/utils/arena_games_extractor.dart';
 import 'package:hash/app/modules/arena/views/arena_view_detailed.dart';
+import 'package:hash/app/modules/arena/views/search_result/cafe_search_skeleton.dart';
+import 'package:hash/app/modules/arena/views/search_result/search_result_card.dart';
+import 'package:hash/app/modules/arena/views/search_result/search_result_empty_state.dart';
+import 'package:hash/app/modules/arena/views/search_result/search_result_filters.dart';
+import 'package:hash/app/modules/arena/views/search_result/search_result_header.dart';
+import 'package:hash/app/modules/arena/views/search_result/search_result_search_bar.dart';
+import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
+import 'package:hash/core/service/fb_events_service.dart';
+import 'package:hash/core/service/location_permission_service.dart';
+import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service_locator.dart';
 
 class SearchResult extends StatefulWidget {
   final String? searchQuery;
@@ -28,19 +37,27 @@ class _SearchResultState extends State<SearchResult> {
   // Controllers
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final FocusNode _searchFocusNode = FocusNode();
   late final CybercafesController _cafeController;
+  final SegmentSdkService _segmentService = locator<SegmentSdkService>();
+  final FbEventsService _fbEventsService = locator<FbEventsService>();
+  final LocationPermissionService _locationPermissionService =
+      locator<LocationPermissionService>();
 
   // State
   bool _isSearching = false;
+  bool _isSearchFocused = false;
   String _currentQuery = '';
   Timer? _debounce;
+  Worker? _cafesWorker;
+  List<Map<String, dynamic>> _visibleResults = [];
 
   // Filters
   String _selectedFilter = 'All';
   final List<String> _filters = ['All', 'Gaming', 'Cafe', 'Nearby', 'Open Now'];
 
   // Location for distance
-  final loc.Location _loc = loc.Location();
+  late final loc.Location _loc = _locationPermissionService.location;
   bool _hasLocationPermission = false;
   double? _userLat, _userLng;
   static const _avgCitySpeedKmph = 25;
@@ -65,14 +82,36 @@ class _SearchResultState extends State<SearchResult> {
 
     _searchController.text = widget.searchQuery ?? '';
     _currentQuery = widget.searchQuery ?? '';
+    _searchFocusNode.addListener(() {
+      if (!mounted) return;
+      setState(() => _isSearchFocused = _searchFocusNode.hasFocus);
+    });
+    _scrollController.addListener(_onScroll);
+    _cafesWorker = ever(_cafeController.cybercafes, (_) => _recomputeResults());
 
     _initLocation();
-    _loadCafes(initial: true);
+    _loadCafes(forceRefresh: false);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final city = (widget.location ?? '').trim();
+      unawaited(
+        _segmentService.onCustomEvent('Nearby Cafes Viewed', {
+          'city': city.isEmpty ? 'unknown' : city,
+        }),
+      );
+      unawaited(
+        _fbEventsService.onNearbyCafesViewed(
+          city: city.isEmpty ? 'unknown' : city,
+        ),
+      );
+    });
   }
 
   @override
   void dispose() {
     _debounce?.cancel();
+    _cafesWorker?.dispose();
+    _scrollController.removeListener(_onScroll);
+    _searchFocusNode.dispose();
     _searchController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -80,14 +119,10 @@ class _SearchResultState extends State<SearchResult> {
 
   Future<void> _initLocation() async {
     try {
-      bool service = await _loc.serviceEnabled();
-      if (!service) service = await _loc.requestService();
+      final service = await _locationPermissionService.ensureServiceEnabled();
       if (!service) return;
 
-      var perm = await _loc.hasPermission();
-      if (perm == loc.PermissionStatus.denied) {
-        perm = await _loc.requestPermission();
-      }
+      final perm = await _locationPermissionService.ensurePermission();
       if (perm != loc.PermissionStatus.granted &&
           perm != loc.PermissionStatus.grantedLimited) {
         return;
@@ -100,22 +135,25 @@ class _SearchResultState extends State<SearchResult> {
         _userLat = ld.latitude;
         _userLng = ld.longitude;
       });
+      _recomputeResults();
     } catch (_) {
       // ignore and proceed without distances
     }
   }
 
-  Future<void> _loadCafes({bool initial = false}) async {
+  Future<void> _loadCafes({bool forceRefresh = false}) async {
     setState(() => _isSearching = true);
 
     try {
       // If you have a server-side search endpoint, call it here with _currentQuery
       // await _cafeController.searchCybercafes(query: _currentQuery);
       // else:
-      await _cafeController.fetchCybercafes();
+      await _cafeController.fetchCybercafes(forceRefresh: forceRefresh);
+      _recomputeResults();
     } finally {
-      if (!mounted) return;
-      setState(() => _isSearching = false);
+      if (mounted) {
+        setState(() => _isSearching = false);
+      }
     }
   }
 
@@ -199,12 +237,21 @@ class _SearchResultState extends State<SearchResult> {
   }
 
   bool _isShopOpen(Map<String, dynamic> cafe) {
-    final shopOpen = cafe['shop_open'];
-    if (shopOpen != null) {
-      if (shopOpen is bool) return shopOpen;
-      if (shopOpen is String) return shopOpen.toLowerCase() == 'true';
-      if (shopOpen is num) return shopOpen == 1;
+    final apiFlagKeys = [
+      'shop_open',
+      'is_open',
+      'isOpen',
+      'open_close_flag',
+      'currently_open',
+      'is_available',
+    ];
+    for (final key in apiFlagKeys) {
+      final parsed = _parseApiBool(cafe[key]);
+      if (parsed != null) {
+        return parsed;
+      }
     }
+
     final status = cafe['status']?.toString().toLowerCase();
     if (status != null) {
       if (status == 'active' ||
@@ -216,14 +263,26 @@ class _SearchResultState extends State<SearchResult> {
       if (status == 'pending_verification') {
         return _isCurrentlyOpen(cafe);
       }
+      if (status == 'closed' || status == 'inactive') {
+        return false;
+      }
     }
-    final isOpen = cafe['is_open'];
-    if (isOpen != null) {
-      if (isOpen is bool) return isOpen;
-      if (isOpen is String) return isOpen.toLowerCase() == 'true';
-      if (isOpen is num) return isOpen == 1;
-    }
+
     return _isCurrentlyOpen(cafe);
+  }
+
+  bool? _parseApiBool(dynamic value) {
+    if (value == null) return null;
+    if (value is bool) return value;
+    if (value is num) return value == 1;
+    if (value is String) {
+      final v = value.trim().toLowerCase();
+      if (v == 'true' || v == '1' || v == 'yes' || v == 'open') return true;
+      if (v == 'false' || v == '0' || v == 'no' || v == 'closed') {
+        return false;
+      }
+    }
+    return null;
   }
 
   String _safeAddress(Map<String, dynamic> cafe) {
@@ -272,23 +331,127 @@ class _SearchResultState extends State<SearchResult> {
     return _fallbackImages[index % _fallbackImages.length];
   }
 
+  String _normalizeFeatureLabel(dynamic value) {
+    var raw = value?.toString().trim() ?? '';
+    if (raw.isEmpty) return '';
+    raw = raw
+        .replaceAll('{', '')
+        .replaceAll('}', '')
+        .replaceAll('[', '')
+        .replaceAll(']', '')
+        .replaceAll('"', '')
+        .replaceAll("'", '')
+        .replaceAll('_', ' ')
+        .trim();
+    if (raw.isEmpty) return '';
+    return raw
+        .split(RegExp(r'\s+'))
+        .map((word) {
+          if (word.isEmpty) return word;
+          return '${word[0].toUpperCase()}${word.substring(1)}';
+        })
+        .join(' ');
+  }
+
+  List<String> _extractFeatureValues(dynamic source) {
+    final values = <String>[];
+    if (source == null) return values;
+
+    if (source is String) {
+      final parts = source.split(RegExp(r'[,|]|/(?!\d)'));
+      for (final part in parts) {
+        final label = _normalizeFeatureLabel(part);
+        if (label.isNotEmpty) values.add(label);
+      }
+      return values;
+    }
+
+    if (source is List) {
+      for (final item in source) {
+        values.addAll(_extractFeatureValues(item));
+      }
+      return values;
+    }
+
+    if (source is Map) {
+      final candidateKeys = [
+        'name',
+        'title',
+        'facility',
+        'feature',
+        'amenity',
+        'label',
+        'value',
+      ];
+      for (final key in candidateKeys) {
+        final v = source[key];
+        if (v == null) continue;
+        values.addAll(_extractFeatureValues(v));
+      }
+      if (values.isEmpty) {
+        for (final v in source.values) {
+          values.addAll(_extractFeatureValues(v));
+        }
+      }
+      return values;
+    }
+
+    final label = _normalizeFeatureLabel(source);
+    if (label.isNotEmpty) values.add(label);
+    return values;
+  }
+
   List<String> _features(Map<String, dynamic> cafe) {
-    final f = <String>[];
-    final games = cafe['games'];
-    if (games is List) {
-      for (final g in games.take(3)) {
-        if (g != null) f.add(g.toString());
+    final normalized = <String>[];
+    final seen = <String>{};
+
+    void addFrom(dynamic source, {int? limit}) {
+      if (source == null) return;
+      for (final item in _extractFeatureValues(source)) {
+        final clean = item.trim();
+        if (clean.isEmpty) continue;
+        final key = clean.toLowerCase();
+        if (seen.contains(key)) continue;
+        seen.add(key);
+        normalized.add(clean);
+        if (limit != null && normalized.length >= limit) return;
       }
     }
-    final amenities = cafe['amenities'];
-    if (amenities is List) {
-      for (final a in amenities.take(2)) {
-        if (a != null) f.add(a.toString());
-      }
+
+    addFrom(cafe['facilities'], limit: 6);
+    addFrom(cafe['features'], limit: 6);
+    addFrom(cafe['amenities'], limit: 6);
+    addFrom(cafe['services'], limit: 6);
+    addFrom(cafe['tags'], limit: 6);
+
+    final details = cafe['vendor_details'];
+    if (details is Map) {
+      addFrom(details['facilities'], limit: 6);
+      addFrom(details['features'], limit: 6);
+      addFrom(details['amenities'], limit: 6);
     }
-    if (f.isEmpty)
-      f.addAll(['Gaming PCs', 'High-speed Internet', 'Gaming Setup']);
-    return f;
+
+    final profile = cafe['profile'];
+    if (profile is Map) {
+      addFrom(profile['facilities'], limit: 6);
+      addFrom(profile['features'], limit: 6);
+      addFrom(profile['amenities'], limit: 6);
+    }
+
+    addFrom(cafe['games'], limit: 6);
+
+    if (normalized.isEmpty) {
+      normalized.addAll(['Gaming PCs', 'High-Speed Internet', 'Gaming Setup']);
+    }
+    return normalized.take(6).toList();
+  }
+
+  List<String> _resultHighlights(Map<String, dynamic> cafe) {
+    final availableGames = extractArenaAvailableGames(cafe, limit: 6);
+    if (availableGames.isNotEmpty) {
+      return availableGames;
+    }
+    return _features(cafe);
   }
 
   // Distance + ETA (cached)
@@ -305,21 +468,36 @@ class _SearchResultState extends State<SearchResult> {
     final etaMin = (_avgCitySpeedKmph > 0)
         ? (km / _avgCitySpeedKmph * 60).round()
         : null;
-    return (
-      '${km.toStringAsFixed(1)} km',
-      etaMin != null ? '~$etaMin min' : null,
-    );
+    final dist = km < 1
+        ? '${(km * 1000).round()} m'
+        : km < 100
+        ? '${km.toStringAsFixed(1)} km'
+        : '${km.round()} km';
+    // A drive time only means something for cafes across town.
+    return (dist, etaMin != null && etaMin <= 120 ? '~$etaMin min' : null);
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    if (_scrollController.position.extentAfter < 600) {
+      _maybeLoadMore();
+    }
+  }
+
+  void _maybeLoadMore() {
+    // No paginated endpoint yet; kept as hook for future server-side pagination.
   }
 
   // ────────────────────────────── derived results ─────────────────────────────
-
-  List<Map<String, dynamic>> get _filteredResults {
-    List<Map<String, dynamic>> results = _cafeController.cybercafes
-        .cast<Map<String, dynamic>>();
+  void _recomputeResults() {
+    // IMPORTANT: clone before sorting/filtering to avoid mutating RxList in-place.
+    List<Map<String, dynamic>> results = List<Map<String, dynamic>>.from(
+      _cafeController.cybercafes.cast<Map<String, dynamic>>(),
+    );
 
     // search client-side (name/address)
     if (_currentQuery.isNotEmpty) {
-      final q = _currentQuery.toLowerCase();
+      final q = _currentQuery.trim().toLowerCase();
       results = results.where((cafe) {
         final name = (cafe['cafe_name'] ?? '').toString().toLowerCase();
         final addr = _safeAddress(cafe).toLowerCase();
@@ -351,20 +529,30 @@ class _SearchResultState extends State<SearchResult> {
       }).toList();
     }
 
-    // sort by distance if Nearby (requires user location)
-    if (_selectedFilter == 'Nearby' && _hasLocationPermission) {
+    // always sort nearest first when user location is available
+    if (_hasLocationPermission) {
+      final distByCafe = <String, double>{};
       results.sort((a, b) {
         final (la, loa) = _cafeLatLng(a);
         final (lb, lob) = _cafeLatLng(b);
         if (la == null || loa == null) return 1;
         if (lb == null || lob == null) return -1;
-        final da = _haversineKm(_userLat!, _userLng!, la, loa);
-        final db = _haversineKm(_userLat!, _userLng!, lb, lob);
+        final ka = '${la.toStringAsFixed(5)},${loa.toStringAsFixed(5)}';
+        final kb = '${lb.toStringAsFixed(5)},${lob.toStringAsFixed(5)}';
+        final da = distByCafe.putIfAbsent(
+          ka,
+          () => _haversineKm(_userLat!, _userLng!, la, loa),
+        );
+        final db = distByCafe.putIfAbsent(
+          kb,
+          () => _haversineKm(_userLat!, _userLng!, lb, lob),
+        );
         return da.compareTo(db);
       });
     }
 
-    return results;
+    if (!mounted) return;
+    setState(() => _visibleResults = results);
   }
 
   // ───────────────────────────────── UI ──────────────────────────────────────
@@ -376,13 +564,87 @@ class _SearchResultState extends State<SearchResult> {
       body: SafeArea(
         child: Column(
           children: [
-            _buildHeader(),
-            _buildSearchBar(),
-            _buildFilters(),
+            SearchResultHeader(location: widget.location, onBack: _goBack),
+            SearchResultSearchBar(
+              controller: _searchController,
+              focusNode: _searchFocusNode,
+              isFocused: _isSearchFocused,
+              onChanged: _onSearchChanged,
+              onSubmitted: (_) {
+                final query = _searchController.text.trim();
+                if (query.isNotEmpty) {
+                  unawaited(
+                    _segmentService.onCustomEvent('Search Performed', {
+                      'query': query,
+                      'source': 'search_result',
+                    }),
+                  );
+                  unawaited(
+                    _fbEventsService.onSearchPerformed(
+                      query: query,
+                      source: 'search_result',
+                    ),
+                  );
+                }
+                _loadCafes();
+              },
+              onClear: _clearSearch,
+              showClear: _searchController.text.isNotEmpty,
+            ),
+            SearchResultFilters(
+              filters: _filters,
+              selected: _selectedFilter,
+              onSelected: (filter) {
+                setState(() => _selectedFilter = filter);
+                unawaited(
+                  _segmentService.onCustomEvent('Filters Applied', {
+                    'screen': 'search_result',
+                    'filters': [filter],
+                  }),
+                );
+                unawaited(
+                  _fbEventsService.onFiltersApplied(
+                    screen: 'search_result',
+                    filters: [filter],
+                  ),
+                );
+                if (filter == 'Nearby') {
+                  unawaited(
+                    _segmentService.onCustomEvent('Sort Changed', {
+                      'screen': 'search_result',
+                      'sort_by': 'distance',
+                    }),
+                  );
+                  unawaited(
+                    _fbEventsService.onSortChanged(
+                      screen: 'search_result',
+                      sortBy: 'distance',
+                    ),
+                  );
+                }
+                _recomputeResults();
+              },
+            ),
+            // Quiet refresh indicator while a cached list is on screen.
+            Obx(
+              () => AnimatedOpacity(
+                duration: const Duration(milliseconds: 200),
+                opacity:
+                    _cafeController.isLoading.value &&
+                        _cafeController.cybercafes.isNotEmpty
+                    ? 1
+                    : 0,
+                child: const LinearProgressIndicator(
+                  minHeight: 2,
+                  color: Color(0xFF30D158),
+                  backgroundColor: Colors.transparent,
+                ),
+              ),
+            ),
             Expanded(
               child: RefreshIndicator(
                 backgroundColor: Colors.black,
-                onRefresh: () => _loadCafes(),
+                onRefresh: () => _loadCafes(forceRefresh: true),
                 child: _buildResults(),
               ),
             ),
@@ -392,177 +654,132 @@ class _SearchResultState extends State<SearchResult> {
     );
   }
 
-  Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: () => Get.back(),
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                Icons.arrow_back_ios_new,
-                color: Colors.white,
-                size: 20,
-              ),
-            ),
+  void _onSearchChanged(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 180), () {
+      if (!mounted) return;
+      _currentQuery = value;
+      _recomputeResults();
+      final query = value.trim();
+      if (query.length >= 2) {
+        unawaited(
+          _segmentService.onCustomEvent('Search Performed', {
+            'query': query,
+            'source': 'search_result',
+          }),
+        );
+        unawaited(
+          _fbEventsService.onSearchPerformed(
+            query: query,
+            source: 'search_result',
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Search Results',
-                  style: GoogleFonts.inter(fontSize: 18, color: Colors.white),
-                ),
-                if (widget.location != null)
-                  Text(
-                    widget.location!,
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      color: Colors.white70,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+        );
+      }
+    });
   }
 
-  Widget _buildSearchBar() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(25),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-          child: Container(
-            height: 50,
-            padding: const EdgeInsets.symmetric(horizontal: 18),
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(.15),
-              borderRadius: BorderRadius.circular(25),
-              border: Border.all(
-                color: const Color(0xff338125).withOpacity(.2),
-              ),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.search, color: Color(0xff338125)),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    style: GoogleFonts.inter(color: Colors.white),
-                    cursorColor: const Color(0xff338125),
-                    decoration: InputDecoration(
-                      hintText: 'Search gaming centers, cafes...',
-                      hintStyle: GoogleFonts.inter(color: Colors.white70),
-                      border: InputBorder.none,
-                    ),
-                    onChanged: (value) {
-                      _debounce?.cancel();
-                      _debounce = Timer(const Duration(milliseconds: 250), () {
-                        if (!mounted) return;
-                        setState(() => _currentQuery = value);
-                        // If server-side search available, call _loadCafes();
-                      });
-                    },
-                    onSubmitted: (_) => _loadCafes(),
-                  ),
-                ),
-                if (_searchController.text.isNotEmpty)
-                  IconButton(
-                    icon: const Icon(
-                      Icons.clear,
-                      color: Colors.white70,
-                      size: 20,
-                    ),
-                    onPressed: () {
-                      _searchController.clear();
-                      setState(() {
-                        _currentQuery = '';
-                        _selectedFilter = 'All';
-                      });
-                    },
-                  ),
-              ],
-            ),
-          ),
+  /// Pops this screen's own route. `Get.back()` can target the wrong
+  /// navigator (or just close a snackbar), which left Back unresponsive.
+  void _goBack() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    final nav = Navigator.of(context);
+    if (nav.canPop()) {
+      nav.pop();
+    } else {
+      Get.back();
+    }
+  }
+
+  Future<void> _suggestCafe() async {
+    final opened = await launchUrl(
+      Uri.parse('https://onboard.hashforgamers.com/'),
+      mode: LaunchMode.externalApplication,
+    );
+    if (!opened && mounted) {
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        const SnackBar(
+          content: Text('Visit onboard.hashforgamers.com to suggest a cafe.'),
         ),
-      ),
-    );
+      );
+    }
   }
 
-  Widget _buildFilters() {
-    return SizedBox(
-      height: 37,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-        itemCount: _filters.length,
-        itemBuilder: (context, index) {
-          final filter = _filters[index];
-          final selected = _selectedFilter == filter;
-          return Container(
-            margin: const EdgeInsets.only(right: 12),
-            child: GestureDetector(
-              onTap: () => setState(() => _selectedFilter = filter),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 150),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 3,
-                ),
-                decoration: BoxDecoration(
-                  color: selected
-                      ? const Color(0xff338125)
-                      : Colors.white.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: selected
-                        ? const Color(0xff338125)
-                        : Colors.white.withOpacity(0.2),
-                  ),
-                ),
-                child: Text(
-                  filter,
-                  style: GoogleFonts.inter(
-                    color: selected ? Colors.white : Colors.white70,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
+  void _clearSearch() {
+    _searchController.clear();
+    setState(() {
+      _currentQuery = '';
+      _selectedFilter = 'All';
+    });
+    _recomputeResults();
   }
 
   Widget _buildResults() {
     return Obx(() {
-      if (_cafeController.isLoading.value || _isSearching) {
-        return const Center(child: RainbowGlowingLoader(size: 50));
+      final loading = _cafeController.isLoading.value || _isSearching;
+      final items = _visibleResults;
+      // Only block on a first load; with data on screen, refresh quietly.
+      if (loading && _cafeController.cybercafes.isEmpty) {
+        return const CafeSearchSkeleton();
+      }
+      if (items.isEmpty) {
+        return CafeSearchEmptyState(
+          query: _currentQuery,
+          filter: _selectedFilter,
+          onClear: _clearSearch,
+          onInvite: _suggestCafe,
+        );
       }
 
-      final items = _filteredResults;
-      if (items.isEmpty) return _buildEmptyState();
-
-      return ListView.builder(
-        controller: _scrollController,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: items.length,
-        itemBuilder: (context, index) =>
-            RepaintBoundary(child: _buildResultCard(items[index], index)),
+      return LayoutBuilder(
+        builder: (context, constraints) => Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: 760,
+              minHeight: constraints.maxHeight,
+              maxHeight: constraints.maxHeight,
+            ),
+            child: ListView.builder(
+              controller: _scrollController,
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 20),
+              itemCount: items.length + 1,
+              itemBuilder: (context, index) {
+                if (index == 0) {
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(2, 5, 2, 13),
+                    child: Row(
+                      children: [
+                        Text(
+                          '${items.length} ${items.length == 1 ? 'CAFE' : 'CAFES'} FOUND',
+                          style: GoogleFonts.inter(
+                            color: Colors.white70,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.1,
+                          ),
+                        ),
+                        const Spacer(),
+                        if (_hasLocationPermission)
+                          Text(
+                            'NEAREST FIRST',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFF00DC00),
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: .8,
+                            ),
+                          ),
+                      ],
+                    ),
+                  );
+                }
+                final itemIndex = index - 1;
+                return RepaintBoundary(
+                  child: _buildResultCard(items[itemIndex], itemIndex),
+                );
+              },
+            ),
+          ),
+        ),
       );
     });
   }
@@ -571,493 +788,81 @@ class _SearchResultState extends State<SearchResult> {
     final isOpen = _isShopOpen(cafe);
     final imageUrl = _pickImage(cafe, index);
     final address = _safeAddress(cafe);
-    final feats = _features(cafe);
+    final feats = _resultHighlights(cafe);
     final (dist, eta) = _distanceLabel(cafe);
-    final rating = 4.5; // TODO: plug real rating when API provides
-    final price = '₹200/hour'; // TODO: plug real price when API provides
+    final title = (cafe['cafe_name'] ?? 'Unknown Cafe').toString();
+    final type = (cafe['type'] ?? 'Gaming').toString();
+    const rating = 4.5; // TODO: plug real rating when API provides
 
-    final width = MediaQuery.of(context).size.width - 32;
-    final dpr = MediaQuery.of(context).devicePixelRatio;
-    final memW = (width * dpr).round();
-    const imgH = 200.0;
+    return SearchResultCard(
+      title: title,
+      type: type,
+      imageUrl: imageUrl,
+      address: address,
+      features: feats,
+      isOpen: isOpen,
+      distanceLabel: dist,
+      etaLabel: eta,
+      rating: rating,
+      onViewDetails: isOpen
+          ? () {
+              final images = cafe['images'];
+              List<dynamic> imagesList = [];
+              if (images is List) {
+                imagesList = images;
+              } else if (images is String && images.isNotEmpty) {
+                imagesList = [
+                  {'url': images},
+                ];
+              }
+              if (imagesList.isEmpty) {
+                imagesList = [
+                  {'url': _pickImage(cafe, index)},
+                ];
+              }
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Image
-            Stack(
-              children: [
-                SizedBox(
-                  height: imgH,
-                  width: double.infinity,
-                  child: imageUrl.isEmpty
-                      ? Container(color: const Color(0xFF1A1A1A))
-                      : CachedNetworkImage(
-                          imageUrl: imageUrl,
-                          fit: BoxFit.cover,
-                          memCacheWidth: memW,
-                          memCacheHeight: (imgH * dpr).round(),
-                          placeholder: (_, __) => Container(
-                            color: Colors.grey[800],
-                            child: const Center(
-                              child: RainbowGlowingLoader(size: 32),
-                            ),
-                          ),
-                          errorWidget: (_, __, ___) => Container(
-                            color: Colors.grey[800],
-                            child: const Icon(
-                              Icons.image_not_supported,
-                              color: Colors.white54,
-                              size: 50,
-                            ),
-                          ),
-                        ),
+              final featsAll = _features(cafe);
+              final availableGames = extractArenaAvailableGames(cafe);
+
+              Get.to(
+                () => ArenaDetailView(
+                  images: imagesList,
+                  title: title,
+                  address: address,
+                  openingHours: cafeHoursFromApi(cafe),
+                  availableGames: availableGames,
+                  amenities: featsAll,
+                  phone:
+                      (cafe['phone'] ??
+                              cafe['contact_number'] ??
+                              'Phone not available')
+                          .toString(),
+                  email: (cafe['email'] ?? 'Email not available').toString(),
+                  ownerName: (cafe['owner_name'] ?? 'Owner not available')
+                      .toString(),
+                  reviews: const ['Great place!', 'Loved it!'],
+                  vendorId: cafe['vendor_id'],
                 ),
-                // Status
-                Positioned(
-                  top: 12,
-                  left: 12,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isOpen ? const Color(0xff338125) : Colors.red,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      isOpen ? 'OPEN' : 'CLOSED',
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
+              );
+              final cafeId = (cafe['vendor_id'] ?? '').toString();
+              unawaited(
+                _segmentService.onGamingCafeViewed(
+                  cafeId: cafeId,
+                  cafeName: title,
+                  location: address,
+                  availableGames: availableGames,
+                  email: (cafe['email'] ?? '').toString(),
                 ),
-                // Type
-                Positioned(
-                  top: 12,
-                  right: 12,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.7),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      (cafe['type'] ?? 'Gaming').toString(),
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
+              );
+              unawaited(
+                _fbEventsService.onGamingCafeViewed(
+                  cafeId: cafeId,
+                  location: address,
+                  availableGames: availableGames,
                 ),
-              ],
-            ),
-
-            // Content
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // title + rating
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          (cafe['cafe_name'] ?? 'Unknown Cafe').toString(),
-                          style: GoogleFonts.inter(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                      Row(
-                        children: [
-                          const Icon(Icons.star, color: Colors.amber, size: 16),
-                          const SizedBox(width: 4),
-                          Text(
-                            '$rating',
-                            style: GoogleFonts.inter(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-
-                  // address + distance
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.location_on_outlined,
-                        color: Colors.white54,
-                        size: 16,
-                      ),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          address,
-                          style: GoogleFonts.inter(
-                            color: Colors.white70,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        eta == null ? dist : '$dist • $eta',
-                        style: GoogleFonts.inter(
-                          color: const Color(0xff338125),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-
-                  // features
-                  buildFeatureChips(feats),
-
-                  const SizedBox(height: 16),
-
-                  // price + action
-                  Row(
-                    children: [
-                      // Text(price,
-                      //     style: GoogleFonts.inter(
-                      //         fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xff338125))),
-                      const Spacer(),
-                      ElevatedButton(
-                        onPressed: isOpen
-                            ? () {
-                                final images = cafe['images'];
-                                List<dynamic> imagesList = [];
-                                if (images is List) {
-                                  imagesList = images;
-                                } else if (images is String &&
-                                    images.isNotEmpty) {
-                                  imagesList = [
-                                    {'url': images},
-                                  ];
-                                }
-                                if (imagesList.isEmpty) {
-                                  imagesList = [
-                                    {'url': _pickImage(cafe, index)},
-                                  ];
-                                }
-
-                                final featsAll = _features(cafe);
-
-                                Get.to(
-                                  () => ArenaDetailView(
-                                    images: imagesList,
-                                    title: (cafe['cafe_name'] ?? 'Unknown Cafe')
-                                        .toString(),
-                                    address: address,
-                                    openingHours:
-                                        '9 AM - 12 AM', // TODO: plug real hours
-                                    availableGames: featsAll,
-                                    amenities: featsAll,
-                                    phone:
-                                        (cafe['phone'] ??
-                                                cafe['contact_number'] ??
-                                                'Phone not available')
-                                            .toString(),
-                                    email:
-                                        (cafe['email'] ?? 'Email not available')
-                                            .toString(),
-                                    ownerName:
-                                        (cafe['owner_name'] ??
-                                                'Owner not available')
-                                            .toString(),
-                                    reviews: const [
-                                      'Great place!',
-                                      'Loved it!',
-                                    ],
-                                    vendorId: cafe['vendor_id'],
-                                  ),
-                                );
-                              }
-                            : null,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xff338125),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 12,
-                          ),
-                        ),
-                        child: Text(
-                          isOpen ? 'View Details' : 'Closed',
-                          style: GoogleFonts.inter(fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Container(
-        width: double.infinity,
-        margin: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: const Color(0xff191919),
-          borderRadius: BorderRadius.circular(25),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.3),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(40),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Using the provided Cloudinary image
-              CachedNetworkImage(
-                imageUrl:
-                    'https://res.cloudinary.com/dxjjigepf/image/upload/v1756237262/hash_01_lwpcj9.png',
-                width: 120,
-                height: 120,
-                placeholder: (context, url) => Container(
-                  width: 120,
-                  height: 120,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withOpacity(0.3),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Center(
-                    child: CircularProgressIndicator(color: Colors.white),
-                  ),
-                ),
-                errorWidget: (context, url, error) => Container(
-                  width: 120,
-                  height: 120,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withOpacity(0.3),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.error, color: Colors.white, size: 40),
-                ),
-              ),
-
-              const SizedBox(height: 30),
-
-              // Main heading
-              Text(
-                'Oops, Cafe not Found.',
-                style: GoogleFonts.inter(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  letterSpacing: -0.5,
-                ),
-                textAlign: TextAlign.center,
-              ),
-
-              const SizedBox(height: 16),
-
-              // Descriptive text
-              Text(
-                'Got a café in mind? Send them our way—\nwe\'ll handle the rest!',
-                style: GoogleFonts.inter(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w400,
-                  color: Colors.white.withOpacity(0.8),
-                  height: 1.4,
-                ),
-                textAlign: TextAlign.center,
-              ),
-
-              const SizedBox(height: 40),
-
-              // Call-to-action button
-              Container(
-                width: double.infinity,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(28),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.white.withOpacity(0.3),
-                      blurRadius: 15,
-                      spreadRadius: 2,
-                    ),
-                  ],
-                ),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(28),
-                    onTap: () {
-                      //TODO: Implement invite cafe
-                    },
-                    child: Center(
-                      child: Text(
-                        'Invite this Cafe',
-                        style: GoogleFonts.inter(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF191919),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// Drop-in: replace your Wrap with this builder
-Widget buildFeatureChips(List<String> feats, {int maxToShow = 5}) {
-  // 1) Clean + de-dup + cap
-  final cleaned = feats
-      .map((f) => f.toString().replaceAll(RegExp(r'[{}]'), '').trim())
-      .where((f) => f.isNotEmpty)
-      .toSet()
-      .toList();
-  final visible = cleaned.take(maxToShow).toList();
-  final remaining = cleaned.length - visible.length;
-
-  return Wrap(
-    spacing: 8,
-    runSpacing: 8,
-    children: [
-      for (final f in visible) _FeaturePill(label: f),
-      if (remaining > 0) _MorePill(count: remaining),
-    ],
-  );
-}
-
-class _FeaturePill extends StatelessWidget {
-  const _FeaturePill({required this.label});
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        // soft green tint with subtle depth
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            const Color(0xFF338125).withOpacity(.22),
-            const Color(0xFF1A1A1A).withOpacity(.22),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFF338125).withOpacity(.35)),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF338125).withOpacity(.12),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(_iconFor(label), size: 14, color: const Color(0xFF7FF16A)),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.inter(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: const Color(0xFF7FF16A),
-              letterSpacing: .1,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // very small keyword → icon map; extend as you like
-  IconData _iconFor(String s) {
-    final t = s.toLowerCase();
-    if (t.contains('pc')) return Icons.computer_rounded;
-    if (t.contains('ps') || t.contains('playstation'))
-      return Icons.sports_esports_rounded;
-    if (t.contains('xbox')) return Icons.sports_esports_rounded;
-    if (t.contains('vr')) return Icons.vrpano_rounded;
-    if (t.contains('wifi') || t.contains('internet')) return Icons.wifi_rounded;
-    if (t.contains('snack') || t.contains('food'))
-      return Icons.fastfood_rounded;
-    if (t.contains('ac') || t.contains('air')) return Icons.ac_unit_rounded;
-    if (t.contains('tournament') || t.contains('event'))
-      return Icons.emoji_events_rounded;
-    if (t.contains('console')) return Icons.sports_esports_rounded;
-    return Icons.label_rounded;
-  }
-}
-
-class _MorePill extends StatelessWidget {
-  const _MorePill({required this.count});
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(.06),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withOpacity(.15)),
-      ),
-      child: Text(
-        '+$count more',
-        style: GoogleFonts.inter(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: Colors.white70,
-        ),
-      ),
+              );
+            }
+          : null,
     );
   }
 }

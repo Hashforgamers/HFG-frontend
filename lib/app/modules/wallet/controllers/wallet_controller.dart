@@ -1,12 +1,16 @@
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:dio/dio.dart';
 import 'package:get/get.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
+import 'package:hash/core/service/funnel_notification_service.dart';
 import '../../../data/services/user_controller.dart';
 import '../../../data/models/wallet_model.dart';
 import 'package:flutter/material.dart';
+import 'package:hash/core/utils/app_logger.dart';
+import 'package:hash/core/utils/haptics.dart';
+import 'package:hash/core/localization/app_region.dart';
 
 /// WalletController manages wallet operations including balance fetching,
 /// top-up, and withdrawal functionality with proper error handling and analytics.
@@ -16,12 +20,16 @@ class WalletController extends GetxController {
   final RemoteRepoInterface _remoteRepo = locator<RemoteRepoInterface>();
   final SegmentSdkService _segmentService = locator<SegmentSdkService>();
   final FbEventsService _fbEventsService = locator<FbEventsService>();
+  final FunnelNotificationService _funnelNotificationService =
+      locator<FunnelNotificationService>();
 
   // Observable state
   final Rx<WalletModel?> _wallet = Rx<WalletModel?>(null);
   final RxBool _isLoading = false.obs;
   final RxBool _isRefreshing = false.obs;
   final RxString _errorMessage = ''.obs;
+  Future<void>? _walletRequest;
+  String _loadedUserId = '';
 
   // Getters
   WalletModel? get wallet => _wallet.value;
@@ -49,16 +57,28 @@ class WalletController extends GetxController {
     try {
       // Listen to user ID changes and fetch wallet when available
       ever(_userController.id, (String userId) {
-        if (userId.isNotEmpty) {
-          // Use Future.microtask to avoid calling during build
-          Future.microtask(() => fetchWallet());
+        final normalizedUserId = userId.trim();
+        if (normalizedUserId.isEmpty) {
+          clearSession();
+          return;
         }
+
+        final userChanged =
+            _loadedUserId.isNotEmpty && _loadedUserId != normalizedUserId;
+        if (userChanged) {
+          _resetWalletState();
+        }
+
+        // Use Future.microtask to avoid calling during build
+        Future.microtask(
+          () => fetchWallet(forceRefresh: userChanged || _wallet.value == null),
+        );
       });
 
       // Fetch wallet immediately if user ID is already available
       if (_userController.userId.isNotEmpty) {
         // Use Future.microtask to avoid calling during build
-        Future.microtask(() => fetchWallet());
+        Future.microtask(() => fetchWallet(forceRefresh: false));
       } else {
         _setupRetryMechanism();
       }
@@ -73,7 +93,7 @@ class WalletController extends GetxController {
     Future.delayed(const Duration(seconds: 2), () {
       try {
         if (_userController.userId.isNotEmpty && _wallet.value == null) {
-          fetchWallet();
+          fetchWallet(forceRefresh: false);
         }
       } catch (e) {
         _handleError('Retry failed: $e');
@@ -81,7 +101,7 @@ class WalletController extends GetxController {
         Future.delayed(const Duration(seconds: 3), () {
           try {
             if (_userController.userId.isNotEmpty && _wallet.value == null) {
-              fetchWallet();
+              fetchWallet(forceRefresh: false);
             }
           } catch (e) {
             _handleError('Final retry failed: $e');
@@ -92,12 +112,50 @@ class WalletController extends GetxController {
   }
 
   /// Fetch wallet balance and transaction history
-  Future<void> fetchWallet() async {
+  Future<void> fetchWallet({bool forceRefresh = true}) {
+    final currentUserId = _userController.userId.trim();
+    if (currentUserId.isEmpty) {
+      clearSession();
+      return Future.value();
+    }
+
+    final userChanged =
+        _loadedUserId.isNotEmpty && _loadedUserId != currentUserId;
+    if (userChanged) {
+      _resetWalletState();
+      forceRefresh = true;
+    }
+
+    if (!forceRefresh &&
+        _wallet.value != null &&
+        !hasError &&
+        _loadedUserId == currentUserId) {
+      return Future.value();
+    }
+
+    final inFlight = _walletRequest;
+    if (inFlight != null) return inFlight;
+
+    final request = _loadWallet(
+      forceRefresh: forceRefresh,
+      requestUserId: currentUserId,
+    );
+    _walletRequest = request;
+    return request.whenComplete(() {
+      if (identical(_walletRequest, request)) {
+        _walletRequest = null;
+      }
+    });
+  }
+
+  Future<void> _loadWallet({
+    required bool forceRefresh,
+    required String requestUserId,
+  }) async {
     if (_isLoading.value) return;
 
-    final userId = _userController.userId.trim();
-    if (userId.isEmpty) {
-      _handleError('User ID not available');
+    if (requestUserId.isEmpty) {
+      clearSession();
       return;
     }
 
@@ -105,19 +163,23 @@ class WalletController extends GetxController {
     _clearError();
 
     try {
-      final result = await _remoteRepo.fetchWallet(userId: userId);
-      
-      if (result != null) {
-        final walletModel = WalletModel.fromJson(result);
-        _wallet.value = walletModel;
-        
-        // Track wallet viewed event (safely)
-        Future.microtask(() => _trackWalletViewed());
-      } else {
-        _handleError('Failed to fetch wallet data');
+      final result = await _remoteRepo.fetchWallet(userId: requestUserId);
+      if (_userController.userId.trim() != requestUserId) {
+        return;
       }
+      final walletModel = WalletModel.fromJson(result);
+      _wallet.value = walletModel;
+      _loadedUserId = requestUserId;
+
+      // Track wallet viewed event (safely)
+      Future.microtask(() => _trackWalletViewed());
     } catch (e) {
-      _handleError('Error fetching wallet: $e');
+      if (_userController.userId.trim() != requestUserId) {
+        return;
+      }
+      if (_wallet.value == null || forceRefresh) {
+        _handleError('Error fetching wallet: $e');
+      }
     } finally {
       _setLoading(false);
     }
@@ -128,8 +190,12 @@ class WalletController extends GetxController {
     if (_isRefreshing.value) return;
 
     _isRefreshing.value = true;
-    await fetchWallet();
+    await fetchWallet(forceRefresh: true);
     _isRefreshing.value = false;
+  }
+
+  void clearSession() {
+    _resetWalletState();
   }
 
   /// Confirm top-up and refresh wallet balance
@@ -153,36 +219,48 @@ class WalletController extends GetxController {
     _clearError();
 
     try {
-      final topUpRequest = TopUpRequest(
-        amount: amount,
-        paymentId: paymentId,
-      );
-
-      final result = await _remoteRepo.addFunds(
+      await _remoteRepo.addFunds(
         userId: userId,
         amount: amount.toInt(),
         paymentId: paymentId,
       );
+      // Track successful top-up
+      _trackTopUpSuccess(amount, paymentId);
 
-      if (result != null) {
-        // Track successful top-up
-        _trackTopUpSuccess(amount, paymentId);
-        
-        // Refresh wallet balance
-        await fetchWallet();
-        
-        // _showSuccessMessage('Wallet credited successfully');
-        return true;
-      } else {
-        _handleError('Top-up failed');
-        return false;
-      }
+      // Refresh wallet balance
+      await fetchWallet();
+
+      // _showSuccessMessage('Wallet credited successfully');
+      return true;
     } catch (e) {
       _handleError('Error confirming top-up: $e');
       return false;
     } finally {
       _setLoading(false);
     }
+  }
+
+  Future<bool> debitBookingAmount({
+    required double amount,
+    required String referenceId,
+  }) async {
+    if (amount <= 0) return true;
+
+    if (amount > balance + 0.01) {
+      _handleError('Insufficient wallet balance');
+      return false;
+    }
+
+    return _adjustWalletBalance(amount: amount.abs(), referenceId: referenceId);
+  }
+
+  Future<bool> refundBookingAmount({
+    required double amount,
+    required String referenceId,
+  }) async {
+    if (amount <= 0) return true;
+
+    return _adjustWalletBalance(amount: amount.abs(), referenceId: referenceId);
   }
 
   /// Initiate withdrawal request
@@ -233,24 +311,60 @@ class WalletController extends GetxController {
       _setLoading(false);
     }
   }
-  Future<void> claimDropCrate() async {
-    String userId = _userController.userId.trim();
 
+  /// Single source of truth for the one-time welcome crate amount (in ₹).
+  /// The claim payload and the popup copy both read this, so they can't drift.
+  static const int welcomeBonusAmount = 10;
 
+  /// Credits the one-time welcome crate straight to the wallet.
+  Future<bool> claimDropCrate() async {
+    final userId = _userController.userId.trim();
     if (userId.isEmpty) {
       _handleError('User ID missing');
-      return;
+      return false;
     }
 
-    try {
-      await _remoteRepo.claimDropCrateBonus(userId: userId, amount: 30);
-      await fetchWallet(); // Refresh balance
-      // _showSuccessMessage("🎉 ₹30 Drop Crate claimed!");
-    } catch (e) {
-      _showErrorMessage("❌ Claim failed: ${e.toString()}");
+    Object? lastError;
+    for (var attempt = 1; attempt <= 3; attempt++) {
+      try {
+        await _remoteRepo.claimDropCrateBonus(
+          userId: userId,
+          amount: welcomeBonusAmount,
+        );
+        await _forceRefreshWallet();
+        return true;
+      } on WelcomeCrateRejected catch (e) {
+        // A definite "no" from the server; retrying won't change it.
+        _showErrorMessage(e.message);
+        return false;
+      } catch (e) {
+        lastError = e;
+        debugPrint('claimDropCrate attempt $attempt/3 failed: $e');
+        if (attempt < 3) {
+          // Backoff gives a spun-down (cold) backend time to wake up.
+          await Future.delayed(Duration(seconds: 2 * attempt));
+        }
+      }
     }
+
+    debugPrint('claimDropCrate exhausted retries: $lastError');
+    _showErrorMessage(
+      "Couldn't claim your ${Money.symbol}$welcomeBonusAmount bonus. Please try again.",
+    );
+    return false;
   }
 
+  /// Reload the wallet, bypassing the in-flight/dedupe short-circuits so the
+  /// balance shown after a claim is never the stale pre-claim value.
+  Future<void> _forceRefreshWallet() async {
+    final inFlight = _walletRequest;
+    if (inFlight != null) {
+      try {
+        await inFlight; // let any pre-claim load settle first
+      } catch (_) {}
+    }
+    await fetchWallet(forceRefresh: true);
+  }
 
   /// Validate funds after payment
   Future<bool> validateFunds(String paymentLinkId) async {
@@ -263,16 +377,10 @@ class WalletController extends GetxController {
     _clearError();
 
     try {
-      final result = await _remoteRepo.validateFunds(paymentLinkId);
-      
-      if (result != null) {
-        // Refresh wallet balance after successful validation
-        await fetchWallet();
-        return true;
-      } else {
-        _handleError('Fund validation failed');
-        return false;
-      }
+      await _remoteRepo.validateFunds(paymentLinkId);
+      // Refresh wallet balance after successful validation
+      await fetchWallet();
+      return true;
     } catch (e) {
       _handleError('Error validating funds: $e');
       return false;
@@ -292,9 +400,57 @@ class WalletController extends GetxController {
     return balance >= amount;
   }
 
+  Future<bool> _adjustWalletBalance({
+    required double amount,
+    required String referenceId,
+  }) async {
+    final userId = _userController.userId.trim();
+    if (userId.isEmpty) {
+      _handleError('User ID missing, cannot update wallet');
+      return false;
+    }
+
+    if (referenceId.trim().isEmpty) {
+      _handleError('Reference ID missing, cannot update wallet');
+      return false;
+    }
+
+    _clearError();
+
+    try {
+      await _remoteRepo.addFunds(
+        userId: userId,
+        amount: amount,
+        paymentId: referenceId,
+      );
+      await fetchWallet(forceRefresh: true);
+      return true;
+    } on DioException catch (e) {
+      final responseData = e.response?.data;
+      String message = 'Unable to update wallet balance.';
+
+      if (responseData is Map<String, dynamic>) {
+        final apiMessage =
+            responseData['message']?.toString() ??
+            responseData['error']?.toString();
+        if (apiMessage != null && apiMessage.trim().isNotEmpty) {
+          message = apiMessage.trim();
+        }
+      } else if (responseData != null) {
+        message = responseData.toString();
+      }
+
+      _handleError(message);
+      return false;
+    } catch (e) {
+      _handleError('Error updating wallet: $e');
+      return false;
+    }
+  }
+
   /// Format balance for display
   String get formattedBalance {
-    return '₹${balance.toStringAsFixed(2)}';
+    return '${Money.symbol}${balance.toStringAsFixed(2)}';
   }
 
   // Private helper methods
@@ -303,39 +459,52 @@ class WalletController extends GetxController {
     _isLoading.value = loading;
   }
 
+  void _resetWalletState() {
+    _walletRequest = null;
+    _loadedUserId = '';
+    _wallet.value = null;
+    _isLoading.value = false;
+    _isRefreshing.value = false;
+    _errorMessage.value = '';
+  }
+
   void _clearError() {
     _errorMessage.value = '';
   }
 
   void _handleError(String message) {
     _errorMessage.value = message;
-    print('❌ WalletController Error: $message');
+    Haptics.error();
+    AppLogger.d('❌ WalletController Error: $message');
   }
 
   void _showSuccessMessage(String message) {
-    // Use Future.microtask to avoid calling during build
-    Future.microtask(() {
-      Get.snackbar(
-        'Success',
-        message,
-        backgroundColor: Colors.green,
-        colorText: Colors.white,
-        duration: const Duration(seconds: 3),
-      );
-    });
+    Future.microtask(() => _showSnack(message, const Color(0xff00DC00)));
   }
 
   void _showErrorMessage(String message) {
-    // Use Future.microtask to avoid calling during build
     Future.microtask(() {
-      Get.snackbar(
-        'Error',
-        message,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-        duration: const Duration(seconds: 3),
-      );
+      Haptics.error();
+      _showSnack(message, Colors.red);
     });
+  }
+
+  /// Get.snackbar looks up its overlay asynchronously and throws an
+  /// uncatchable "No Overlay widget found" when a dialog is closing (e.g. the
+  /// welcome-bonus popup). ScaffoldMessenger is synchronous and safe.
+  void _showSnack(String message, Color color) {
+    try {
+      final ctx = Get.context;
+      final messenger = ctx == null ? null : ScaffoldMessenger.maybeOf(ctx);
+      messenger?.showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: color,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    } catch (_) {}
   }
 
   // Analytics tracking methods
@@ -346,19 +515,29 @@ class WalletController extends GetxController {
       if (userId.isNotEmpty) {
         _segmentService.onWalletViewed(userId: userId);
         _fbEventsService.onWalletViewed(userId: userId);
+        _funnelNotificationService.trackEvent(
+          'wallet_viewed',
+          payload: {'user_id': userId},
+        );
       }
     } catch (e) {
-      print('Error tracking wallet viewed: $e');
+      AppLogger.d('Error tracking wallet viewed: $e');
     }
   }
 
   void _trackTopUpSuccess(double amount, String paymentId) {
     Future.microtask(() {
       try {
-        _segmentService.onAddMoneySuccess(amountAdded: amount, txnId: paymentId);
-        _fbEventsService.onAddMoneySuccess(amountAdded: amount, txnId: paymentId);
+        _segmentService.onAddMoneySuccess(
+          amountAdded: amount,
+          txnId: paymentId,
+        );
+        _fbEventsService.onAddMoneySuccess(
+          amountAdded: amount,
+          txnId: paymentId,
+        );
       } catch (e) {
-        print('Error tracking top-up success: $e');
+        AppLogger.d('Error tracking top-up success: $e');
       }
     });
   }
@@ -375,7 +554,7 @@ class WalletController extends GetxController {
           bankAccount: bankAccount,
         );
       } catch (e) {
-        print('Error tracking withdrawal initiated: $e');
+        AppLogger.d('Error tracking withdrawal initiated: $e');
       }
     });
   }
@@ -384,9 +563,12 @@ class WalletController extends GetxController {
     Future.microtask(() {
       try {
         _segmentService.onWithdrawalSuccess(payoutId: payoutId, amount: amount);
-        _fbEventsService.onWithdrawalSuccess(payoutId: payoutId, amount: amount);
+        _fbEventsService.onWithdrawalSuccess(
+          payoutId: payoutId,
+          amount: amount,
+        );
       } catch (e) {
-        print('Error tracking withdrawal success: $e');
+        AppLogger.d('Error tracking withdrawal success: $e');
       }
     });
   }

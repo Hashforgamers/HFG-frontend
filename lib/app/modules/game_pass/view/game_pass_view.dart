@@ -1,3 +1,4 @@
+import 'package:hash/app/modules/hash_store/widgets/neon_switch.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
@@ -118,7 +119,7 @@ class _GamePassViewState extends State<GamePassView>
       toolbarHeight: 70,
       backgroundColor: Colors.transparent,
       leading: IconButton(
-        icon: const Icon(Icons.arrow_back, color: Color(0xff00D701)),
+        icon: const Icon(Icons.arrow_back, color: Color(0xff00DC00)),
         onPressed: () {
           Get.back();
         },
@@ -136,24 +137,26 @@ class _GamePassViewState extends State<GamePassView>
           );
         },
       ),
-      bottom: TabBar(
-        controller: tabController,
-        isScrollable: true,
-        indicator: const BoxDecoration(),
-        indicatorColor: Colors.transparent,
-        dividerColor: Colors.transparent,
-        labelColor: const Color(0xFF338125),
-        unselectedLabelColor: const Color(0xFF505050),
-        labelStyle: GoogleFonts.inter(
-          fontSize: 16,
-          fontWeight: FontWeight.bold,
+      bottom: NeonTabBar(
+        TabBar(
+          controller: tabController,
+          isScrollable: true,
+          indicator: const BoxDecoration(),
+          indicatorColor: Colors.transparent,
+          dividerColor: Colors.transparent,
+          labelColor: const Color(0xff00DC00),
+          unselectedLabelColor: const Color(0xFF505050),
+          labelStyle: GoogleFonts.inter(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+          tabAlignment: TabAlignment.center,
+          tabs: neonTabs(const [
+            Tab(text: 'Global'),
+            Tab(text: 'Cafe-Specific'),
+            Tab(text: 'History'),
+          ]),
         ),
-        tabAlignment: TabAlignment.center,
-        tabs: const [
-          Tab(text: 'Global'),
-          Tab(text: 'Cafe-Specific'),
-          Tab(text: 'History'),
-        ],
       ),
     );
   }
