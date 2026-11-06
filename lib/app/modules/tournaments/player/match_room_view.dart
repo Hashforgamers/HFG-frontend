@@ -36,7 +36,7 @@ class _MatchRoomViewState extends State<MatchRoomView> {
   MyTournamentState? _me;
   Object? _error;
   bool _busy = false;
-  Timer? _poll;
+  Timer? _timer;
   Duration _clockSkew = Duration.zero;
 
   String get _tid => widget.tournament.id;
@@ -46,13 +46,38 @@ class _MatchRoomViewState extends State<MatchRoomView> {
     super.initState();
     _load();
     // Bounded refresh while open: there is no realtime socket.
-    _poll = Timer.periodic(const Duration(seconds: 20), (_) => _load());
+    _timer = Timer.periodic(const Duration(seconds: 20), (_) => _poll());
   }
 
   @override
   void dispose() {
-    _poll?.cancel();
+    _timer?.cancel();
     super.dispose();
+  }
+
+  /// Result-state may omit lobby details; keep the ones already shown.
+  MatchRow? _keepLobby(MatchRow? m) => m == null || m.hasLobby || !_m.hasLobby
+      ? m
+      : MatchRow({...m.raw, 'lobby_details': _m.lobby});
+
+  /// Polls only the result state; lobby and team data rarely change.
+  Future<void> _poll() async {
+    final visible =
+        WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed &&
+        (ModalRoute.of(context)?.isCurrent ?? true);
+    if (!visible || _busy) return;
+    try {
+      final rs = await _api.resultState(_tid, _m.id);
+      if (!mounted) return;
+      setState(() {
+        _rs = rs;
+        _m = _keepLobby(rs.match) ?? _m;
+        final st = rs.serverTime;
+        if (st != null) _clockSkew = st.difference(DateTime.now());
+      });
+    } catch (_) {
+      // Keep what is shown; the next tick retries.
+    }
   }
 
   Future<void> _load() async {
@@ -73,7 +98,7 @@ class _MatchRoomViewState extends State<MatchRoomView> {
       final mine = (results[1] as List<MatchRow>).where((x) => x.id == _m.id);
       setState(() {
         _rs = rs;
-        _me = results[2] as MyTournamentState?;
+        _me = results[2] as MyTournamentState? ?? _me;
         _m = rs?.match ?? (mine.isNotEmpty ? mine.first : _m);
         if (mine.isNotEmpty && !_m.hasLobby)
           _m = MatchRow({..._m.raw, 'lobby_details': mine.first.lobby});

@@ -112,8 +112,6 @@ class _Content extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const _StatsRow(),
-                const SizedBox(height: 20),
                 _Estimator(program: program),
                 if (program.performanceLevels.isNotEmpty) ...[
                   const SizedBox(height: 24),
@@ -196,35 +194,6 @@ class _Hero extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _StatsRow extends StatelessWidget {
-  const _StatsRow();
-  @override
-  Widget build(BuildContext context) {
-    Widget stat(String value, String label, Color color) => Expanded(
-      child: Column(
-        children: [
-          Text(value, style: CT.headline(20, color: color, w: FontWeight.w800)),
-          const SizedBox(height: 4),
-          Text(label, style: CT.mono(10)),
-        ],
-      ),
-    );
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      decoration: CT.card(borderColor: CT.outline),
-      child: Row(
-        children: [
-          stat('2,800+', 'HOSTS', CT.onSurface),
-          Container(width: 1, height: 34, color: CT.outline),
-          stat('65,000+', 'PLAYERS', CT.onSurface),
-          Container(width: 1, height: 34, color: CT.outline),
-          stat('500+', 'EVENTS', CT.onSurface),
-        ],
       ),
     );
   }
@@ -709,8 +678,7 @@ class _TrustBadges extends StatelessWidget {
     const items = [
       (Icons.verified_rounded, 'VERIFIED HOSTS'),
       (Icons.lock_rounded, 'SECURE PAYMENTS'),
-      (Icons.bolt_rounded, 'INSTANT PAYOUTS'),
-      (Icons.shield_rounded, 'ESCROW PROTECTED'),
+      (Icons.account_balance_wallet_rounded, 'WALLET PAYOUTS'),
     ];
     return Wrap(
       alignment: WrapAlignment.center,

@@ -43,6 +43,8 @@ class _HostHubViewState extends State<HostHubView> {
         _dash = r[1] as Map<String, dynamic>;
         _hosted = r[2] as List<Tournament>;
       });
+      TournamentApi.isHost.value =
+          _verification?.status == HostVerificationStatus.verified || _hosted.isNotEmpty;
     } catch (e) {
       if (mounted) setState(() => _error = e);
     } finally {

@@ -1284,6 +1284,7 @@ class _UserProfileViewState extends State<UserProfileView> {
             }
             userController.clearSession();
             MedusaStoreService.instance.clearSession();
+            TournamentApi().clearSession();
             if (Get.isRegistered<ShopController>()) {
               Get.find<ShopController>().clearCart();
             }

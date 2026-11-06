@@ -43,6 +43,7 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
     super.initState();
     _load();
     _loadInvites();
+    _api.refreshIsHost();
     _scroll.addListener(() {
       if (_scroll.position.extentAfter < 400) _loadMore();
     });
@@ -140,7 +141,16 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
             slivers: [
               SliverToBoxAdapter(child: _header()),
               if (_invites > 0) SliverToBoxAdapter(child: _inviteBanner()),
-              SliverToBoxAdapter(child: _hostHero()),
+              SliverToBoxAdapter(
+                child: ValueListenableBuilder<bool?>(
+                  valueListenable: TournamentApi.isHost,
+                  builder: (_, host, _) => switch (host) {
+                    true => _hostShortcut(),
+                    false => _hostHero(),
+                    null => const SizedBox.shrink(),
+                  },
+                ),
+              ),
               SliverToBoxAdapter(child: _filters()),
               ..._body(),
               const SliverToBoxAdapter(child: SizedBox(height: 120)),
@@ -203,6 +213,46 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
             ),
           ),
       ],
+    ),
+  );
+
+  /// For existing hosts: a compact way back to their tournaments.
+  Widget _hostShortcut() => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
+    child: Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(22),
+        onTap: () async {
+          await Get.toNamed(AppRoutes.HOST_DASHBOARD);
+          _load();
+        },
+        child: Ink(
+          padding: const EdgeInsets.all(14),
+          decoration: CT.card(borderColor: CT.outline),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(Icons.dashboard_customize_rounded, color: Colors.white, size: 21),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Your tournaments', style: CT.headline(15, w: FontWeight.w800)),
+                  Text('Manage entries, matches and results', style: CT.body(12.5)),
+                ]),
+              ),
+              const Icon(Icons.chevron_right_rounded, color: CT.onSurfaceVariant),
+            ],
+          ),
+        ),
+      ),
     ),
   );
 

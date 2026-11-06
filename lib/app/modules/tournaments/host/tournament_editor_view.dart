@@ -78,6 +78,9 @@ class _TournamentEditorViewState extends State<TournamentEditorView> {
     _regEnd = _regStart!.add(const Duration(days: 3));
     _start = _regEnd!.add(const Duration(hours: 2));
     _end = _start!.add(const Duration(hours: 4));
+    // Default check-in: the hour before start, closing 10 minutes before.
+    _checkInStart = _start!.subtract(const Duration(hours: 1));
+    _checkInEnd = _start!.subtract(const Duration(minutes: 10));
     final tpl = jsonMap(a['template']);
     if (tpl.isNotEmpty) {
       _title.text = jsonStr(tpl['title']) ?? '';
@@ -588,7 +591,7 @@ class _TournamentEditorViewState extends State<TournamentEditorView> {
   );
 
   Widget _readinessPanel() => TPanel(
-    border: (_readiness!.blockers.isEmpty ? CT.primary : CT.error).withValues(
+    border: (_readiness!.blockers.isEmpty ? CT.success : CT.error).withValues(
       alpha: 0.6,
     ),
     child: Column(
@@ -608,7 +611,7 @@ class _TournamentEditorViewState extends State<TournamentEditorView> {
         for (final w in _readiness!.warnings)
           Padding(
             padding: const EdgeInsets.only(top: 6),
-            child: Text('• $w', style: CT.body(13, color: CT.primary)),
+            child: Text('• $w', style: CT.body(13, color: CT.gold)),
           ),
       ],
     ),

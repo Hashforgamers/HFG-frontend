@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:hash/app/modules/tournaments/data/tournament_api.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
@@ -92,6 +93,7 @@ class SplashController extends GetxController {
 
     if (currentUser == null) {
       userController.clearSession();
+      TournamentApi().clearSession();
       _safeNavigate(AppRoutes.LOGIN);
       return;
     }
@@ -166,12 +168,14 @@ class SplashController extends GetxController {
       _safeNavigate(AppRoutes.HOME);
     } else {
       userController.clearSession();
+      TournamentApi().clearSession();
       _safeNavigate(AppRoutes.LOGIN);
     }
   }
 
   Future<void> resetInvalidSession() async {
     userController.clearSession();
+    TournamentApi().clearSession();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('user_data');
     await prefs.remove('user_id');

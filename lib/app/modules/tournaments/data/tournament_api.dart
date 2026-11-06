@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:flutter/foundation.dart';
 import 'package:hash/core/network/api_endpoints.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
 import 'package:hash/core/service_locator.dart';
@@ -19,8 +20,6 @@ class TournamentApiException implements Exception {
   final String message;
   const TournamentApiException(this.message, {this.status});
 
-  bool get isConflict => status == 409;
-  bool get isForbidden => status == 403;
   bool get isAuth => status == 401;
 
   static TournamentApiException from(Object e) {
@@ -75,6 +74,10 @@ class TournamentApi {
 
   static final _rng = Random.secure();
 
+  /// Off until the backend applies its idempotency migration: keyed writes
+  /// currently fail on prod with a 500 database error.
+  static const bool sendIdempotencyKeys = false;
+
   /// A fresh key per logical write; the server replays the original response
   /// when the same key + payload is retried after a timeout.
   static String newIdempotencyKey() => List.generate(
@@ -99,17 +102,38 @@ class TournamentApi {
   void clearSession() {
     _token = null;
     _tokenExp = null;
+    isHost.value = null;
+  }
+
+  /// Whether the signed-in user already hosts: verified, or has hosted at
+  /// least one tournament. `null` until known; drives "become a host" promos.
+  static final ValueNotifier<bool?> isHost = ValueNotifier(null);
+
+  Future<bool> refreshIsHost() async {
+    try {
+      if (!await isSignedIn) return isHost.value = false;
+      final v = await myHostVerification();
+      var host = v?.status == HostVerificationStatus.verified;
+      if (!host) host = (await myTournaments('hosted')).items.isNotEmpty;
+      return isHost.value = host;
+    } catch (_) {
+      return isHost.value ?? false;
+    }
   }
 
   Future<String?> _authToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    var token = prefs.getString('jwt');
+    // Reuse the cached token only while it is still the stored login, so a
+    // logout or account switch can never keep using the previous account.
     final exp = _tokenExp;
     if (_token != null &&
+        _token == token &&
         exp != null &&
         DateTime.now().isBefore(exp.subtract(const Duration(minutes: 1)))) {
       return _token;
     }
-    final prefs = await SharedPreferences.getInstance();
-    var token = prefs.getString('jwt');
+    if (_token != null && _token != token) clearSession();
     if (token == null || token.isEmpty || isJwtExpired(token)) {
       _refresh ??= _refreshBackendToken().whenComplete(() => _refresh = null);
       token = await _refresh;
@@ -189,7 +213,7 @@ class TournamentApi {
   }) async {
     try {
       final dio = await _authed(
-        idempotencyKey: idempotent ? newIdempotencyKey() : null,
+        idempotencyKey: idempotent && sendIdempotencyKeys ? newIdempotencyKey() : null,
       );
       final res = await dio.request(
         path,
@@ -198,6 +222,10 @@ class TournamentApi {
       );
       return res.data;
     } catch (e) {
+      if (e is DioException) {
+        debugPrint('[TournamentApi] $method $path -> '
+            '${e.response?.statusCode} ${e.response?.data}');
+      }
       throw TournamentApiException.from(e);
     }
   }

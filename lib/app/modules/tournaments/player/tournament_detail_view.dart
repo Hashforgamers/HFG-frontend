@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:hash/core/utils/share_origin.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../../../routes/app_routes.dart';
 import '../data/tournament_api.dart';
@@ -187,8 +185,11 @@ class _TournamentDetailViewState extends State<TournamentDetailView> {
       case PaymentOutcome.confirmed:
         toast('Payment received. Your entry is confirmed.');
       case PaymentOutcome.processing:
+        toast('Payment is being confirmed. This can take a minute.');
+      case PaymentOutcome.rejected:
         toast(
-          'Payment received. Confirming your spot, this can take a minute.',
+          "We couldn't confirm this payment. If you were charged, it will be refunded.",
+          error: true,
         );
       case PaymentOutcome.cancelled:
         toast(
@@ -261,19 +262,7 @@ class _TournamentDetailViewState extends State<TournamentDetailView> {
     });
   }
 
-  void _share() {
-    final t = _t!;
-    SharePlus.instance.share(
-      ShareParams(
-        text:
-            '${t.title} · ${t.game}\n${fee(t)} entry'
-            '${t.prizePool > 0 ? ' · ${money(t.prizePool, t.currency)} prize pool' : ''}\n'
-            'https://www.hashforgamers.com/tournament/${t.id}'
-            '${t.isPrivate && t.inviteCode != null ? '\nInvite code: ${t.inviteCode}' : ''}',
-        sharePositionOrigin: shareOriginRect(context),
-      ),
-    );
-  }
+  void _share() => shareTournament(_t!, context);
 
   // ----------------------------------------------------------------------- UI
 

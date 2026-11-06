@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hash/core/localization/app_region.dart';
 import 'package:hash/core/utils/app_snackbar.dart';
+import 'package:hash/core/utils/share_origin.dart';
 import 'package:hash/utils/widgets/loader.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/tournament_api.dart';
@@ -767,6 +769,7 @@ PreferredSizeWidget tAppBar(
   backgroundColor: CT.bg,
   surfaceTintColor: Colors.transparent,
   foregroundColor: CT.onSurface,
+  iconTheme: const IconThemeData(color: Colors.white),
   elevation: 0,
   title: Text(title, style: CT.headline(17)),
   actions: actions,
@@ -784,3 +787,17 @@ TabBar tTabs(List<String> labels, {bool scrollable = false}) => TabBar(
   unselectedLabelStyle: CT.body(13.5),
   tabs: [for (final l in labels) Tab(text: l)],
 );
+
+/// Shares a tournament's link (and invite code when private).
+void shareTournament(Tournament t, BuildContext context) {
+  SharePlus.instance.share(
+    ShareParams(
+      text:
+          '${t.title} · ${t.game}\n${fee(t)} entry'
+          '${t.prizePool > 0 ? ' · ${money(t.prizePool, t.currency)} prize pool' : ''}\n'
+          'https://www.hashforgamers.com/tournament/${t.id}'
+          '${t.isPrivate && t.inviteCode != null ? '\nInvite code: ${t.inviteCode}' : ''}',
+      sharePositionOrigin: shareOriginRect(context),
+    ),
+  );
+}

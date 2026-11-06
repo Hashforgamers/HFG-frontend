@@ -230,17 +230,6 @@ class _ControlRoomViewState extends State<ControlRoomView> {
         backgroundColor: CT.bg,
         appBar: tAppBar(
           t.title,
-          actions: [
-            IconButton(
-              tooltip: 'Player view',
-              icon: const Icon(Icons.visibility_rounded),
-              onPressed: () => Get.toNamed(
-                AppRoutes.TOURNAMENT_DETAIL,
-                arguments: {'id': _id},
-                preventDuplicates: false,
-              ),
-            ),
-          ],
           bottom: tTabs(const [
             'Overview',
             'Entrants',
@@ -309,84 +298,123 @@ class _ControlRoomViewState extends State<ControlRoomView> {
       _ => null,
     };
 
-    return [
-      TPanel(
-        border: statusColor(s).withValues(alpha: 0.6),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                TPill(s.label, color: statusColor(s)),
-                const Spacer(),
-                Text(fmtDateTime(t.startAt), style: CT.body(12.5)),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                _stat('Entries', '${t.registeredCount}/${t.maxPlayers}'),
-                if (!t.isSolo) _stat('Approved', '$approved'),
-                _stat('Checked in', '$checkedIn'),
-                _stat('Disputes', '$openDisputes'),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                _stat('Collected', money(t.totalCollection, t.currency)),
-                _stat('Prize pool', money(t.prizePool, t.currency)),
-                _stat('Your cut', money(t.organizerCommission, t.currency)),
-              ],
-            ),
-          ],
-        ),
+    final nextCard = switch (s) {
+      TStatus.published => (
+        'Registration opens ${fmtDateTime(t.registrationStartAt)}',
+        'Share the link now so players are ready to join.',
+        'Share tournament',
+        Icons.ios_share_rounded,
+        _share as VoidCallback?,
       ),
+      TStatus.live when openDisputes > 0 => (
+        '$openDisputes open dispute${openDisputes == 1 ? '' : 's'}',
+        'A Hash referee decides disputes. Follow them in Results.',
+        null,
+        null,
+        null,
+      ),
+      TStatus.live => (
+        'Tournament is live',
+        'Share lobby details from Matches and post results as games end.',
+        null,
+        null,
+        null,
+      ),
+      TStatus.completed => (
+        'Tournament completed',
+        'Track prize payouts in Finish.',
+        null,
+        null,
+        null,
+      ),
+      TStatus.cancelled => ('Tournament cancelled', 'Refunds are processed automatically.', null, null, null),
+      _ when next != null => (next.$1, next.$2, next.$1, Icons.arrow_forward_rounded, next.$3),
+      _ => null,
+    };
+
+    return [
+      _hero(t),
+      const SizedBox(height: 14),
+      _lifecycle(s),
       if (_readiness != null && _readiness!.blockers.isNotEmpty) ...[
         const TSectionTitle('Before you publish'),
         for (final b in _readiness!.blockers)
-          Text('• $b', style: CT.body(13, color: CT.error)),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Text('• $b', style: CT.body(13, color: CT.error)),
+          ),
       ],
-      if (next != null) ...[
+      if (nextCard != null) ...[
         const TSectionTitle('Next step'),
-        Text(next.$2, style: CT.body(13)),
-        const SizedBox(height: 10),
-        TButton(next.$1, busy: _busy, onTap: next.$3),
-      ],
-      if (s == TStatus.live && openDisputes > 0) ...[
-        const TSectionTitle('Next step'),
-        Text(
-          '$openDisputes open dispute(s). A Hash referee decides them; check the Results tab.',
-          style: CT.body(13),
+        TPanel(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(nextCard.$1, style: CT.headline(16, w: FontWeight.w800)),
+              const SizedBox(height: 4),
+              Text(nextCard.$2, style: CT.body(13)),
+              if (nextCard.$3 != null) ...[
+                const SizedBox(height: 14),
+                TButton(nextCard.$3!, icon: nextCard.$4, busy: _busy, onTap: nextCard.$5, height: 48),
+              ],
+            ],
+          ),
         ),
       ],
+      const TSectionTitle('At a glance'),
+      GridView.count(
+        crossAxisCount: 3,
+        shrinkWrap: true,
+        padding: EdgeInsets.zero,
+        physics: const NeverScrollableScrollPhysics(),
+        mainAxisSpacing: 10,
+        crossAxisSpacing: 10,
+        childAspectRatio: 1.15,
+        children: [
+          _tile(Icons.groups_rounded, '${t.registeredCount}/${t.maxPlayers}', t.isSolo ? 'Players' : 'Entries'),
+          if (!t.isSolo) _tile(Icons.verified_rounded, '$approved', 'Approved'),
+          _tile(Icons.how_to_reg_rounded, '$checkedIn', 'Checked in'),
+          _tile(Icons.account_tree_rounded, '${_matches.length}', 'Matches'),
+          _tile(Icons.gavel_rounded, '$openDisputes', 'Disputes'),
+          _tile(Icons.payments_rounded, money(t.totalCollection, t.currency), 'Collected'),
+          if (t.isSolo) _tile(Icons.emoji_events_rounded, money(t.prizePool, t.currency), 'Prize pool'),
+        ],
+      ),
       if (roomTasks.isNotEmpty) ...[
         const TSectionTitle('Needs attention'),
         for (final x in roomTasks)
-          Text('• $x', style: CT.body(13, color: CT.onSurface)),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Text('• $x', style: CT.body(13, color: CT.onSurface)),
+          ),
       ],
       const TSectionTitle('Manage'),
-      if (!s.isTerminal)
-        _action(Icons.edit_rounded, 'Edit details', () async {
-          await Get.toNamed(
-            AppRoutes.CREATE_TOURNAMENT,
-            arguments: {'id': _id},
-          );
-          _load();
-        }),
-      if (!s.isTerminal && s != TStatus.draft)
-        _action(Icons.campaign_rounded, 'Send announcement', _announce),
-      if (s == TStatus.registrationClosed &&
-          _matches.isNotEmpty &&
-          next?.$1 != 'Start tournament')
-        _action(Icons.play_arrow_rounded, 'Start tournament', _start),
-      if (!s.isTerminal)
-        _action(
-          Icons.cancel_rounded,
-          'Cancel tournament',
-          _cancel,
-          danger: true,
-        ),
+      GridView.count(
+        crossAxisCount: 2,
+        shrinkWrap: true,
+        padding: EdgeInsets.zero,
+        physics: const NeverScrollableScrollPhysics(),
+        mainAxisSpacing: 10,
+        crossAxisSpacing: 10,
+        childAspectRatio: 2.4,
+        children: [
+          if (!s.isTerminal)
+            _action(Icons.edit_rounded, 'Edit details', () async {
+              await Get.toNamed(AppRoutes.CREATE_TOURNAMENT, arguments: {'id': _id});
+              _load();
+            }),
+          if (s != TStatus.draft) _action(Icons.ios_share_rounded, 'Share', _share),
+          if (!s.isTerminal && s != TStatus.draft) _action(Icons.campaign_rounded, 'Announce', _announce),
+          _action(Icons.visibility_rounded, 'Player view', () => Get.toNamed(
+                AppRoutes.TOURNAMENT_DETAIL,
+                arguments: {'id': _id},
+                preventDuplicates: false,
+              )),
+          if (s == TStatus.registrationClosed && _matches.isNotEmpty && next?.$1 != 'Start tournament')
+            _action(Icons.play_arrow_rounded, 'Start now', _start),
+          if (!s.isTerminal) _action(Icons.cancel_rounded, 'Cancel', _cancel, danger: true),
+        ],
+      ),
       if (_news.isNotEmpty) ...[
         const TSectionTitle('Announcements'),
         for (final a in _news)
@@ -399,10 +427,7 @@ class _ControlRoomViewState extends State<ControlRoomView> {
                 children: [
                   Text(a.title, style: CT.headline(14)),
                   Text(a.message, style: CT.body(13)),
-                  Text(
-                    '${humanize(a.audience)} · ${fmtDateTime(a.publishedAt)}',
-                    style: CT.body(11.5, color: CT.muted),
-                  ),
+                  Text('${humanize(a.audience)} · ${fmtDateTime(a.publishedAt)}', style: CT.body(11.5, color: CT.muted)),
                 ],
               ),
             ),
@@ -411,38 +436,138 @@ class _ControlRoomViewState extends State<ControlRoomView> {
     ];
   }
 
-  Widget _stat(String label, String value) => Expanded(
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  void _share() => shareTournament(_t!, context);
+
+  Widget _hero(Tournament t) => Container(
+    height: 150,
+    decoration: CT.card(borderColor: CT.outline),
+    clipBehavior: Clip.antiAlias,
+    child: Stack(
+      fit: StackFit.expand,
       children: [
-        Text(
-          value,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: CT.headline(15),
+        TBanner(t.bannerUrl),
+        const DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0x33000000), Color(0xEE0B0D12)],
+            ),
+          ),
         ),
-        Text(label, style: CT.body(11.5, color: CT.muted)),
+        Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TPill(t.status.label, color: statusColor(t.status)),
+              const Spacer(),
+              Text(t.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: CT.display(20)),
+              const SizedBox(height: 2),
+              Text(
+                [t.game, t.modeLabel, fee(t), 'Starts ${fmtDateTime(t.startAt)}']
+                    .where((e) => e.isNotEmpty)
+                    .join(' · '),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: CT.body(12.5),
+              ),
+            ],
+          ),
+        ),
       ],
     ),
   );
 
-  Widget _action(
-    IconData icon,
-    String label,
-    VoidCallback onTap, {
-    bool danger = false,
-  }) => Container(
-    decoration: CT.card(),
-    child: ListTile(
-      contentPadding: EdgeInsets.zero,
-      enabled: !_busy,
-      leading: Icon(icon, color: danger ? CT.error : CT.primary),
-      title: Text(
-        label,
-        style: CT.headline(14, color: danger ? CT.error : CT.onSurface),
+  /// Where the tournament is in its lifecycle.
+  Widget _lifecycle(TStatus s) {
+    const steps = ['Draft', 'Published', 'Open', 'Live', 'Done'];
+    final at = switch (s) {
+      TStatus.draft => 0,
+      TStatus.published => 1,
+      TStatus.registrationOpen || TStatus.registrationClosed => 2,
+      TStatus.live => 3,
+      TStatus.completed || TStatus.cancelled => 4,
+      TStatus.unknown => 0,
+    };
+    return Row(
+      children: [
+        for (var i = 0; i < steps.length; i++)
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  height: 4,
+                  margin: const EdgeInsets.only(right: 4),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(2),
+                    color: i <= at ? CT.success : Colors.white.withValues(alpha: 0.1),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  steps[i],
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: CT.body(10.5,
+                      color: i == at ? CT.onSurface : CT.muted,
+                      w: i == at ? FontWeight.w700 : FontWeight.w500),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _tile(IconData icon, String value, String label) => Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: CT.surface,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: CT.outline),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Icon(icon, size: 18, color: CT.onSurfaceVariant),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(value, style: CT.headline(17, w: FontWeight.w800)),
+        ),
+        Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: CT.body(11, color: CT.muted)),
+      ],
+    ),
+  );
+
+  Widget _action(IconData icon, String label, VoidCallback onTap, {bool danger = false}) => Material(
+    color: Colors.transparent,
+    child: InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: _busy ? null : onTap,
+      child: Ink(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: CT.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: danger ? CT.error.withValues(alpha: 0.35) : CT.outline),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 19, color: danger ? CT.error : CT.onSurface),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: CT.headline(13.5, color: danger ? CT.error : CT.onSurface, w: FontWeight.w700)),
+            ),
+          ],
+        ),
       ),
-      trailing: const Icon(Icons.chevron_right_rounded, color: CT.muted),
-      onTap: onTap,
     ),
   );
 
@@ -453,7 +578,7 @@ class _ControlRoomViewState extends State<ControlRoomView> {
     return [
       if (!t.isSolo) ...[
         TSectionTitle('Teams (${_teams.length})'),
-        if (_teams.isEmpty) Text('No teams yet.', style: CT.body(13)),
+        if (_teams.isEmpty) Text('Teams appear here as players create them.', style: CT.body(13)),
         for (final team in _teams) _teamTile(team, t),
       ],
       TSectionTitle(
@@ -461,7 +586,16 @@ class _ControlRoomViewState extends State<ControlRoomView> {
             ? 'Players (${_regs.length})'
             : 'Registrations (${_regs.length})',
       ),
-      if (_regs.isEmpty) Text('No registrations yet.', style: CT.body(13)),
+      if (_regs.isEmpty)
+        TMessage(
+          icon: Icons.group_add_rounded,
+          title: 'No one has joined yet',
+          subtitle: t.status == TStatus.published
+              ? 'Registration opens ${fmtDateTime(t.registrationStartAt)}. Share the link to get players ready.'
+              : 'Share the tournament to fill your slots.',
+          actionLabel: 'Share tournament',
+          onAction: _share,
+        ),
       for (final r in _regs)
         Container(
           padding: const EdgeInsets.symmetric(vertical: 10),

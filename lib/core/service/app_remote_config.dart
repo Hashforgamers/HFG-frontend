@@ -45,10 +45,10 @@ abstract final class AppRemoteConfig {
         ),
       );
       _ready = true;
-      // Wait briefly so this launch can use a fresh value; never block long.
+      // Wait briefly (600ms) so this launch can use a fresh value.
       await rc
           .fetchAndActivate()
-          .timeout(const Duration(milliseconds: 1500))
+          .timeout(const Duration(milliseconds: 600))
           .catchError((Object e) {
             debugPrint('[AppRemoteConfig] fetch failed: $e');
             return false;

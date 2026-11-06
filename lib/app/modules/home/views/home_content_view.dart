@@ -168,7 +168,10 @@ class _HomeContentViewState extends State<HomeContentView>
     userController = Get.find<UserController>();
     walletController = Get.find<WalletController>();
     segmentService = locator<SegmentSdkService>();
-    if (FeatureFlags.tournamentsEnabled) _loadUpcomingTournaments();
+    if (FeatureFlags.tournamentsEnabled) {
+      _loadUpcomingTournaments();
+      TournamentApi().refreshIsHost();
+    }
   }
 
   void _initializeSections() {
@@ -690,16 +693,20 @@ class _HomeContentViewState extends State<HomeContentView>
                       bottom: 8,
                       child: Row(
                         children: [
-                          Text(
-                            tournament.status.label.toUpperCase(),
-                            style: GoogleFonts.inter(
-                              color: HomeTokens.orange,
-                              fontSize: 8,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: .7,
+                          Expanded(
+                            child: Text(
+                              tournament.status.label.toUpperCase(),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.inter(
+                                color: HomeTokens.orange,
+                                fontSize: 8,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: .7,
+                              ),
                             ),
                           ),
-                          const Spacer(),
+                          const SizedBox(width: 4),
                           Text(
                             tournament.isFree ? 'FREE' : Money.format(tournament.entryFee, currency: tournament.currency),
                             style: GoogleFonts.inter(
@@ -887,7 +894,17 @@ class _HomeContentViewState extends State<HomeContentView>
     return _cachedGameOnIndiaBanner!;
   }
 
+  /// Hidden for existing hosts (and until that's known), so hosts aren't
+  /// asked to become one.
   Widget _buildHostBanner() {
+    return ValueListenableBuilder<bool?>(
+      valueListenable: TournamentApi.isHost,
+      builder: (context, host, _) =>
+          host == false ? _hostBannerContent() : const SizedBox.shrink(),
+    );
+  }
+
+  Widget _hostBannerContent() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart';
+
 import 'package:get/get.dart';
 import 'package:hash/app/data/services/user_controller.dart';
 import 'package:hash/app/modules/payment/razorpay_branding.dart';
@@ -14,7 +16,9 @@ import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'tournament_api.dart';
 import 'tournament_models.dart';
 
-enum PaymentOutcome { confirmed, processing, cancelled }
+/// `processing`: paid but not yet confirmed (network trouble; the webhook
+/// settles it). `rejected`: the server refused the payment proof.
+enum PaymentOutcome { confirmed, processing, rejected, cancelled }
 
 /// Paid entry: the registration exists first (`pending_payment`), checkout runs
 /// against a server-owned order, and only `/api/payments/verify` (or the
@@ -47,15 +51,18 @@ class TournamentPayment {
           ? PaymentOutcome.confirmed
           : PaymentOutcome.processing;
     } catch (e) {
-      // Captured but unverified: the webhook/worker settles it. Never charge
-      // again; the caller reloads state and shows "processing".
       AppLogger.e('Tournament payment verify failed: $e');
-      return PaymentOutcome.processing;
+      // A 4xx is the server rejecting the proof; anything else (offline,
+      // timeout, 5xx) may still settle through the webhook. Never charge again.
+      final code = e is DioException ? e.response?.statusCode : null;
+      return code != null && code >= 400 && code < 500
+          ? PaymentOutcome.rejected
+          : PaymentOutcome.processing;
     }
   }
 
-  Future<_Order> _order(Tournament t, Registration reg) async {
-    final fromReg = _Order.parse(reg.checkout);
+  Future<CheckoutOrder> _order(Tournament t, Registration reg) async {
+    final fromReg = CheckoutOrder.parse(reg.checkout);
     if (fromReg != null) return fromReg;
     try {
       final dio = await _net.auth();
@@ -65,12 +72,12 @@ class TournamentPayment {
       );
       final data = jsonMap(res.data);
       final parsed =
-          _Order.parse(
+          CheckoutOrder.parse(
             jsonMap(data['payment']).isNotEmpty
                 ? jsonMap(data['payment'])
                 : data,
           ) ??
-          _Order.parse(jsonMap(data['checkout']));
+          CheckoutOrder.parse(jsonMap(data['checkout']));
       if (parsed != null) return parsed;
     } catch (e) {
       AppLogger.d('payments/intent unavailable, using booking order: $e');
@@ -86,14 +93,14 @@ class TournamentPayment {
         'receipt': 'trn_${reg.id}', // Razorpay caps receipts at 40 chars
       },
     );
-    final parsed = _Order.parse(jsonMap(res.data));
+    final parsed = CheckoutOrder.parse(jsonMap(res.data));
     if (parsed == null) {
       throw const TournamentApiException('Could not start payment. Try again.');
     }
-    return _Order(parsed.id, (t.entryFee * 100).round(), t.currency, null);
+    return CheckoutOrder(parsed.id, (t.entryFee * 100).round(), t.currency, null);
   }
 
-  Future<_Result?> _checkout(Tournament t, _Order order) async {
+  Future<_Result?> _checkout(Tournament t, CheckoutOrder order) async {
     final razorpay = Razorpay();
     final done = Completer<_Result?>();
     razorpay
@@ -139,14 +146,14 @@ class TournamentPayment {
   }
 }
 
-class _Order {
+class CheckoutOrder {
   final String id;
   final int amountMinor;
   final String currency;
   final String? key;
-  const _Order(this.id, this.amountMinor, this.currency, this.key);
+  const CheckoutOrder(this.id, this.amountMinor, this.currency, this.key);
 
-  static _Order? parse(Map<String, dynamic> m) {
+  static CheckoutOrder? parse(Map<String, dynamic> m) {
     if (m.isEmpty) return null;
     final id = jsonStr(
       m['razorpay_order_id'] ??
@@ -155,7 +162,7 @@ class _Order {
           m['id'],
     );
     if (id == null || !id.startsWith('order_')) return null;
-    return _Order(
+    return CheckoutOrder(
       id,
       jsonInt(m['amount'] ?? m['amount_minor'] ?? m['amount_paise']) ?? 0,
       jsonStr(m['currency']) ?? 'INR',
