@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:get/get.dart';
 import 'package:hash/app/modules/chat/views/chat_room_view.dart';
 
@@ -106,7 +107,7 @@ class _JoinedTab extends StatelessWidget {
   Widget build(BuildContext context) => _AsyncList<Tournament>(
     load: () async => (await TournamentApi().myTournaments('joined')).items,
     empty: TMessage(
-      icon: Icons.emoji_events_outlined,
+      icon: PhosphorIconsBold.trophy,
       title: 'No tournaments yet',
       subtitle: 'Join one from the Tournaments tab.',
     ),
@@ -160,7 +161,7 @@ class _InvitesTabState extends State<_InvitesTab> {
   Widget build(BuildContext context) => _AsyncList<TeamInvitation>(
     load: () async => (await TournamentApi().myInvitations()).items,
     empty: const TMessage(
-      icon: Icons.mail_outline_rounded,
+      icon: PhosphorIconsBold.envelopeSimple,
       title: 'No team invites',
       subtitle: 'When a captain adds you to a team, it shows up here.',
     ),
@@ -266,7 +267,7 @@ class _DisputesTab extends StatelessWidget {
             if (full.chatReady)
               TButton.secondary(
                 'Open dispute chat',
-                icon: Icons.chat_rounded,
+                icon: PhosphorIconsBold.chatCircle,
                 onTap: () async {
                   try {
                     final s = await DisputeChatAuth().authenticate();
@@ -306,7 +307,7 @@ class _DisputesTab extends StatelessWidget {
   Widget build(BuildContext context) => _AsyncList<Dispute>(
     load: () async => (await TournamentApi().myDisputes()).items,
     empty: const TMessage(
-      icon: Icons.gavel_rounded,
+      icon: PhosphorIconsBold.gavel,
       title: 'No disputes',
       subtitle: 'Disputes you raise or are part of appear here.',
     ),
@@ -317,7 +318,7 @@ class _DisputesTab extends StatelessWidget {
         decoration: CT.card(),
         child: Row(
           children: [
-            Icon(Icons.gavel_rounded, color: d.isOpen ? CT.error : CT.muted),
+            Icon(PhosphorIconsBold.gavel, color: d.isOpen ? CT.error : CT.muted),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -345,7 +346,7 @@ class _PayoutsTab extends StatelessWidget {
   Widget build(BuildContext context) => _AsyncList<Payout>(
     load: () async => (await TournamentApi().myPayouts()).items,
     empty: const TMessage(
-      icon: Icons.account_balance_wallet_outlined,
+      icon: PhosphorIconsBold.wallet,
       title: 'No prizes yet',
       subtitle: 'Tournament winnings are paid into your Hash wallet.',
     ),

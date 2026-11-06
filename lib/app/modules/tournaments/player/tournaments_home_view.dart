@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:get/get.dart';
 
 import '../../../routes/app_routes.dart';
@@ -162,27 +163,11 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
   }
 
   Widget _header() => Padding(
-    padding: const EdgeInsets.fromLTRB(18, 14, 12, 4),
+    padding: const EdgeInsets.fromLTRB(18, 16, 12, 4),
     child: Row(
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('PLAY · COMPETE · WIN', style: CT.mono(10.5, color: CT.muted, w: FontWeight.w800)),
-              const SizedBox(height: 4),
-              Text.rich(TextSpan(children: [
-                TextSpan(text: 'Compete on ', style: CT.display(26)),
-                WidgetSpan(
-                  alignment: PlaceholderAlignment.baseline,
-                  baseline: TextBaseline.alphabetic,
-                  child: GradientText('HASH', style: CT.display(26)),
-                ),
-              ])),
-            ],
-          ),
-        ),
-        _roundAction(Icons.sports_esports_rounded, 'My tournaments',
+        Expanded(child: Text('Tournaments', style: CT.screenTitle(20))),
+        _roundAction(PhosphorIconsBold.gameController, 'My tournaments',
             () => Get.toNamed(AppRoutes.MY_TOURNAMENTS), badge: _invites),
       ],
     ),
@@ -208,7 +193,7 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
             top: -2,
             child: Container(
               padding: const EdgeInsets.all(5),
-              decoration: const BoxDecoration(color: CT.primary, shape: BoxShape.circle),
+              decoration: const BoxDecoration(color: CT.purple, shape: BoxShape.circle),
               child: Text('$badge', style: CT.headline(10, color: Colors.white, w: FontWeight.w800)),
             ),
           ),
@@ -216,92 +201,49 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
     ),
   );
 
-  /// For existing hosts: a compact way back to their tournaments.
-  Widget _hostShortcut() => Padding(
+  /// For existing hosts: a way back to their tournaments.
+  Widget _hostShortcut() => _row(
+    PhosphorIconsBold.squaresFour,
+    'Your tournaments',
+    'Manage entries, matches and results',
+    () async {
+      await Get.toNamed(AppRoutes.HOST_DASHBOARD);
+      _load();
+    },
+  );
+
+  /// For non-hosts: a plain entry point to hosting.
+  Widget _hostHero() => _row(
+    PhosphorIconsBold.plusCircle,
+    'Host a tournament',
+    'Free to start. Set the game, format and prizes.',
+    () => Get.toNamed(AppRoutes.HOST_DASHBOARD),
+  );
+
+  Widget _row(IconData icon, String title, String subtitle, VoidCallback onTap) => Padding(
     padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
     child: Material(
-      color: Colors.transparent,
+      color: CT.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: const BorderSide(color: CT.outline),
+      ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(22),
-        onTap: () async {
-          await Get.toNamed(AppRoutes.HOST_DASHBOARD);
-          _load();
-        },
-        child: Ink(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: Padding(
           padding: const EdgeInsets.all(14),
-          decoration: CT.card(borderColor: CT.outline),
           child: Row(
             children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Icon(Icons.dashboard_customize_rounded, color: Colors.white, size: 21),
-              ),
+              Icon(icon, color: Colors.white, size: 22),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Your tournaments', style: CT.headline(15, w: FontWeight.w800)),
-                  Text('Manage entries, matches and results', style: CT.body(12.5)),
+                  Text(title, style: CT.headline(15, w: FontWeight.w700)),
+                  Text(subtitle, style: CT.body(12.5, color: CT.muted)),
                 ]),
               ),
-              const Icon(Icons.chevron_right_rounded, color: CT.onSurfaceVariant),
-            ],
-          ),
-        ),
-      ),
-    ),
-  );
-
-  /// Host promo, styled like the home "Become a tournament host" card.
-  Widget _hostHero() => Padding(
-    padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
-    child: GestureDetector(
-      onTap: () => Get.toNamed(AppRoutes.HOST_DASHBOARD),
-      child: Container(
-        height: 132,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(22),
-          color: CT.outline,
-        ),
-        padding: const EdgeInsets.all(1.2),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(21),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Image.asset('assets/host_program_hero.jpg', fit: BoxFit.cover, alignment: const Alignment(1, -0.1)),
-              const DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFF0B0D12), Color(0xF00B0D12), Color(0x330B0D12)],
-                    stops: [0, 0.5, 1],
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('HOST PROGRAM', style: CT.mono(10, color: CT.onSurfaceVariant, w: FontWeight.w800)),
-                    Text('Run your own\ntournament', style: CT.display(20)),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(99)),
-                      child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        Text('Start hosting', style: CT.headline(12.5, color: Colors.black, w: FontWeight.w800)),
-                        const SizedBox(width: 4),
-                        const Icon(Icons.arrow_forward_rounded, size: 15, color: Colors.black),
-                      ]),
-                    ),
-                  ],
-                ),
-              ),
+              const Icon(PhosphorIconsBold.caretRight, color: CT.muted),
             ],
           ),
         ),
@@ -325,7 +267,7 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
               width: 38,
               height: 38,
               decoration: const BoxDecoration(color: Color(0x1FFFFFFF), shape: BoxShape.circle),
-              child: const Icon(Icons.mail_rounded, color: Colors.white, size: 19),
+              child: const Icon(PhosphorIconsBold.envelopeSimple, color: Colors.white, size: 19),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -335,7 +277,7 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
                 Text('Tap to accept or decline', style: CT.body(12)),
               ]),
             ),
-            const Icon(Icons.chevron_right_rounded, color: CT.onSurfaceVariant),
+            const Icon(PhosphorIconsBold.caretRight, color: CT.onSurfaceVariant),
           ],
         ),
       ),
@@ -352,7 +294,7 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
           textInputAction: TextInputAction.search,
           style: CT.body(14.5, color: CT.onSurface),
           decoration: tInput('Search tournaments or games').copyWith(
-            prefixIcon: const Icon(Icons.search_rounded, color: CT.muted),
+            prefixIcon: const Icon(PhosphorIconsBold.magnifyingGlass, color: CT.muted),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(22), borderSide: const BorderSide(color: CT.outline)),
             enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(22), borderSide: const BorderSide(color: CT.outline)),
             focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(22), borderSide: const BorderSide(color: CT.primary)),
@@ -372,44 +314,6 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
     ),
   );
 
-  Widget _howItWorks() => Padding(
-    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-    child: TPanel(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('How it works', style: CT.headline(15, w: FontWeight.w800)),
-          const SizedBox(height: 12),
-          for (final (i, step) in const [
-            ('Join or host', 'Pick a tournament, or create one for your squad in minutes.'),
-            ('Team up & check in', 'Invite friends, then check in before the first match.'),
-            ('Play & report', 'Play in-game, then submit scores with a screenshot.'),
-            ('Win prizes', 'Winnings go straight to your Hash wallet.'),
-          ].indexed)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Container(
-                  width: 26,
-                  height: 26,
-                  alignment: Alignment.center,
-                  decoration: const BoxDecoration(color: Color(0x1FFFFFFF), shape: BoxShape.circle),
-                  child: Text('${i + 1}', style: CT.headline(12, color: Colors.white, w: FontWeight.w800)),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(step.$1, style: CT.headline(14, w: FontWeight.w700)),
-                    Text(step.$2, style: CT.body(12.5)),
-                  ]),
-                ),
-              ]),
-            ),
-        ],
-      ),
-    ),
-  );
-
   List<Widget> _body() {
     if (_loading && _items.isEmpty) {
       return const [SliverToBoxAdapter(child: TLoading())];
@@ -421,7 +325,7 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
       return [
         SliverToBoxAdapter(
           child: TMessage(
-            icon: Icons.emoji_events_rounded,
+            icon: PhosphorIconsBold.trophy,
             title: _search.text.isEmpty
                 ? 'No ${_views[_view]!.toLowerCase()} tournaments yet'
                 : 'Nothing matches "${_search.text.trim()}"',
@@ -432,7 +336,6 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
             onAction: () => Get.toNamed(AppRoutes.HOST_DASHBOARD),
           ),
         ),
-        SliverToBoxAdapter(child: _howItWorks()),
       ];
     }
     return [
@@ -446,7 +349,7 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
             return TournamentCard(
               t,
               badge: t.isFeatured
-                  ? const TPill('Featured', icon: Icons.star_rounded)
+                  ? const TPill('Featured', icon: PhosphorIconsFill.star)
                   : null,
               onTap: () => openTournament(t.id),
             );

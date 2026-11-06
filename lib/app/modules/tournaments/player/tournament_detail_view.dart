@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '../../../routes/app_routes.dart';
 import '../data/tournament_api.dart';
+import '../data/tournament_chat.dart';
 import '../data/tournament_models.dart';
 import '../data/tournament_payment.dart';
 import '../ui/tournament_theme.dart';
@@ -293,10 +295,12 @@ class _TournamentDetailViewState extends State<TournamentDetailView> {
               backgroundColor: CT.bg,
               foregroundColor: Colors.white,
               surfaceTintColor: Colors.transparent,
+              iconTheme: const IconThemeData(color: Colors.white),
+              actionsIconTheme: const IconThemeData(color: Colors.white),
               actions: [
                 IconButton(
                   onPressed: _share,
-                  icon: const Icon(Icons.ios_share_rounded),
+                  icon: const Icon(PhosphorIconsBold.export),
                 ),
               ],
               flexibleSpace: FlexibleSpaceBar(
@@ -322,7 +326,7 @@ class _TournamentDetailViewState extends State<TournamentDetailView> {
             SliverPersistentHeader(
               pinned: true,
               delegate: _TabsHeader(
-                tTabs(const ['Overview', 'Matches', 'Standings', 'Teams']),
+                tTabs(const ['Overview', 'Matches', 'Standings', 'Teams'], scrollable: true),
               ),
             ),
           ],
@@ -357,13 +361,13 @@ class _TournamentDetailViewState extends State<TournamentDetailView> {
               const TPill(
                 'Private',
                 color: CT.verifiedBlue,
-                icon: Icons.lock_rounded,
+                icon: PhosphorIconsBold.lock,
               ),
             if (_host?.verified == true)
               const TPill(
                 'Verified host',
                 color: CT.verifiedBlue,
-                icon: Icons.verified_rounded,
+                icon: PhosphorIconsBold.sealCheck,
               ),
           ],
         ),
@@ -375,7 +379,7 @@ class _TournamentDetailViewState extends State<TournamentDetailView> {
             t.game,
             t.modeLabel,
             t.formatLabel,
-            if (t.platform != null) t.platform!,
+            if (t.platform != null) humanize(t.platform!),
           ].where((e) => e.isNotEmpty).join(' · '),
           style: CT.body(13),
         ),
@@ -426,7 +430,7 @@ class _TournamentDetailViewState extends State<TournamentDetailView> {
     if (reg != null) {
       rows.add(
         _stepRow(
-          Icons.confirmation_number_rounded,
+          PhosphorIconsBold.ticket,
           'Entry',
           reg.statusLabel,
           stateColor(reg.status),
@@ -437,14 +441,14 @@ class _TournamentDetailViewState extends State<TournamentDetailView> {
       rows.add(
         team == null
             ? _stepRow(
-                Icons.groups_rounded,
+                PhosphorIconsBold.usersThree,
                 'Team',
                 'Not created yet',
                 CT.primary,
                 action: reg?.isActive == true ? ('Create', _openTeam) : null,
               )
             : _stepRow(
-                Icons.groups_rounded,
+                PhosphorIconsBold.usersThree,
                 team.name,
                 '${humanize(team.status)} · ${team.members.where((m) => m.accepted).length}/${t.teamSize} players',
                 stateColor(team.status),
@@ -456,7 +460,7 @@ class _TournamentDetailViewState extends State<TournamentDetailView> {
     if (reg?.isConfirmed == true || team != null) {
       rows.add(
         _stepRow(
-          Icons.how_to_reg_rounded,
+          PhosphorIconsBold.userCheck,
           'Check-in',
           checkedIn
               ? 'Checked in'
@@ -474,7 +478,7 @@ class _TournamentDetailViewState extends State<TournamentDetailView> {
     if (match != null) {
       rows.add(
         _stepRow(
-          Icons.sports_esports_rounded,
+          PhosphorIconsBold.gameController,
           'Your match',
           '${match.title} · ${match.statusLabel}',
           stateColor(match.status),
@@ -494,17 +498,28 @@ class _TournamentDetailViewState extends State<TournamentDetailView> {
               child: Column(
                 children: [
                   ...rows,
-                  if (me.canCancel)
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: TextButton(
-                        onPressed: _busy ? null : _cancelEntry,
-                        child: Text(
-                          'Leave tournament',
-                          style: CT.body(13, color: CT.error),
-                        ),
+                  Row(
+                    children: [
+                      TextButton.icon(
+                        onPressed: () async {
+                          if (!await TournamentChat.instance.openAll(t)) {
+                            toast('The players chat opens once the host posts in it.');
+                          }
+                        },
+                        icon: const Icon(PhosphorIconsBold.chatsCircle, size: 18, color: Colors.white),
+                        label: Text('Players chat', style: CT.body(13, w: FontWeight.w600)),
                       ),
-                    ),
+                      const Spacer(),
+                      if (me.canCancel)
+                        TextButton(
+                          onPressed: _busy ? null : _cancelEntry,
+                          child: Text(
+                            'Leave tournament',
+                            style: CT.body(13, color: CT.error),
+                          ),
+                        ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -587,42 +602,42 @@ class _TournamentDetailViewState extends State<TournamentDetailView> {
     IconData? icon;
     if (me?.canManage == true || t.canManage) {
       label = 'Manage tournament';
-      icon = Icons.tune_rounded;
+      icon = PhosphorIconsBold.slidersHorizontal;
       onTap = () async {
         await Get.toNamed(AppRoutes.MANAGE_TOURNAMENT, arguments: {'id': t.id});
         _load(quiet: true);
       };
     } else if (me != null && me.canPlay && me.currentMatch != null) {
       label = 'Open match room';
-      icon = Icons.sports_esports_rounded;
+      icon = PhosphorIconsBold.gameController;
       onTap = () => _openMatch(me.currentMatch!);
     } else if (me?.canCheckIn == true) {
       label = 'Check in now';
-      icon = Icons.how_to_reg_rounded;
+      icon = PhosphorIconsBold.userCheck;
       onTap = _checkIn;
     } else if (me?.canContinuePayment == true) {
       label = 'Complete payment · ${fee(t)}';
-      icon = Icons.payments_rounded;
+      icon = PhosphorIconsBold.money;
       onTap = _continuePayment;
     } else if (me?.canJoin == true ||
         (me == null && t.status == TStatus.registrationOpen && !t.isFull)) {
       label = t.isFree ? 'Join for free' : 'Join · ${fee(t)}';
-      icon = Icons.bolt_rounded;
+      icon = PhosphorIconsBold.lightning;
       onTap = _join;
     } else if (!t.isSolo &&
         me?.registration?.isActive == true &&
         me?.team == null) {
       label = 'Create your team';
-      icon = Icons.group_add_rounded;
+      icon = PhosphorIconsBold.userPlus;
       onTap = _openTeam;
     } else if (me != null && me.canViewMatch && me.matches.isNotEmpty) {
       label = 'View my match';
-      icon = Icons.sports_esports_rounded;
+      icon = PhosphorIconsBold.gameController;
       onTap = () => _openMatch(me.currentMatch ?? me.matches.first);
     } else if (t.status == TStatus.completed &&
         (me?.registration?.isConfirmed == true || me?.team != null)) {
       label = 'Rate the organizer';
-      icon = Icons.star_rounded;
+      icon = PhosphorIconsFill.star;
       onTap = _review;
     }
     final hint = label != null
@@ -727,7 +742,7 @@ class _TournamentDetailViewState extends State<TournamentDetailView> {
         child: Column(
           children: [
             TFact(
-              Icons.emoji_events_rounded,
+              PhosphorIconsBold.trophy,
               'Prize pool',
               t.prizePool > 0
                   ? money(t.prizePool, t.currency)
@@ -736,7 +751,7 @@ class _TournamentDetailViewState extends State<TournamentDetailView> {
             for (final p in t.prizeDistribution) ...[
               const SizedBox(height: 10),
               TFact(
-                Icons.military_tech_rounded,
+                PhosphorIconsBold.medal,
                 _rankLabel(p.rank),
                 t.prizePool > 0
                     ? money(
@@ -772,7 +787,7 @@ class _TournamentDetailViewState extends State<TournamentDetailView> {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 5),
                 child: TFact(
-                  Icons.schedule_rounded,
+                  PhosphorIconsBold.clock,
                   row.$1,
                   fmtDateTime(row.$2),
                 ),
@@ -785,22 +800,22 @@ class _TournamentDetailViewState extends State<TournamentDetailView> {
         child: Column(
           children: [
             for (final row in [
-              (Icons.videogame_asset_rounded, 'Game', t.game),
-              (Icons.account_tree_rounded, 'Format', t.formatLabel),
+              (PhosphorIconsBold.gameController, 'Game', t.game),
+              (PhosphorIconsBold.treeStructure, 'Format', t.formatLabel),
               (
-                Icons.groups_rounded,
+                PhosphorIconsBold.usersThree,
                 'Team',
                 t.isSolo
                     ? 'Solo'
                     : '${t.teamSize} players${t.substituteLimit > 0 ? ' + ${t.substituteLimit} subs' : ''}',
               ),
-              if (t.gameMode != null) (Icons.tune_rounded, 'Mode', t.gameMode!),
-              if (t.region != null) (Icons.public_rounded, 'Region', t.region!),
+              if (t.gameMode != null) (PhosphorIconsBold.slidersHorizontal, 'Mode', t.gameMode!),
+              if (t.region != null) (PhosphorIconsBold.globe, 'Region', t.region!),
               if (t.minimumAge != null)
-                (Icons.cake_rounded, 'Minimum age', '${t.minimumAge}+'),
+                (PhosphorIconsBold.cake, 'Minimum age', '${t.minimumAge}+'),
               if (t.matchDurationMinutes != null)
                 (
-                  Icons.timer_rounded,
+                  PhosphorIconsBold.timer,
                   'Match length',
                   '${t.matchDurationMinutes} min',
                 ),
@@ -824,7 +839,7 @@ class _TournamentDetailViewState extends State<TournamentDetailView> {
               Expanded(
                 child: TButton.secondary(
                   'Discord',
-                  icon: Icons.forum_rounded,
+                  icon: PhosphorIconsBold.chatsCircle,
                   onTap: () => openLink(t.discordLink!),
                 ),
               ),
@@ -834,7 +849,7 @@ class _TournamentDetailViewState extends State<TournamentDetailView> {
               Expanded(
                 child: TButton.secondary(
                   'WhatsApp',
-                  icon: Icons.chat_rounded,
+                  icon: PhosphorIconsBold.chatCircle,
                   onTap: () => openLink(t.whatsappLink!),
                 ),
               ),
@@ -848,7 +863,7 @@ class _TournamentDetailViewState extends State<TournamentDetailView> {
             children: [
               const CircleAvatar(
                 backgroundColor: CT.surfaceHigh,
-                child: Icon(Icons.shield_rounded, color: CT.primary),
+                child: Icon(PhosphorIconsBold.shield, color: CT.primary),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -868,7 +883,21 @@ class _TournamentDetailViewState extends State<TournamentDetailView> {
                 ),
               ),
               if (_host!.verified)
-                const Icon(Icons.verified_rounded, color: CT.verifiedBlue),
+                const Icon(PhosphorIconsBold.sealCheck, color: CT.verifiedBlue),
+              if (t.hostUserId != null && _signedIn && !(_me?.canManage ?? t.canManage))
+                IconButton(
+                  tooltip: 'Message host',
+                  icon: const Icon(PhosphorIconsBold.chatCircle, color: Colors.white),
+                  onPressed: () async {
+                    try {
+                      if (!await TournamentChat.instance.openDirect(t.hostUserId!)) {
+                        toast('The host can\'t be messaged yet.', error: true);
+                      }
+                    } catch (e) {
+                      toastError(e);
+                    }
+                  },
+                ),
             ],
           ),
         ),
@@ -884,7 +913,7 @@ class _TournamentDetailViewState extends State<TournamentDetailView> {
         Text(value, style: CT.headline(14)),
         IconButton(
           visualDensity: VisualDensity.compact,
-          icon: const Icon(Icons.copy_rounded, size: 16, color: CT.primary),
+          icon: const Icon(PhosphorIconsBold.copy, size: 16, color: CT.primary),
           onPressed: () {
             Clipboard.setData(ClipboardData(text: value));
             toast('$label copied');
@@ -898,7 +927,7 @@ class _TournamentDetailViewState extends State<TournamentDetailView> {
     if (_matches.isEmpty) {
       return _tabList(const [
         TMessage(
-          icon: Icons.account_tree_outlined,
+          icon: PhosphorIconsBold.treeStructure,
           title: 'No matches yet',
           subtitle: 'The bracket appears once the host generates it.',
         ),
@@ -934,7 +963,7 @@ class _TournamentDetailViewState extends State<TournamentDetailView> {
     if (_board.isEmpty) {
       return _tabList(const [
         TMessage(
-          icon: Icons.leaderboard_outlined,
+          icon: PhosphorIconsBold.ranking,
           title: 'Standings not available yet',
           subtitle: 'Results appear here as matches finish.',
         ),
@@ -975,7 +1004,7 @@ class _TournamentDetailViewState extends State<TournamentDetailView> {
     if (_teams.isEmpty) {
       return _tabList([
         TMessage(
-          icon: Icons.groups_outlined,
+          icon: PhosphorIconsBold.usersThree,
           title: t.isSolo
               ? '${t.registeredCount} players registered'
               : 'No approved teams yet',
@@ -1008,7 +1037,7 @@ class _TournamentDetailViewState extends State<TournamentDetailView> {
               if (team.checkedInAt != null) ...[
                 const SizedBox(width: 6),
                 const Icon(
-                  Icons.how_to_reg_rounded,
+                  PhosphorIconsBold.userCheck,
                   size: 18,
                   color: CT.success,
                 ),
@@ -1176,8 +1205,8 @@ class _ReviewDialogState extends State<_ReviewDialog> {
                   onTap: () => setState(() => _r[k] = i),
                   child: Icon(
                     i <= _r[k]!
-                        ? Icons.star_rounded
-                        : Icons.star_outline_rounded,
+                        ? PhosphorIconsFill.star
+                        : PhosphorIconsBold.star,
                     color: CT.primary,
                     size: 22,
                   ),

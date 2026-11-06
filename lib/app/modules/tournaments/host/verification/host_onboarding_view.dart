@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:hash/utils/widgets/loader.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
@@ -69,7 +70,7 @@ class _ErrorRetry extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.wifi_off_rounded, color: CT.muted, size: 40),
+            const Icon(PhosphorIconsBold.wifiSlash, color: CT.muted, size: 40),
             const SizedBox(height: 16),
             Text(message, textAlign: TextAlign.center, style: CT.body(15)),
             const SizedBox(height: 20),
@@ -128,7 +129,7 @@ class _Content extends StatelessWidget {
                 if (controller.status == HostVerificationStatus.rejected)
                   _StatusNote(
                     color: CT.error,
-                    icon: Icons.error_outline_rounded,
+                    icon: PhosphorIconsBold.warningCircle,
                     text:
                         'Your previous application was rejected. You can '
                         're-apply below.',
@@ -136,7 +137,7 @@ class _Content extends StatelessWidget {
                 if (controller.status == HostVerificationStatus.pending)
                   const _StatusNote(
                     color: CT.secondary,
-                    icon: Icons.hourglass_top_rounded,
+                    icon: PhosphorIconsBold.hourglass,
                     text:
                         'Your verification is under review. We will notify you '
                         'once it is approved.',
@@ -144,7 +145,7 @@ class _Content extends StatelessWidget {
                 if (controller.status == HostVerificationStatus.suspended)
                   const _StatusNote(
                     color: CT.error,
-                    icon: Icons.block_rounded,
+                    icon: PhosphorIconsBold.prohibit,
                     text: 'Your host account is suspended. Contact support.',
                   ),
                 const SizedBox(height: 12),
@@ -186,7 +187,7 @@ class _Hero extends StatelessWidget {
                   shape: const CircleBorder(),
                   child: IconButton(
                     tooltip: 'Close',
-                    icon: const Icon(Icons.close_rounded, color: Colors.white, size: 20),
+                    icon: const Icon(PhosphorIconsBold.x, color: Colors.white, size: 20),
                     onPressed: Get.back,
                   ),
                 ),
@@ -299,27 +300,27 @@ class _HowItWorksState extends State<_HowItWorks> {
   Widget build(BuildContext context) {
     const steps = [
       (
-        Icons.add_circle_outline_rounded,
+        PhosphorIconsBold.plusCircle,
         'Create your tournament',
         'Set the game, format, schedule, and rules.',
       ),
       (
-        Icons.share_rounded,
+        PhosphorIconsBold.export,
         'Share with players',
         'Send one tournament link to your gaming community.',
       ),
       (
-        Icons.group_add_rounded,
+        PhosphorIconsBold.userPlus,
         'Players register',
         'Track confirmed entries as your available slots fill up.',
       ),
       (
-        Icons.sports_esports_rounded,
+        PhosphorIconsBold.gameController,
         'Run the event',
         'Publish room details, manage matches, and verify results.',
       ),
       (
-        Icons.emoji_events_rounded,
+        PhosphorIconsBold.trophy,
         'Celebrate results',
         'Complete the tournament and publish final standings.',
       ),
@@ -338,7 +339,7 @@ class _HowItWorksState extends State<_HowItWorks> {
                   turns: _isExpanded ? 0.5 : 0,
                   duration: const Duration(milliseconds: 220),
                   child: const Icon(
-                    Icons.keyboard_arrow_down_rounded,
+                    PhosphorIconsBold.caretDown,
                     color: CT.muted,
                   ),
                 ),
@@ -437,12 +438,12 @@ class _FeatureGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const features = [
-      (Icons.verified_rounded, 'Official Host Badge', CT.verifiedBlue),
-      (Icons.emoji_events_rounded, 'Community spotlight', CT.onSurfaceVariant),
-      (Icons.sports_esports_rounded, 'Unlimited tournaments', CT.onSurfaceVariant),
-      (Icons.trending_up_rounded, 'Live registrations', CT.onSurfaceVariant),
-      (Icons.groups_rounded, 'Player management', CT.onSurfaceVariant),
-      (Icons.insights_rounded, 'Event insights', CT.onSurfaceVariant),
+      (PhosphorIconsBold.sealCheck, 'Official Host Badge', CT.verifiedBlue),
+      (PhosphorIconsBold.trophy, 'Community spotlight', CT.onSurfaceVariant),
+      (PhosphorIconsBold.gameController, 'Unlimited tournaments', CT.onSurfaceVariant),
+      (PhosphorIconsBold.trendUp, 'Live registrations', CT.onSurfaceVariant),
+      (PhosphorIconsBold.usersThree, 'Player management', CT.onSurfaceVariant),
+      (PhosphorIconsBold.chartLineUp, 'Event insights', CT.onSurfaceVariant),
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -590,7 +591,7 @@ class _VerificationCard extends StatelessWidget {
     padding: const EdgeInsets.only(bottom: 8),
     child: Row(
       children: [
-        const Icon(Icons.check_circle_rounded, color: CT.verifiedBlue, size: 18),
+        const Icon(PhosphorIconsBold.checkCircle, color: CT.verifiedBlue, size: 18),
         const SizedBox(width: 10),
         Text(label, style: CT.body(14, color: CT.onSurface)),
       ],
@@ -676,9 +677,9 @@ class _TrustBadges extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const items = [
-      (Icons.verified_rounded, 'VERIFIED HOSTS'),
-      (Icons.lock_rounded, 'SECURE PAYMENTS'),
-      (Icons.account_balance_wallet_rounded, 'WALLET PAYOUTS'),
+      (PhosphorIconsBold.sealCheck, 'VERIFIED HOSTS'),
+      (PhosphorIconsBold.lock, 'SECURE PAYMENTS'),
+      (PhosphorIconsBold.wallet, 'WALLET PAYOUTS'),
     ];
     return Wrap(
       alignment: WrapAlignment.center,
@@ -752,7 +753,7 @@ class _BottomCta extends StatelessWidget {
           TButton(
             controller.ctaLabel,
             icon: enabled && controller.status != HostVerificationStatus.verified
-                ? Icons.rocket_launch_rounded
+                ? PhosphorIconsBold.rocketLaunch
                 : null,
             onTap: enabled ? controller.onPrimaryCta : null,
           ),

@@ -1,12 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:get/get.dart';
 import 'package:hash/app/data/services/user_controller.dart';
 import 'package:hash/app/modules/chat/models/chat_user_model.dart';
 import 'package:hash/app/modules/chat/services/chat_service.dart';
 
 import '../data/tournament_api.dart';
+import '../data/tournament_chat.dart';
 import '../data/tournament_models.dart';
 import '../ui/tournament_theme.dart';
 import '../ui/tournament_widgets.dart';
@@ -128,6 +130,19 @@ class _TeamViewState extends State<TeamView> {
         role: substitute ? 'substitute' : 'player',
       );
       toast('Invite sent to ${user.displayName}. They need to accept it.');
+      // A chat message doubles as the push notification for the invite.
+      try {
+        final room = await TournamentChat.instance.directRoom(user.backendUserId!);
+        if (room != null) {
+          await TournamentChat.instance.post(
+            room,
+            'I invited you to ${_team!.name} for ${t.title}. '
+            'Accept it in Tournaments > My tournaments > Invites.',
+          );
+        }
+      } catch (_) {
+        // The invite itself went through; the chat nudge is optional.
+      }
     });
   }
 
@@ -156,7 +171,19 @@ class _TeamViewState extends State<TeamView> {
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: CT.bg,
-    appBar: tAppBar(_team?.name ?? 'Your team'),
+    appBar: tAppBar(
+      _team?.name ?? 'Your team',
+      actions: [
+        if (_team != null)
+          IconButton(
+            tooltip: 'Team chat',
+            icon: const Icon(PhosphorIconsBold.chatsCircle),
+            onPressed: () => TournamentChat.instance
+                .openTeam(t, _team!)
+                .catchError((Object e) => toastError(e)),
+          ),
+      ],
+    ),
     body: RefreshIndicator(
       color: CT.primary,
       onRefresh: _reload,
@@ -204,7 +231,7 @@ class _TeamViewState extends State<TeamView> {
         const SizedBox(height: 22),
         TButton(
           'Create team',
-          icon: Icons.group_add_rounded,
+          icon: PhosphorIconsBold.userPlus,
           busy: _busy,
           onTap: _create,
         ),
@@ -248,7 +275,7 @@ class _TeamViewState extends State<TeamView> {
               const TPill(
                 'Roster locked',
                 color: CT.muted,
-                icon: Icons.lock_rounded,
+                icon: PhosphorIconsBold.lock,
               ),
             ],
           ],
@@ -294,8 +321,8 @@ class _TeamViewState extends State<TeamView> {
           backgroundColor: CT.surfaceHigh,
           child: Icon(
             m.isCaptain
-                ? Icons.workspace_premium_rounded
-                : Icons.person_rounded,
+                ? PhosphorIconsBold.crown
+                : PhosphorIconsBold.user,
             size: 18,
             color: m.isCaptain ? CT.primary : CT.onSurfaceVariant,
           ),
@@ -326,7 +353,7 @@ class _TeamViewState extends State<TeamView> {
         if (editable && !m.isCaptain)
           IconButton(
             onPressed: _busy ? null : () => _remove(m),
-            icon: const Icon(Icons.close_rounded, color: CT.muted, size: 20),
+            icon: const Icon(PhosphorIconsBold.x, color: CT.muted, size: 20),
           ),
       ],
     ),
@@ -336,7 +363,7 @@ class _TeamViewState extends State<TeamView> {
     padding: const EdgeInsets.only(top: 10),
     child: TButton.secondary(
       label,
-      icon: Icons.person_add_alt_1_rounded,
+      icon: PhosphorIconsBold.userPlus,
       busy: _busy,
       onTap: onTap,
     ),
@@ -395,7 +422,7 @@ class _PlayerPickerState extends State<_PlayerPicker> {
             onChanged: _search,
             style: CT.body(15, color: CT.onSurface),
             decoration: tInput('Search by name or username').copyWith(
-              prefixIcon: const Icon(Icons.search_rounded, color: CT.muted),
+              prefixIcon: const Icon(PhosphorIconsBold.magnifyingGlass, color: CT.muted),
             ),
           ),
         ),
@@ -414,7 +441,7 @@ class _PlayerPickerState extends State<_PlayerPicker> {
                       : null,
                   child: u.photoUrl.startsWith('http')
                       ? null
-                      : const Icon(Icons.person, color: CT.muted),
+                      : const Icon(PhosphorIconsBold.user, color: CT.muted),
                 ),
                 title: Text(u.displayName, style: CT.headline(14)),
                 subtitle: Text(
@@ -422,7 +449,7 @@ class _PlayerPickerState extends State<_PlayerPicker> {
                   style: CT.body(12),
                 ),
                 trailing: const Icon(
-                  Icons.add_circle_outline_rounded,
+                  PhosphorIconsBold.plusCircle,
                   color: CT.primary,
                 ),
               );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -34,14 +35,14 @@ class VerificationCheckoutView extends GetView<VerificationCheckoutController> {
                       style: CT.mono(11, color: CT.secondary),
                     ),
                     const SizedBox(height: 12),
-                    _benefit(Icons.verified_rounded, 'Verified Host Badge'),
+                    _benefit(PhosphorIconsBold.sealCheck, 'Verified Host Badge'),
                     const SizedBox(height: 10),
                     _benefit(
-                      Icons.all_inclusive_rounded,
+                      PhosphorIconsBold.infinity,
                       'Unlimited Tournaments',
                     ),
                     const SizedBox(height: 10),
-                    _benefit(Icons.payments_rounded, 'Earnings Enabled'),
+                    _benefit(PhosphorIconsBold.money, 'Earnings Enabled'),
                     const SizedBox(height: 24),
                     Text(
                       'SECURE PAYMENT',
@@ -69,7 +70,7 @@ class VerificationCheckoutView extends GetView<VerificationCheckoutController> {
           Align(
             alignment: Alignment.centerLeft,
             child: IconButton(
-              icon: const Icon(Icons.close_rounded, color: CT.onSurface),
+              icon: const Icon(PhosphorIconsBold.x, color: CT.onSurface),
               onPressed: Get.back,
             ),
           ),
@@ -141,7 +142,7 @@ class VerificationCheckoutView extends GetView<VerificationCheckoutController> {
         children: [
           Icon(
             icon,
-            color: icon == Icons.verified_rounded
+            color: icon == PhosphorIconsBold.sealCheck
                 ? CT.verifiedBlue
                 : CT.primaryBright,
             size: 22,
@@ -173,7 +174,7 @@ class VerificationCheckoutView extends GetView<VerificationCheckoutController> {
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Icon(
-              Icons.security_rounded,
+              PhosphorIconsBold.shieldCheck,
               color: CT.secondary,
               size: 20,
             ),
@@ -195,7 +196,7 @@ class VerificationCheckoutView extends GetView<VerificationCheckoutController> {
               ],
             ),
           ),
-          const Icon(Icons.lock_rounded, color: CT.primaryBright, size: 18),
+          const Icon(PhosphorIconsBold.lock, color: CT.primaryBright, size: 18),
         ],
       ),
     );
@@ -243,7 +244,7 @@ class VerificationCheckoutView extends GetView<VerificationCheckoutController> {
                       : Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.lock_rounded, size: 18),
+                            const Icon(PhosphorIconsBold.lock, size: 18),
                             const SizedBox(width: 8),
                             Text(
                               'Pay ${controller.amountText} & Get Verified',
@@ -263,13 +264,13 @@ class VerificationCheckoutView extends GetView<VerificationCheckoutController> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.lock_outline_rounded, size: 12, color: CT.muted),
+              Icon(PhosphorIconsBold.lock, size: 12, color: CT.muted),
               const SizedBox(width: 4),
               Text('256-BIT SSL', style: CT.mono(9)),
               const SizedBox(width: 10),
               Text('•', style: CT.mono(9)),
               const SizedBox(width: 10),
-              Icon(Icons.shield_outlined, size: 12, color: CT.muted),
+              Icon(PhosphorIconsBold.shield, size: 12, color: CT.muted),
               const SizedBox(width: 4),
               Text('SECURE CHECKOUT', style: CT.mono(9)),
             ],

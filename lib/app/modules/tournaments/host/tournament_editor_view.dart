@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:get/get.dart';
 
 import '../../../routes/app_routes.dart';
@@ -560,7 +561,7 @@ class _TournamentEditorViewState extends State<TournamentEditorView> {
                   child: TextButton.icon(
                     onPressed: _loadTemplate,
                     icon: const Icon(
-                      Icons.auto_fix_high_rounded,
+                      PhosphorIconsBold.magicWand,
                       color: CT.primary,
                       size: 18,
                     ),
@@ -701,9 +702,9 @@ class _TournamentEditorViewState extends State<TournamentEditorView> {
           if (clearable && value != null)
             IconButton(
               onPressed: () => setState(() => set(null)),
-              icon: const Icon(Icons.close_rounded, color: CT.muted),
+              icon: const Icon(PhosphorIconsBold.x, color: CT.muted),
             ),
-          const Icon(Icons.edit_calendar_rounded, color: CT.primary),
+          const Icon(PhosphorIconsBold.calendarBlank, color: CT.primary),
         ],
       ),
       onTap: () async {

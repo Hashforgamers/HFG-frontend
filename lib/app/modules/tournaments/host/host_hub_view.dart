@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:get/get.dart';
 
 import '../../../routes/app_routes.dart';
@@ -85,13 +86,13 @@ class _HostHubViewState extends State<HostHubView> {
   );
 
   static const _templates = <(String, String, IconData, Map<String, dynamic>)>[
-    ('BGMI Squads', 'Squads · Battle royale', Icons.sports_esports_rounded,
+    ('BGMI Squads', 'Squads · Battle royale', PhosphorIconsBold.gameController,
         {'game': 'BGMI', 'mode': 'squad', 'format': 'battle_royale', 'max': 25, 'title': 'BGMI Squad Showdown'}),
-    ('Valorant 5v5', '5v5 · Knockout', Icons.gps_fixed_rounded,
+    ('Valorant 5v5', '5v5 · Knockout', PhosphorIconsBold.crosshair,
         {'game': 'Valorant', 'mode': 'team', 'format': 'single_elimination', 'max': 16, 'title': 'Valorant 5v5 Cup'}),
-    ('FIFA 1v1', 'Solo · Knockout', Icons.sports_soccer_rounded,
+    ('FIFA 1v1', 'Solo · Knockout', PhosphorIconsBold.soccerBall,
         {'game': 'EA FC', 'mode': 'solo', 'format': 'single_elimination', 'max': 32, 'title': 'FIFA 1v1 Knockout'}),
-    ('Free Fire Duo', 'Duos · League', Icons.local_fire_department_rounded,
+    ('Free Fire Duo', 'Duos · League', PhosphorIconsBold.fire,
         {'game': 'Free Fire', 'mode': 'duo', 'format': 'league', 'max': 16, 'title': 'Free Fire Duo League'}),
   ];
 
@@ -101,7 +102,7 @@ class _HostHubViewState extends State<HostHubView> {
     bottomNavigationBar: SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
-        child: TButton('Create a tournament', icon: Icons.add_rounded, onTap: _create),
+        child: TButton('Create a tournament', icon: PhosphorIconsBold.plus, onTap: _create),
       ),
     ),
     body: RefreshIndicator(
@@ -109,49 +110,20 @@ class _HostHubViewState extends State<HostHubView> {
       onRefresh: _load,
       child: CustomScrollView(
         slivers: [
-          SliverAppBar(
-            pinned: true,
-            expandedHeight: 200,
-            backgroundColor: CT.bg,
-            surfaceTintColor: Colors.transparent,
-            foregroundColor: Colors.white,
-            leading: Padding(
-              padding: const EdgeInsets.all(8),
-              child: Material(
-                color: Colors.black54,
-                shape: const CircleBorder(),
-                child: IconButton(
-                  padding: EdgeInsets.zero,
-                  icon: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 20),
-                  onPressed: Get.back,
-                ),
-              ),
-            ),
-            flexibleSpace: FlexibleSpaceBar(
-              titlePadding: const EdgeInsetsDirectional.only(start: 56, bottom: 14),
-              title: Text.rich(TextSpan(children: [
-                TextSpan(text: 'Host on ', style: CT.headline(18, w: FontWeight.w800)),
-                WidgetSpan(
-                  alignment: PlaceholderAlignment.baseline,
-                  baseline: TextBaseline.alphabetic,
-                  child: GradientText('HASH', style: CT.headline(18, w: FontWeight.w800)),
-                ),
-              ])),
-              background: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Image.asset('assets/host_program_hero.jpg', fit: BoxFit.cover, alignment: const Alignment(1, 0.1)),
-                  const DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [Color(0xCC000000), Color(0x55000000), CT.bg],
-                        stops: [0, 0.5, 1],
-                      ),
+          SliverToBoxAdapter(
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(4, 8, 16, 4),
+                child: Row(
+                  children: [
+                    IconButton(
+                      onPressed: Get.back,
+                      icon: const Icon(PhosphorIconsBold.arrowLeft, color: Colors.white),
                     ),
-                  ),
-                ],
+                    Text('Host', style: CT.screenTitle(20)),
+                  ],
+                ),
               ),
             ),
           ),
@@ -165,35 +137,33 @@ class _HostHubViewState extends State<HostHubView> {
                   : [
                       _verificationCard(),
                       if (_attention.isNotEmpty) ...[
-                        const TSectionTitle('Needs ', accent: 'attention'),
+                        const TSectionTitle('Needs attention'),
                         for (final a in _attention)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 8),
                             child: Row(children: [
-                              const Icon(Icons.priority_high_rounded, color: CT.primary, size: 18),
+                              const Icon(PhosphorIconsBold.warningCircle, color: CT.primary, size: 18),
                               const SizedBox(width: 8),
                               Expanded(child: Text(a, style: CT.body(13.5, color: CT.onSurface))),
                             ]),
                           ),
                       ],
                       if (_hasActivity && _stats.isNotEmpty) ...[
-                        const TSectionTitle('Your ', accent: 'numbers'),
+                        const TSectionTitle('Your numbers'),
                         _statsGrid(),
                       ],
                       if (_hosted.isNotEmpty) ...[
-                        const TSectionTitle('Your ', accent: 'tournaments'),
+                        const TSectionTitle('Your tournaments'),
                         for (final t in _hosted)
                           TournamentCard(t, onTap: () async {
                             await Get.toNamed(AppRoutes.MANAGE_TOURNAMENT, arguments: {'id': t.id});
                             _load();
                           }),
                       ] else ...[
-                        const TSectionTitle('Quick ', accent: 'start'),
-                        Text('Pick a template. You can change everything before publishing.', style: CT.body(13)),
+                        const TSectionTitle('Start from a template'),
+                        Text('You can change everything before publishing.', style: CT.body(13, color: CT.muted)),
                         const SizedBox(height: 12),
                         _templateGrid(),
-                        const TSectionTitle('How ', accent: 'hosting works'),
-                        _steps(),
                       ],
                     ],
             ),
@@ -241,72 +211,20 @@ class _HostHubViewState extends State<HostHubView> {
     ],
   );
 
-  Widget _templateGrid() => GridView.count(
-    crossAxisCount: 2,
-    shrinkWrap: true,
-    padding: EdgeInsets.zero,
-    physics: const NeverScrollableScrollPhysics(),
-    mainAxisSpacing: 10,
-    crossAxisSpacing: 10,
-    childAspectRatio: 1.45,
-    children: [
-      for (final (name, detail, icon, template) in _templates)
-        Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(22),
-            onTap: () => _create(template),
-            child: Ink(
-              padding: const EdgeInsets.all(14),
-              decoration: CT.card(borderColor: CT.outline),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12)),
-                    child: Icon(icon, color: Colors.white, size: 20),
-                  ),
-                  const Spacer(),
-                  Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: CT.headline(14.5, w: FontWeight.w800)),
-                  Text(detail, maxLines: 1, overflow: TextOverflow.ellipsis, style: CT.body(11.5, color: CT.muted)),
-                ],
-              ),
-            ),
-          ),
-        ),
-    ],
-  );
-
-  Widget _steps() => TPanel(
+  Widget _templateGrid() => Container(
+    decoration: CT.card(borderColor: CT.outline),
     child: Column(
       children: [
-        for (final (i, step) in const [
-          ('Create a draft', 'Game, format, schedule and prizes. Save anytime.'),
-          ('Publish', 'We check it\'s ready, then players can find and join it.'),
-          ('Approve & run', 'Approve teams, generate the bracket, share lobby details.'),
-          ('Pick winners', 'Hash pays prizes to winners\' wallets.'),
-        ].indexed)
-          Padding(
-            padding: EdgeInsets.only(bottom: i == 3 ? 0 : 14),
-            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Container(
-                width: 26,
-                height: 26,
-                alignment: Alignment.center,
-                decoration: const BoxDecoration(color: Color(0x1FFFFFFF), shape: BoxShape.circle),
-                child: Text('${i + 1}', style: CT.headline(12, color: Colors.white, w: FontWeight.w800)),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(step.$1, style: CT.headline(14, w: FontWeight.w700)),
-                  Text(step.$2, style: CT.body(12.5)),
-                ]),
-              ),
-            ]),
+        for (final (i, (name, detail, icon, template)) in _templates.indexed) ...[
+          if (i > 0) const Divider(height: 1, color: CT.hairline),
+          ListTile(
+            onTap: () => _create(template),
+            leading: Icon(icon, color: Colors.white),
+            title: Text(name, style: CT.headline(14.5, w: FontWeight.w700)),
+            subtitle: Text(detail, style: CT.body(12, color: CT.muted)),
+            trailing: const Icon(PhosphorIconsBold.caretRight, color: CT.muted),
           ),
+        ],
       ],
     ),
   );
@@ -342,7 +260,7 @@ class _HostHubViewState extends State<HostHubView> {
                 height: 42,
                 decoration: BoxDecoration(color: color.withValues(alpha: 0.14), shape: BoxShape.circle),
                 child: Icon(
-                  s == HostVerificationStatus.verified ? Icons.verified_rounded : Icons.shield_rounded,
+                  s == HostVerificationStatus.verified ? PhosphorIconsBold.sealCheck : PhosphorIconsBold.shield,
                   color: color,
                   size: 22,
                 ),
@@ -361,7 +279,7 @@ class _HostHubViewState extends State<HostHubView> {
             const SizedBox(height: 14),
             TButton.secondary(
               'Get verified',
-              icon: Icons.verified_user_rounded,
+              icon: PhosphorIconsBold.shieldCheck,
               height: 44,
               onTap: () async {
                 await Get.toNamed(AppRoutes.HOST_ONBOARDING);

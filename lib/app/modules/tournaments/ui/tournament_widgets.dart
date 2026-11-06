@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:get/get.dart';
 import 'package:hash/core/localization/app_region.dart';
 import 'package:hash/core/utils/app_snackbar.dart';
@@ -159,21 +160,18 @@ class TSectionTitle extends StatelessWidget {
   );
 }
 
-/// Text painted in the brand gradient.
+/// Accent word in a heading. Plain white: the shop style uses no gradients.
 class GradientText extends StatelessWidget {
   final String text;
   final TextStyle style;
   const GradientText(this.text, {super.key, required this.style});
 
   @override
-  Widget build(BuildContext context) => ShaderMask(
-    blendMode: BlendMode.srcIn,
-    shaderCallback: CT.brand.createShader,
-    child: Text(text, style: style),
-  );
+  Widget build(BuildContext context) => Text(text, style: style);
 }
 
-/// Primary actions use the brand gradient; secondary ones are frosted outlines.
+/// Shop-style pill: solid green with black text for the main action,
+/// a quiet outlined pill otherwise. [color] tints a danger action.
 class TButton extends StatelessWidget {
   final String label;
   final VoidCallback? onTap;
@@ -206,66 +204,52 @@ class TButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final enabled = onTap != null && !busy;
-    final fg = secondary ? (color ?? CT.onSurface) : Colors.white;
-    final content = busy
-        ? const AppLinearLoader.button()
-        : Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (icon != null) ...[
-                Icon(icon, size: 19, color: fg),
-                const SizedBox(width: 8),
-              ],
-              Flexible(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: CT.headline(15, color: fg, w: FontWeight.w800),
-                ),
-              ),
-            ],
-          );
+    final fill = color ?? CT.success;
+    final fg = secondary ? (color ?? Colors.white) : (color == null ? Colors.black : Colors.white);
     final radius = BorderRadius.circular(height / 2);
     return Opacity(
       opacity: enabled || busy ? 1 : 0.45,
       child: SizedBox(
         height: height,
         width: double.infinity,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
+        child: Material(
+          color: secondary ? Colors.white.withValues(alpha: 0.06) : fill,
+          shape: RoundedRectangleBorder(
             borderRadius: radius,
-            gradient: secondary
-                ? null
-                : color == null
-                    ? CT.brand
-                    : LinearGradient(colors: [color!, Color.lerp(color, Colors.black, 0.25)!]),
-            color: secondary ? Colors.white.withValues(alpha: 0.05) : null,
-            border: secondary
-                ? Border.all(color: (color ?? Colors.white).withValues(alpha: color == null ? 0.16 : 0.55))
-                : null,
-            boxShadow: secondary || !enabled
-                ? null
-                : [
-                    BoxShadow(
-                      color: (color ?? CT.pink).withValues(alpha: 0.35),
-                      blurRadius: 18,
-                      spreadRadius: -4,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
+            side: secondary
+                ? BorderSide(color: color?.withValues(alpha: 0.5) ?? CT.outline)
+                : BorderSide.none,
           ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: radius,
-              onTap: enabled ? onTap : null,
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: content,
-                ),
-              ),
+          child: InkWell(
+            borderRadius: radius,
+            onTap: enabled ? onTap : null,
+            child: Center(
+              child: busy
+                  ? SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(strokeWidth: 2.4, color: fg),
+                    )
+                  : Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (icon != null) ...[
+                            Icon(icon, size: 19, color: fg),
+                            const SizedBox(width: 8),
+                          ],
+                          Flexible(
+                            child: Text(
+                              label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: CT.headline(15, color: fg, w: FontWeight.w700),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
             ),
           ),
         ),
@@ -303,7 +287,7 @@ class TSegments extends StatelessWidget {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(18),
-                  color: e.key == value ? Colors.white.withValues(alpha: 0.14) : null,
+                  color: e.key == value ? CT.purple : null,
                 ),
                 child: Text(
                   e.value,
@@ -344,7 +328,7 @@ class TMessage extends StatelessWidget {
   });
 
   factory TMessage.error(Object error, VoidCallback retry) => TMessage(
-    icon: Icons.wifi_off_rounded,
+    icon: PhosphorIconsBold.wifiSlash,
     title: 'Could not load',
     subtitle: TournamentApiException.from(error).message,
     actionLabel: 'Retry',
@@ -414,7 +398,7 @@ class TBanner extends StatelessWidget {
           Positioned(
             right: -24,
             bottom: -30,
-            child: Icon(Icons.emoji_events_rounded, size: 170, color: Colors.white.withValues(alpha: 0.06)),
+            child: Icon(PhosphorIconsBold.trophy, size: 170, color: Colors.white.withValues(alpha: 0.06)),
           ),
           Positioned(
             left: -40,
@@ -459,30 +443,18 @@ class TFact extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(
     children: [
-      Container(
-        width: 32,
-        height: 32,
-        decoration: BoxDecoration(
-          color: CT.primary.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(icon, size: 17, color: CT.primary),
-      ),
+      Icon(icon, size: 18, color: CT.muted),
       const SizedBox(width: 12),
-      Expanded(child: Text(label, style: CT.body(13.5))),
+      Expanded(child: Text(label, style: CT.body(13.5, color: CT.onSurfaceVariant))),
       Flexible(
-        child: Text(
-          value,
-          textAlign: TextAlign.right,
-          style: CT.headline(14, w: FontWeight.w700),
-        ),
+        child: Text(value, textAlign: TextAlign.right, style: CT.headline(14, w: FontWeight.w600)),
       ),
     ],
   );
 }
 
-/// The list card used by discovery and "my tournaments": a full-bleed banner
-/// with the title over it, a prize badge, and a slots meter.
+/// The list card used by discovery and "my tournaments", built like the
+/// shop's product cards: photo on top, details underneath.
 class TournamentCard extends StatelessWidget {
   final Tournament t;
   final VoidCallback onTap;
@@ -492,167 +464,88 @@ class TournamentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = t.status;
-    final fill = t.maxPlayers <= 0 ? 0.0 : (t.registeredCount / t.maxPlayers).clamp(0.0, 1.0);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: 14),
       child: Material(
-        color: Colors.transparent,
+        color: CT.surface,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: CT.outline),
+        ),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(22),
-          child: Ink(
-            decoration: CT.card(borderColor: CT.outline),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(
-                  height: 168,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      TBanner(
-                        t.bannerUrl,
-                        radius: const BorderRadius.vertical(top: Radius.circular(21)),
-                      ),
-                      const DecoratedBox(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.vertical(top: Radius.circular(21)),
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [Color(0x66000000), Colors.transparent, Color(0xF00B0D12)],
-                            stops: [0, 0.35, 1],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AspectRatio(aspectRatio: 2.2, child: TBanner(t.bannerUrl)),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        TPill(s.label, color: statusColor(s)),
+                        if (t.isPrivate) ...[
+                          const SizedBox(width: 6),
+                          const TPill('Private', color: CT.onSurfaceVariant, icon: PhosphorIconsBold.lock),
+                        ],
+                        const Spacer(),
+                        ?badge,
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      t.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: CT.headline(16.5, w: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      [t.game, t.modeLabel, 'Starts ${fmtDate(t.startAt)}']
+                          .where((e) => e.isNotEmpty)
+                          .join(' · '),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: CT.body(12.5, color: CT.muted),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(fee(t), style: CT.headline(18, w: FontWeight.w800)),
+                        if (t.prizePool > 0) ...[
+                          const SizedBox(width: 10),
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 2),
+                            child: Text(
+                              '${money(t.prizePool, t.currency)} prize pool',
+                              style: CT.body(12.5, color: CT.successBright, w: FontWeight.w600),
+                            ),
+                          ),
+                        ],
+                        const Spacer(),
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 2),
+                          child: Text(
+                            '${t.registeredCount}/${t.maxPlayers} ${t.isSolo ? 'players' : 'teams'}',
+                            style: CT.body(12.5, color: CT.muted),
                           ),
                         ),
-                      ),
-                      Positioned(
-                        left: 12,
-                        top: 12,
-                        child: _glassPill(
-                          s.label.toUpperCase(),
-                          statusColor(s),
-                          dot: s == TStatus.live || s == TStatus.registrationOpen,
-                        ),
-                      ),
-                      if (t.prizePool > 0)
-                        Positioned(
-                          right: 12,
-                          top: 12,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.6),
-                              borderRadius: BorderRadius.circular(99),
-                              border: Border.all(color: CT.gold.withValues(alpha: 0.5)),
-                            ),
-                            child: Row(mainAxisSize: MainAxisSize.min, children: [
-                              const Icon(Icons.emoji_events_rounded, size: 14, color: CT.gold),
-                              const SizedBox(width: 4),
-                              Text(money(t.prizePool, t.currency),
-                                  style: CT.headline(12.5, color: Colors.white, w: FontWeight.w800)),
-                            ]),
-                          ),
-                        ),
-                      Positioned(
-                        left: 14,
-                        right: 14,
-                        bottom: 12,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              [t.game, t.modeLabel].where((e) => e.isNotEmpty).join(' · ').toUpperCase(),
-                              style: CT.mono(10.5, color: CT.primaryBright, w: FontWeight.w800),
-                            ),
-                            const SizedBox(height: 3),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    t.title,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: CT.display(19),
-                                  ),
-                                ),
-                                if (t.isPrivate) ...[
-                                  const SizedBox(width: 6),
-                                  const Icon(Icons.lock_rounded, size: 16, color: CT.verifiedBlue),
-                                ],
-                                if (badge != null) ...[const SizedBox(width: 6), badge!],
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+                  ],
                 ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-                  child: Row(
-                    children: [
-                      _stat('Entry', fee(t)),
-                      _stat('Starts', fmtDate(t.startAt)),
-                      Expanded(
-                        flex: 2,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('${t.registeredCount}/${t.maxPlayers} ${t.isSolo ? 'players' : 'teams'}',
-                                style: CT.headline(13.5, w: FontWeight.w700)),
-                            const SizedBox(height: 6),
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(99),
-                              child: Stack(children: [
-                                Container(height: 5, color: Colors.white.withValues(alpha: 0.08)),
-                                FractionallySizedBox(
-                                  widthFactor: fill,
-                                  child: Container(height: 5, color: CT.primary),
-                                ),
-                              ]),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
-
-  Widget _stat(String label, String v) => Expanded(
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(v, maxLines: 1, overflow: TextOverflow.ellipsis, style: CT.headline(13.5, w: FontWeight.w700)),
-        const SizedBox(height: 2),
-        Text(label, style: CT.body(11.5, color: CT.muted)),
-      ],
-    ),
-  );
 }
-
-Widget _glassPill(String label, Color color, {bool dot = false}) => Container(
-  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-  decoration: BoxDecoration(
-    color: Colors.black.withValues(alpha: 0.55),
-    borderRadius: BorderRadius.circular(99),
-    border: Border.all(color: color.withValues(alpha: 0.5)),
-  ),
-  child: Row(mainAxisSize: MainAxisSize.min, children: [
-    if (dot) ...[
-      Container(width: 6, height: 6, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-      const SizedBox(width: 5),
-    ],
-    Text(label, style: CT.mono(10, color: Colors.white, w: FontWeight.w800)),
-  ]),
-);
 
 
 Future<bool> confirmAction(

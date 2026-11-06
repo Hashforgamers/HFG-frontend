@@ -1,44 +1,40 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Design tokens for the tournaments module, matched to the home screen:
-/// near-black surfaces, the hashforgamers.com pink -> coral -> orange brand
-/// gradient for actions, and soft-edged 22px cards.
+/// Design tokens for the tournaments module, matching the Hash Shop: flat
+/// near-black surfaces with a faint border, solid green for the main action,
+/// purple for selection and accents. No gradients or glows.
 class CT {
   CT._();
 
-  // Surfaces
-  static const bg = Color(0xFF000000);
-  static const surfaceLow = Color(0xFF0B0D12);
-  static const surface = Color(0xFF13161E);
-  static const surfaceHigh = Color(0xFF1C2130);
-  static const cardTop = Color(0xFF161A24);
-  static const cardBottom = Color(0xFF0E1118);
+  // Surfaces (StoreColors)
+  static const bg = Color(0xFF050506);
+  static const surfaceLow = Color(0xFF0B0B0D);
+  static const surface = Color(0xFF111114);
+  static const surfaceHigh = Color(0xFF1A1A1F);
 
   // Text
   static const onSurface = Color(0xFFFFFFFF);
-  static const onSurfaceVariant = Color(0xFFA7AEBC);
-  static const muted = Color(0xFF6E7686);
+  static const onSurfaceVariant = Color(0xB3FFFFFF);
+  static const muted = Color(0x8CFFFFFF);
 
-  // Accents (brand palette from the home screen)
-  static const pink = Color(0xFFFF3E8E);
-  static const primary = Color(0xFFFF6F61);
-  static const primaryBright = Color(0xFFFF9A3D);
-  static const secondary = Color(0xFFFF3E8E);
+  // Accents
+  static const purple = Color(0xFF7A44C0);
+  static const primary = Color(0xFFB38CFF); // purple, for accent text/icons
+  static const primaryBright = Color(0xFFB38CFF);
+  static const secondary = Color(0xFFB38CFF);
   static const verifiedBlue = Color(0xFF3DA9FF);
   static const success = Color(0xFF00DC00);
-  static const successBright = Color(0xFF6BFF6B);
-  static const error = Color(0xFFFF5A6E);
+  static const successBright = Color(0xFF67FF67);
+  static const error = Color(0xFFFF5A5F);
   static const gold = Color(0xFFF4C342);
 
-  static const brand = LinearGradient(colors: [pink, primary, primaryBright]);
-
   // Lines / borders
-  static const outline = Color(0x1AFFFFFF);
+  static const outline = Color(0x1FFFFFFF);
   static const hairline = Color(0x14FFFFFF);
 
-  /// Without [borderColor]: an open row with a quiet divider. With it: a lit
-  /// card (gradient surface, tinted edge, soft drop shadow).
+  /// Without [borderColor]: an open row with a quiet divider. With it: a flat
+  /// panel like the shop's.
   static BoxDecoration card({Color? borderColor}) {
     if (borderColor == null) {
       return const BoxDecoration(
@@ -46,16 +42,9 @@ class CT {
       );
     }
     return BoxDecoration(
-      gradient: const LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [cardTop, cardBottom],
-      ),
-      borderRadius: BorderRadius.circular(22),
+      color: surface,
+      borderRadius: BorderRadius.circular(20),
       border: Border.all(color: borderColor, width: 1),
-      boxShadow: const [
-        BoxShadow(color: Color(0x59000000), blurRadius: 18, offset: Offset(0, 8)),
-      ],
     );
   }
 
@@ -70,6 +59,14 @@ class CT {
       spreadRadius: -4,
     ),
   ];
+
+  /// Screen titles, as in the shop (Orbitron).
+  static TextStyle screenTitle([double size = 20]) => GoogleFonts.orbitron(
+    color: onSurface,
+    fontSize: size,
+    fontWeight: FontWeight.w700,
+    height: 1.1,
+  );
 
   // Typography helpers
   static TextStyle display(

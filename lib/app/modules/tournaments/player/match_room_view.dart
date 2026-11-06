@@ -2,12 +2,14 @@ import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:hash/app/modules/chat/views/chat_room_view.dart';
 
 import '../data/dispute_chat_auth.dart';
 import '../data/tournament_api.dart';
+import '../data/tournament_chat.dart';
 import '../data/tournament_models.dart';
 import '../data/tournament_uploads.dart';
 import '../ui/tournament_theme.dart';
@@ -167,15 +169,24 @@ class _MatchRoomViewState extends State<MatchRoomView> {
     );
     if (r == null) return;
     await _run(
-      () => _api.submitCaptainResult(
-        _tid,
-        _m.id,
-        winnerTeamId: r.winner,
-        scoreA: r.a,
-        scoreB: r.b,
-        evidenceAssetIds: r.evidence,
-        notes: r.notes,
-      ),
+      () async {
+        await _api.submitCaptainResult(
+          _tid,
+          _m.id,
+          winnerTeamId: r.winner,
+          scoreA: r.a,
+          scoreB: r.b,
+          evidenceAssetIds: r.evidence,
+          notes: r.notes,
+        );
+        // Tells the other captain (and the host) through the match chat.
+        await TournamentChat.instance.post(
+          TournamentChat.matchRoomId(_m.id),
+          '${_me?.team?.name ?? 'A captain'} reported ${_name(_m.teamAId, 'a')} '
+          '${r.a} : ${r.b} ${_name(_m.teamBId, 'b')}. '
+          'Other captain: submit yours in the match room.',
+        );
+      },
       'Result submitted. Waiting for the other captain.',
     );
   }
@@ -243,7 +254,20 @@ class _MatchRoomViewState extends State<MatchRoomView> {
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: CT.bg,
-    appBar: tAppBar(_m.title),
+    appBar: tAppBar(
+      _m.title,
+      actions: [
+        IconButton(
+          tooltip: 'Match chat',
+          icon: const Icon(PhosphorIconsBold.chatsCircle),
+          onPressed: () async {
+            if (!await TournamentChat.instance.openMatch(_m)) {
+              toast('Match chat opens once the host shares the lobby.');
+            }
+          },
+        ),
+      ],
+    ),
     body: RefreshIndicator(
       color: CT.primary,
       onRefresh: _load,
@@ -273,7 +297,7 @@ class _MatchRoomViewState extends State<MatchRoomView> {
           if (_canSubmit) ...[
             TButton(
               'Submit result',
-              icon: Icons.upload_rounded,
+              icon: PhosphorIconsBold.uploadSimple,
               busy: _busy,
               onTap: _submitResult,
             ),
@@ -282,7 +306,7 @@ class _MatchRoomViewState extends State<MatchRoomView> {
           if (_canDispute)
             TButton.secondary(
               'Report a problem',
-              icon: Icons.flag_rounded,
+              icon: PhosphorIconsBold.flag,
               color: CT.error,
               onTap: _openDispute,
             ),
@@ -386,7 +410,7 @@ class _MatchRoomViewState extends State<MatchRoomView> {
               IconButton(
                 visualDensity: VisualDensity.compact,
                 icon: const Icon(
-                  Icons.copy_rounded,
+                  PhosphorIconsBold.copy,
                   size: 16,
                   color: CT.primary,
                 ),
@@ -529,7 +553,7 @@ class _MatchRoomViewState extends State<MatchRoomView> {
                 const SizedBox(height: 12),
                 TButton.secondary(
                   'Open dispute chat',
-                  icon: Icons.chat_rounded,
+                  icon: PhosphorIconsBold.chatCircle,
                   onTap: () => _openChat(d),
                 ),
               ],
@@ -763,7 +787,7 @@ class _ResultSheetState extends State<ResultSheet> {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: e.url == null
-                      ? const Icon(Icons.image, color: CT.success)
+                      ? const Icon(PhosphorIconsBold.image, color: CT.success)
                       : CachedNetworkImage(
                           imageUrl: e.url!,
                           width: 64,
@@ -775,7 +799,7 @@ class _ResultSheetState extends State<ResultSheet> {
                 width: 200,
                 child: TButton.secondary(
                   _evidence.isEmpty ? 'Add screenshot' : 'Add another',
-                  icon: Icons.add_photo_alternate_rounded,
+                  icon: PhosphorIconsBold.image,
                   busy: _uploading,
                   onTap: _addEvidence,
                 ),
@@ -888,7 +912,7 @@ class _DisputeSheetState extends State<_DisputeSheet> {
             _evidence.isEmpty
                 ? 'Add screenshot'
                 : '${_evidence.length} screenshot(s) added · add more',
-            icon: Icons.add_photo_alternate_rounded,
+            icon: PhosphorIconsBold.image,
             busy: _uploading,
             onTap: () async {
               setState(() => _uploading = true);

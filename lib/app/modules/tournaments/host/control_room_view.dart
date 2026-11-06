@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:get/get.dart';
 
 import '../../../routes/app_routes.dart';
 import '../data/tournament_api.dart';
+import '../data/tournament_chat.dart';
 import '../data/tournament_models.dart';
 import '../player/match_room_view.dart' show ResultInput, ResultSheet;
 import '../player/tournament_detail_view.dart' show MatchTile;
@@ -199,15 +201,16 @@ class _ControlRoomViewState extends State<ControlRoomView> {
       backgroundColor: CT.surfaceLow,
     );
     if (audience == null) return;
-    await _run(
-      () => _api.announce(
-        _id,
-        title: title,
-        message: message,
-        audience: audience,
-      ),
-      'Announcement sent.',
-    );
+    await _run(() async {
+      await _api.announce(_id, title: title, message: message, audience: audience);
+      // Push it to players through the players chat as well (best effort).
+      try {
+        final room = await TournamentChat.instance.ensureAllRoom(_t!, _regs, _teams);
+        await TournamentChat.instance.post(room, '📣 $title\n$message');
+      } catch (e) {
+        debugPrint('[ControlRoom] players chat notify failed: $e');
+      }
+    }, 'Announcement sent.');
   }
 
   // ---------------------------------------------------------------------- UI
@@ -299,11 +302,18 @@ class _ControlRoomViewState extends State<ControlRoomView> {
     };
 
     final nextCard = switch (s) {
+      TStatus.registrationOpen when confirmed == 0 => (
+        'Registration is open',
+        'No one has joined yet. Share the link to fill your ${t.maxPlayers} slots.',
+        'Share tournament',
+        PhosphorIconsBold.export,
+        _share as VoidCallback?,
+      ),
       TStatus.published => (
         'Registration opens ${fmtDateTime(t.registrationStartAt)}',
         'Share the link now so players are ready to join.',
         'Share tournament',
-        Icons.ios_share_rounded,
+        PhosphorIconsBold.export,
         _share as VoidCallback?,
       ),
       TStatus.live when openDisputes > 0 => (
@@ -328,7 +338,7 @@ class _ControlRoomViewState extends State<ControlRoomView> {
         null,
       ),
       TStatus.cancelled => ('Tournament cancelled', 'Refunds are processed automatically.', null, null, null),
-      _ when next != null => (next.$1, next.$2, next.$1, Icons.arrow_forward_rounded, next.$3),
+      _ when next != null => (next.$1, next.$2, next.$1, PhosphorIconsBold.arrowRight, next.$3),
       _ => null,
     };
 
@@ -369,15 +379,15 @@ class _ControlRoomViewState extends State<ControlRoomView> {
         physics: const NeverScrollableScrollPhysics(),
         mainAxisSpacing: 10,
         crossAxisSpacing: 10,
-        childAspectRatio: 1.15,
+        childAspectRatio: 1.5,
         children: [
-          _tile(Icons.groups_rounded, '${t.registeredCount}/${t.maxPlayers}', t.isSolo ? 'Players' : 'Entries'),
-          if (!t.isSolo) _tile(Icons.verified_rounded, '$approved', 'Approved'),
-          _tile(Icons.how_to_reg_rounded, '$checkedIn', 'Checked in'),
-          _tile(Icons.account_tree_rounded, '${_matches.length}', 'Matches'),
-          _tile(Icons.gavel_rounded, '$openDisputes', 'Disputes'),
-          _tile(Icons.payments_rounded, money(t.totalCollection, t.currency), 'Collected'),
-          if (t.isSolo) _tile(Icons.emoji_events_rounded, money(t.prizePool, t.currency), 'Prize pool'),
+          _tile(PhosphorIconsBold.usersThree, '${t.registeredCount}/${t.maxPlayers}', t.isSolo ? 'Players' : 'Entries'),
+          if (!t.isSolo) _tile(PhosphorIconsBold.sealCheck, '$approved', 'Approved'),
+          _tile(PhosphorIconsBold.userCheck, '$checkedIn', 'Checked in'),
+          _tile(PhosphorIconsBold.treeStructure, '${_matches.length}', 'Matches'),
+          _tile(PhosphorIconsBold.gavel, '$openDisputes', 'Disputes'),
+          _tile(PhosphorIconsBold.money, money(t.totalCollection, t.currency), 'Collected'),
+          if (t.isSolo) _tile(PhosphorIconsBold.trophy, money(t.prizePool, t.currency), 'Prize pool'),
         ],
       ),
       if (roomTasks.isNotEmpty) ...[
@@ -399,20 +409,20 @@ class _ControlRoomViewState extends State<ControlRoomView> {
         childAspectRatio: 2.4,
         children: [
           if (!s.isTerminal)
-            _action(Icons.edit_rounded, 'Edit details', () async {
+            _action(PhosphorIconsBold.pencilSimple, 'Edit details', () async {
               await Get.toNamed(AppRoutes.CREATE_TOURNAMENT, arguments: {'id': _id});
               _load();
             }),
-          if (s != TStatus.draft) _action(Icons.ios_share_rounded, 'Share', _share),
-          if (!s.isTerminal && s != TStatus.draft) _action(Icons.campaign_rounded, 'Announce', _announce),
-          _action(Icons.visibility_rounded, 'Player view', () => Get.toNamed(
+          if (s != TStatus.draft) _action(PhosphorIconsBold.export, 'Share', _share),
+          if (!s.isTerminal && s != TStatus.draft) _action(PhosphorIconsBold.megaphone, 'Announce', _announce),
+          _action(PhosphorIconsBold.eye, 'Player view', () => Get.toNamed(
                 AppRoutes.TOURNAMENT_DETAIL,
                 arguments: {'id': _id},
                 preventDuplicates: false,
               )),
           if (s == TStatus.registrationClosed && _matches.isNotEmpty && next?.$1 != 'Start tournament')
-            _action(Icons.play_arrow_rounded, 'Start now', _start),
-          if (!s.isTerminal) _action(Icons.cancel_rounded, 'Cancel', _cancel, danger: true),
+            _action(PhosphorIconsBold.play, 'Start now', _start),
+          if (!s.isTerminal) _action(PhosphorIconsBold.xCircle, 'Cancel', _cancel, danger: true),
         ],
       ),
       if (_news.isNotEmpty) ...[
@@ -530,9 +540,8 @@ class _ControlRoomViewState extends State<ControlRoomView> {
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(icon, size: 18, color: CT.onSurfaceVariant),
         FittedBox(
           fit: BoxFit.scaleDown,
           alignment: Alignment.centerLeft,
@@ -588,7 +597,7 @@ class _ControlRoomViewState extends State<ControlRoomView> {
       ),
       if (_regs.isEmpty)
         TMessage(
-          icon: Icons.group_add_rounded,
+          icon: PhosphorIconsBold.userPlus,
           title: 'No one has joined yet',
           subtitle: t.status == TStatus.published
               ? 'Registration opens ${fmtDateTime(t.registrationStartAt)}. Share the link to get players ready.'
@@ -622,8 +631,15 @@ class _ControlRoomViewState extends State<ControlRoomView> {
               ),
               PopupMenuButton<String>(
                 color: CT.surfaceHigh,
-                icon: const Icon(Icons.more_vert_rounded, color: CT.muted),
+                icon: const Icon(PhosphorIconsBold.dotsThreeVertical, color: CT.muted),
                 onSelected: (a) async {
+                  if (a == 'message') {
+                    if (r.userId == null ||
+                        !await TournamentChat.instance.openDirect(r.userId!)) {
+                      toast('This player can\'t be messaged yet.', error: true);
+                    }
+                    return;
+                  }
                   if (a == 'remove_participant' &&
                       !await confirmAction(
                         'Remove ${r.gamerName}?',
@@ -639,6 +655,7 @@ class _ControlRoomViewState extends State<ControlRoomView> {
                   );
                 },
                 itemBuilder: (_) => [
+                  _menu('message', 'Message'),
                   if (r.isConfirmed && r.checkedInAt == null)
                     _menu('check_in', 'Check in'),
                   if (r.checkedInAt != null)
@@ -698,9 +715,10 @@ class _ControlRoomViewState extends State<ControlRoomView> {
           ),
           PopupMenuButton<String>(
             color: CT.surfaceHigh,
-            icon: const Icon(Icons.more_vert_rounded, color: CT.muted),
+            icon: const Icon(PhosphorIconsBold.dotsThreeVertical, color: CT.muted),
             onSelected: (a) => _teamAction(team, a),
             itemBuilder: (_) => [
+              _menu('chat', 'Message team'),
               if (!team.isApproved) _menu('approve', 'Approve'),
               if (team.status == 'pending')
                 _menu('request_information', 'Request info'),
@@ -725,6 +743,10 @@ class _ControlRoomViewState extends State<ControlRoomView> {
   }
 
   Future<void> _teamAction(Team team, String action) async {
+    if (action == 'chat') {
+      await TournamentChat.instance.openTeam(_t!, team).catchError((Object e) => toastError(e));
+      return;
+    }
     String? reason;
     int? seed;
     if (const {
@@ -771,7 +793,7 @@ class _ControlRoomViewState extends State<ControlRoomView> {
       if (canGenerate && auto)
         TButton(
           'Generate matches',
-          icon: Icons.account_tree_rounded,
+          icon: PhosphorIconsBold.treeStructure,
           busy: _busy,
           onTap: _generate,
         ),
@@ -781,13 +803,13 @@ class _ControlRoomViewState extends State<ControlRoomView> {
         const SizedBox(height: 10),
         TButton.secondary(
           'Create match',
-          icon: Icons.add_rounded,
+          icon: PhosphorIconsBold.plus,
           onTap: () => _createMatch(t),
         ),
       ],
       if (_matches.isEmpty)
         const TMessage(
-          icon: Icons.account_tree_outlined,
+          icon: PhosphorIconsBold.treeStructure,
           title: 'No matches yet',
           subtitle: 'Close registration and approve entries first.',
         ),
@@ -878,6 +900,7 @@ class _ControlRoomViewState extends State<ControlRoomView> {
 
   Future<void> _matchActions(MatchRow m) async {
     final actions = <String, String>{
+      'chat': 'Open match chat',
       'set_lobby': 'Set lobby / room details',
       if (const {'scheduled', 'ready'}.contains(m.status))
         'start': 'Start match',
@@ -916,15 +939,37 @@ class _ControlRoomViewState extends State<ControlRoomView> {
       backgroundColor: CT.surfaceLow,
     );
     if (a == null) return;
+    // Best effort: the match action already succeeded on the server.
+    Future<void> notify(String text) async {
+      try {
+        final room = await TournamentChat.instance.ensureMatchRoom(_t!, m, _teams);
+        await TournamentChat.instance.post(room, text);
+      } catch (e) {
+        debugPrint('[ControlRoom] match chat notify failed: $e');
+      }
+    }
+
     switch (a) {
+      case 'chat':
+        try {
+          await TournamentChat.instance.ensureMatchRoom(_t!, m, _teams);
+          await TournamentChat.instance.openMatch(m);
+        } catch (e) {
+          toastError(e);
+        }
       case 'set_lobby':
         final lobby = await _lobbyDialog(m.lobby);
         if (lobby == null) return;
         await _run(
-          () => _api.manageMatch(_id, m.id, {
-            'action': 'set_lobby',
-            'lobby_details': lobby,
-          }),
+          () async {
+            await _api.manageMatch(_id, m.id, {
+              'action': 'set_lobby',
+              'lobby_details': lobby,
+            });
+            await notify(
+              'Lobby for ${m.title} is ready. Open the match room in Tournaments for the room ID and password.',
+            );
+          },
           'Lobby shared with both teams.',
         );
       case 'start':
@@ -936,7 +981,10 @@ class _ControlRoomViewState extends State<ControlRoomView> {
             ))
           return;
         await _run(
-          () => _api.manageMatch(_id, m.id, {'action': 'start'}),
+          () async {
+            await _api.manageMatch(_id, m.id, {'action': 'start'});
+            await notify('${m.title} has started. Good luck! Report the result in the match room when you finish.');
+          },
           'Match started.',
         );
       case 'propose':
@@ -954,14 +1002,20 @@ class _ControlRoomViewState extends State<ControlRoomView> {
         );
         if (r == null) return;
         await _run(
-          () => _api.proposeResult(
-            _id,
-            m.id,
-            winnerTeamId: r.winner,
-            scoreA: r.a,
-            scoreB: r.b,
-            evidenceAssetIds: r.evidence,
-          ),
+          () async {
+            await _api.proposeResult(
+              _id,
+              m.id,
+              winnerTeamId: r.winner,
+              scoreA: r.a,
+              scoreB: r.b,
+              evidenceAssetIds: r.evidence,
+            );
+            await notify(
+              'Host posted the result: ${_names[m.teamAId] ?? 'Team A'} ${r.a} : ${r.b} ${_names[m.teamBId] ?? 'Team B'}. '
+              'Captains: accept or dispute in the match room within 15 minutes.',
+            );
+          },
           'Result posted. Captains have 15 minutes to accept or dispute.',
         );
       case 'record_standings':
@@ -1289,7 +1343,7 @@ class _ControlRoomViewState extends State<ControlRoomView> {
     if (p == null) {
       return [
         const TMessage(
-          icon: Icons.emoji_events_outlined,
+          icon: PhosphorIconsBold.trophy,
           title: 'Finish comes later',
           subtitle: 'Once every match is done you pick the winners here.',
         ),
@@ -1323,7 +1377,7 @@ class _ControlRoomViewState extends State<ControlRoomView> {
       const SizedBox(height: 14),
       TButton(
         'Pick winners',
-        icon: Icons.emoji_events_rounded,
+        icon: PhosphorIconsBold.trophy,
         busy: _busy,
         onTap: p.ready ? () => _pickWinners(t, p) : null,
       ),

@@ -621,6 +621,33 @@ class ChatService extends GetxService with WidgetsBindingObserver {
     return roomId;
   }
 
+  /// A shared room with a fixed id (tournament team/match/all-players chat).
+  /// Members are only ever added, so whoever opens it never drops others.
+  Future<String> ensureSharedRoom({
+    required String roomId,
+    required String name,
+    required String tournamentId,
+    required Map<String, String> memberNames,
+    List<String> adminIds = const [],
+  }) async {
+    final uid = currentUid;
+    if (uid == null) throw Exception('Please sign in to open this chat.');
+    await ensureCurrentUserProfile();
+    final members = <String>{uid, ...memberNames.keys.where((id) => id.isNotEmpty)};
+    await _roomsRef.doc(roomId).set({
+      'id': roomId,
+      'type': 'group',
+      'name': name,
+      'tournament_id': tournamentId,
+      'members': FieldValue.arrayUnion(members.toList()),
+      if (adminIds.isNotEmpty) 'admins': FieldValue.arrayUnion(adminIds),
+      'member_names': memberNames,
+      'updated_at': FieldValue.serverTimestamp(),
+      'client_updated_at': DateTime.now().toIso8601String(),
+    }, SetOptions(merge: true));
+    return roomId;
+  }
+
   Stream<List<ChatMessageModel>> streamRoomMessages(
     String roomId, {
     int limit = 200,
