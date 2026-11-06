@@ -1,7 +1,7 @@
 import { FlagSwitch } from "@/components/flag-switch";
 import { PushShell } from "@/components/push-shell";
 import { requireAdminSession } from "@/lib/auth";
-import { FLAGS, readFlags, type FlagState } from "@/lib/flags";
+import { FLAGS, PLATFORMS, readFlags, type FlagState } from "@/lib/flags";
 
 export const dynamic = "force-dynamic";
 
@@ -35,12 +35,19 @@ export default async function FlagsPage() {
                   <code className="small">{flag.key}</code>
                 </div>
                 {state && (
-                  <FlagSwitch
-                    flagKey={flag.key}
-                    label={flag.label}
-                    enabled={state.enabled}
-                    warning={flag.warning}
-                  />
+                  <div className="stack tight">
+                    {PLATFORMS.map((pl) => (
+                      <FlagSwitch
+                        key={pl.id}
+                        flagKey={flag.key}
+                        label={flag.label}
+                        platform={pl.id}
+                        platformLabel={pl.label}
+                        enabled={state.platforms[pl.id]}
+                        warning={pl.id === "android" ? flag.warning : undefined}
+                      />
+                    ))}
+                  </div>
                 )}
               </div>
               {flag.warning && <p className="warn small">{flag.warning}</p>}

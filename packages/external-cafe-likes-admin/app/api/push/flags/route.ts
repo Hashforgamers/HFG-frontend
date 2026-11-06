@@ -19,11 +19,11 @@ export async function POST(request: Request) {
   const session = await getAdminSession();
   if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   try {
-    const body = (await request.json()) as { key?: unknown; enabled?: unknown };
-    if (typeof body.key !== "string" || typeof body.enabled !== "boolean") {
-      return NextResponse.json({ error: "Send { key, enabled }." }, { status: 400 });
+    const body = (await request.json()) as { key?: unknown; platform?: unknown; enabled?: unknown };
+    if (typeof body.key !== "string" || typeof body.platform !== "string" || typeof body.enabled !== "boolean") {
+      return NextResponse.json({ error: "Send { key, platform, enabled }." }, { status: 400 });
     }
-    await setFlag(body.key, body.enabled);
+    await setFlag(body.key, body.platform, body.enabled);
     return NextResponse.json({ flags: await readFlags() });
   } catch (error) {
     return NextResponse.json(
