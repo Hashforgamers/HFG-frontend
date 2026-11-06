@@ -17,6 +17,7 @@ abstract final class AppRemoteConfig {
       'ludo_quit_cooldown_threshold';
   static const String onboardingFirstMatchEnabledKey =
       'onboarding_first_match_enabled';
+  static const String tournamentsEnabledKey = 'tournaments_enabled';
 
   @visibleForTesting
   static const Map<String, Object> defaults = {
@@ -25,24 +26,42 @@ abstract final class AppRemoteConfig {
     ludoQuitCooldownSecondsKey: 0,
     ludoQuitCooldownThresholdKey: 2,
     onboardingFirstMatchEnabledKey: true,
+    // Off unless switched on from Push Studio (Play contest policy).
+    tournamentsEnabledKey: false,
   };
 
   static bool _ready = false;
+  static bool? _tournamentsSession;
 
   static Future<void> init() async {
     try {
       final rc = FirebaseRemoteConfig.instance;
       await rc.setDefaults(defaults);
+      await rc.setConfigSettings(
+        RemoteConfigSettings(
+          fetchTimeout: const Duration(seconds: 10),
+          // Short so a Push Studio switch reaches users within minutes.
+          minimumFetchInterval: const Duration(minutes: 5),
+        ),
+      );
       _ready = true;
-      unawaited(
-        rc.fetchAndActivate().catchError((Object e) {
-          debugPrint('[AppRemoteConfig] fetch failed: $e');
-          return false;
-        }),
+      // Wait briefly so this launch can use a fresh value; never block long.
+      await rc
+          .fetchAndActivate()
+          .timeout(const Duration(milliseconds: 1500))
+          .catchError((Object e) {
+            debugPrint('[AppRemoteConfig] fetch failed: $e');
+            return false;
+          });
+      // Real-time updates are activated for the next launch.
+      rc.onConfigUpdated.listen(
+        (_) => rc.activate(),
+        onError: (Object e) => debugPrint('[AppRemoteConfig] listen: $e'),
       );
     } catch (e) {
       debugPrint('[AppRemoteConfig] init failed: $e');
     }
+    _tournamentsSession = _bool(tournamentsEnabledKey);
   }
 
   static bool _bool(String key) {
@@ -81,6 +100,11 @@ abstract final class AppRemoteConfig {
   /// Early quits within 30 minutes that trigger the lockout.
   static int get ludoQuitCooldownThreshold =>
       _int(ludoQuitCooldownThresholdKey, min: 1, max: 10);
+
+  /// Tournaments, hosting and tournament invites. Fixed for the app session
+  /// (read once at startup) so tabs never appear or vanish mid-use.
+  static bool get tournamentsEnabled =>
+      _tournamentsSession ?? (defaults[tournamentsEnabledKey]! as bool);
 
   /// New users go straight from signup into an easy 1v1 Ludo match.
   static bool get onboardingFirstMatchEnabled =>
