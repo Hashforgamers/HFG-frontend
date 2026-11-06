@@ -20,12 +20,6 @@ class _HomeHostCardState extends State<HomeHostCard> {
   static const _surface = Color(0xFF121216);
   static const _separator = Color(0x26FFFFFF);
 
-  bool _down = false;
-
-  void _set(bool v) {
-    if (_down != v) setState(() => _down = v);
-  }
-
   void _open() {
     Haptics.selection();
     widget.onTap();
@@ -217,77 +211,220 @@ class _HomeHostCardState extends State<HomeHostCard> {
     );
   }
 
-  Widget _cta() {
-    return GestureDetector(
-      onTapDown: (_) => _set(true),
-      onTapUp: (_) => _set(false),
-      onTapCancel: () => _set(false),
-      onTap: _open,
-      child: AnimatedScale(
-        scale: _down ? 0.97 : 1,
-        duration: const Duration(milliseconds: 120),
-        curve: Curves.easeOut,
-        child: Container(
-          height: 40,
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          decoration: ShapeDecoration(
-            shape: StadiumBorder(
-              side: BorderSide(
-                color: Colors.white.withValues(alpha: 0.35),
-                width: 1,
-              ),
-            ),
-            gradient: HomeTokens.brandGradient,
-            shadows: [
-              BoxShadow(
-                color: HomeTokens.pink.withValues(alpha: 0.45),
-                blurRadius: 18,
-                spreadRadius: -4,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 28,
-                height: 28,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF0B0B10),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.add_rounded,
-                  color: Colors.white,
-                  size: 18,
-                ),
-              ),
-              Expanded(
-                child: Text(
-                  'Become a Tournament Host',
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.inter(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.4,
+  Widget _cta() => _SlideToConfirm(
+    label: 'Slide to become a host',
+    onConfirmed: widget.onTap,
+  );
+}
+
+/// Slide-to-confirm capsule: drag the knob to the end to continue. A plain
+/// tap nudges the knob so the gesture is discoverable.
+class _SlideToConfirm extends StatefulWidget {
+  const _SlideToConfirm({required this.label, required this.onConfirmed});
+
+  final String label;
+  final VoidCallback onConfirmed;
+
+  @override
+  State<_SlideToConfirm> createState() => _SlideToConfirmState();
+}
+
+class _SlideToConfirmState extends State<_SlideToConfirm>
+    with SingleTickerProviderStateMixin {
+  static const _height = 52.0;
+  static const _knob = 44.0;
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 260),
+  );
+  double _max = 1;
+  bool _done = false;
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  void _drag(DragUpdateDetails d) {
+    if (_done) return;
+    _c.value = (_c.value + d.delta.dx / _max).clamp(0.0, 1.0);
+  }
+
+  Future<void> _release([DragEndDetails? _]) async {
+    if (_done) return;
+    if (_c.value > 0.85) {
+      _done = true;
+      Haptics.criticalSuccess();
+      await _c.animateTo(1, curve: Curves.easeOut);
+      widget.onConfirmed();
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+      if (mounted) {
+        _done = false;
+        _c.animateTo(0, curve: Curves.easeOutCubic);
+      }
+    } else {
+      _c.animateTo(0, curve: Curves.easeOutBack);
+    }
+  }
+
+  Future<void> _hint() async {
+    if (_done) return;
+    Haptics.selection();
+    await _c.animateTo(0.22, curve: Curves.easeOut);
+    if (mounted) _c.animateTo(0, curve: Curves.easeOutBack);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, box) {
+        _max = box.maxWidth - _knob - 8;
+        return Semantics(
+          button: true,
+          label: widget.label,
+          onTap: widget.onConfirmed,
+          child: GestureDetector(
+            onTap: _hint,
+            onHorizontalDragUpdate: _drag,
+            onHorizontalDragEnd: _release,
+            child: AnimatedBuilder(
+              animation: _c,
+              builder: (context, _) {
+                final x = _c.value * _max;
+                return Container(
+                  height: _height,
+                  decoration: ShapeDecoration(
+                    shape: StadiumBorder(
+                      side: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.18),
+                      ),
+                    ),
+                    gradient: LinearGradient(
+                      colors: [
+                        for (final c in HomeTokens.brandGradient.colors)
+                          c.withValues(alpha: 0.22),
+                      ],
+                    ),
                   ),
-                ),
-              ),
-              const Padding(
-                padding: EdgeInsets.only(right: 8),
-                child: Icon(
-                  Icons.arrow_forward_rounded,
-                  color: Colors.white,
-                  size: 20,
-                ),
-              ),
-            ],
+                  child: Stack(
+                    alignment: Alignment.centerLeft,
+                    children: [
+                      // Gradient fill trailing the knob.
+                      Container(
+                        width: x + _knob + 8,
+                        decoration: ShapeDecoration(
+                          shape: const StadiumBorder(),
+                          gradient: HomeTokens.brandGradient,
+                          shadows: [
+                            BoxShadow(
+                              color: HomeTokens.pink.withValues(alpha: 0.4),
+                              blurRadius: 16,
+                              spreadRadius: -4,
+                            ),
+                          ],
+                        ),
+                      ),
+                      Center(
+                        child: Opacity(
+                          opacity: (1 - _c.value * 1.6).clamp(0.0, 1.0),
+                          child: Padding(
+                            padding: const EdgeInsets.only(left: _knob),
+                            child: _Shimmer(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    widget.label,
+                                    style: GoogleFonts.inter(
+                                      color: Colors.white,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: -0.3,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Icon(
+                                    Icons.keyboard_double_arrow_right_rounded,
+                                    color: Colors.white,
+                                    size: 18,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        left: 4 + x,
+                        child: Container(
+                          width: _knob,
+                          height: _knob,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0B0B10),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.25),
+                            ),
+                          ),
+                          child: Icon(
+                            _c.value > 0.85
+                                ? Icons.check_rounded
+                                : Icons.arrow_forward_rounded,
+                            color: Colors.white,
+                            size: 22,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
+}
+
+/// A light sweep across the hint text so the track reads as interactive.
+class _Shimmer extends StatefulWidget {
+  const _Shimmer({required this.child});
+  final Widget child;
+
+  @override
+  State<_Shimmer> createState() => _ShimmerState();
+}
+
+class _ShimmerState extends State<_Shimmer>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1800),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: _c,
+    builder: (context, child) => ShaderMask(
+      blendMode: BlendMode.srcIn,
+      shaderCallback: (r) => LinearGradient(
+        colors: const [Color(0x99FFFFFF), Colors.white, Color(0x99FFFFFF)],
+        stops: [
+          (_c.value - 0.25).clamp(0.0, 1.0),
+          _c.value,
+          (_c.value + 0.25).clamp(0.0, 1.0),
+        ],
+      ).createShader(r),
+      child: child,
+    ),
+    child: widget.child,
+  );
 }

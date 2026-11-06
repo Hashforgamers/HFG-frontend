@@ -78,6 +78,15 @@ class _TournamentEditorViewState extends State<TournamentEditorView> {
     _regEnd = _regStart!.add(const Duration(days: 3));
     _start = _regEnd!.add(const Duration(hours: 2));
     _end = _start!.add(const Duration(hours: 4));
+    final tpl = jsonMap(a['template']);
+    if (tpl.isNotEmpty) {
+      _title.text = jsonStr(tpl['title']) ?? '';
+      _game.text = jsonStr(tpl['game']) ?? '';
+      if (_modes.containsKey(tpl['mode'])) _mode = tpl['mode'] as String;
+      _teamSize.text = '${_modes[_mode]}';
+      if (_formats.contains(tpl['format'])) _format = tpl['format'] as String;
+      _maxPlayers.text = '${jsonInt(tpl['max']) ?? 16}';
+    }
     if (_id != null) _loadExisting();
     if (!_verified) {
       _api
@@ -662,11 +671,9 @@ class _TournamentEditorViewState extends State<TournamentEditorView> {
           showCheckmark: false,
           selectedColor: CT.primary,
           backgroundColor: CT.surface,
-          labelStyle: CT.body(
-            12.5,
-            color: v == selected ? Colors.black : CT.onSurface,
-            w: FontWeight.w600,
-          ),
+          labelStyle: CT.body(12.5, color: v == selected ? Colors.white : CT.onSurface, w: FontWeight.w700),
+          shape: const StadiumBorder(side: BorderSide(color: CT.outline)),
+          side: BorderSide(color: v == selected ? CT.primary : CT.outline),
         ),
     ],
   );

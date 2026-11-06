@@ -8,6 +8,7 @@ import 'host_onboarding_controller.dart';
 import '../models/host_program.dart';
 import '../models/host_verification.dart';
 import '../../ui/tournament_theme.dart';
+import '../../ui/tournament_widgets.dart';
 import 'package:hash/core/localization/app_region.dart';
 
 /// Host Onboarding — value proposition screen.
@@ -20,18 +21,25 @@ class HostOnboardingView extends GetView<HostOnboardingController> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: CT.bg,
-      body: Obx(() {
-        if (controller.isLoading.value) {
-          return const _CenteredLoader();
-        }
-        if (controller.program.value == null) {
-          return _ErrorRetry(
-            message: controller.error.value ?? 'Something went wrong.',
-            onRetry: controller.load,
-          );
-        }
-        return _Content(controller: controller);
-      }),
+      body: SafeArea(
+        bottom: false,
+        child: Stack(
+          children: [
+            Obx(() {
+              if (controller.isLoading.value) {
+                return const _CenteredLoader();
+              }
+              if (controller.program.value == null) {
+                return _ErrorRetry(
+                  message: controller.error.value ?? 'Something went wrong.',
+                  onRetry: controller.load,
+                );
+              }
+              return _Content(controller: controller);
+            }),
+          ],
+        ),
+      ),
       bottomNavigationBar: Obx(
         () => controller.isLoading.value || controller.program.value == null
             ? const SizedBox.shrink()
@@ -106,7 +114,7 @@ class _Content extends StatelessWidget {
               children: [
                 const _StatsRow(),
                 const SizedBox(height: 20),
-                const _EarningsCard(),
+                _Estimator(program: program),
                 if (program.performanceLevels.isNotEmpty) ...[
                   const SizedBox(height: 24),
                   _TierStrip(tiers: program.performanceLevels),
@@ -158,15 +166,34 @@ class _Hero extends StatelessWidget {
     return ColoredBox(
       color: CT.bg,
       child: SafeArea(
+        top: false,
         bottom: false,
         child: AspectRatio(
           aspectRatio: 1672 / 941,
-          child: Image.asset(
-            'assets/community_host_banner.png',
-            width: double.infinity,
-            fit: BoxFit.cover,
-            alignment: Alignment.center,
-            filterQuality: FilterQuality.high,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.asset(
+                'assets/community_host_banner.png',
+                width: double.infinity,
+                fit: BoxFit.cover,
+                alignment: Alignment.center,
+                filterQuality: FilterQuality.high,
+              ),
+              Positioned(
+                right: 10,
+                top: 10,
+                child: Material(
+                  color: Colors.black54,
+                  shape: const CircleBorder(),
+                  child: IconButton(
+                    tooltip: 'Close',
+                    icon: const Icon(Icons.close_rounded, color: Colors.white, size: 20),
+                    onPressed: Get.back,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -181,7 +208,7 @@ class _StatsRow extends StatelessWidget {
     Widget stat(String value, String label, Color color) => Expanded(
       child: Column(
         children: [
-          Text(value, style: CT.headline(18, color: color)),
+          Text(value, style: CT.headline(20, color: color, w: FontWeight.w800)),
           const SizedBox(height: 4),
           Text(label, style: CT.mono(10)),
         ],
@@ -189,140 +216,104 @@ class _StatsRow extends StatelessWidget {
     );
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16),
+      decoration: CT.card(borderColor: CT.outline),
       child: Row(
         children: [
-          stat('2,800+', 'HOSTS', CT.primaryBright),
+          stat('2,800+', 'HOSTS', CT.onSurface),
           Container(width: 1, height: 34, color: CT.outline),
-          stat('65,000+', 'PLAYERS', CT.secondary),
+          stat('65,000+', 'PLAYERS', CT.onSurface),
           Container(width: 1, height: 34, color: CT.outline),
-          stat('500+', 'EVENTS', CT.successBright),
+          stat('500+', 'EVENTS', CT.onSurface),
         ],
       ),
     );
   }
 }
 
-class _EarningsCard extends StatelessWidget {
-  const _EarningsCard();
+/// Interactive earnings estimate: players x entry fee x tier commission.
+/// Indicative only; real figures are computed by the server per tournament.
+class _Estimator extends StatefulWidget {
+  final HostProgram program;
+  const _Estimator({required this.program});
+  @override
+  State<_Estimator> createState() => _EstimatorState();
+}
+
+class _EstimatorState extends State<_Estimator> {
+  double _players = 32;
+  double _fee = 100;
+  int _tier = 0;
+
   @override
   Widget build(BuildContext context) {
+    final tiers = widget.program.performanceLevels;
+    double rateOf(HostTierLevel t) =>
+        t.organizerCommissionRate <= 1 ? t.organizerCommissionRate : t.organizerCommissionRate / 100;
+    final rate = tiers.isEmpty ? 0.08 : rateOf(tiers[_tier.clamp(0, tiers.length - 1)]);
+    final collected = _players * _fee;
+    final earn = collected * rate;
+    String inr(num v) => Money.format(v.round());
     return Container(
-      padding: const EdgeInsets.only(bottom: 18),
+      padding: const EdgeInsets.all(16),
+      decoration: CT.card(borderColor: CT.outline),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Text('ESTIMATE YOUR EARNINGS', style: CT.mono(10, color: CT.muted)),
+          const SizedBox(height: 8),
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('HOST IMPACT', style: CT.mono(10)),
-                    const SizedBox(height: 5),
-                    Text(
-                      '100 players',
-                      style: CT.headline(30, color: CT.successBright),
-                    ),
-                  ],
-                ),
-              ),
+              Expanded(child: Text(inr(earn), style: CT.display(34))),
               Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Text(
-                  'community growth',
-                  style: CT.body(12, color: CT.primaryBright),
-                ),
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text('per tournament', style: CT.body(12.5, color: CT.muted)),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          Container(height: 1, color: CT.outline),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              _EarningMetric(
-                value: '100',
-                label: 'PLAYERS',
-                alignment: CrossAxisAlignment.start,
-              ),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 10),
-                child: Text(
-                  '×',
-                  style: TextStyle(color: CT.muted, fontSize: 18),
-                ),
-              ),
-              _EarningMetric(
-                value: '1',
-                label: 'EVENT',
-                alignment: CrossAxisAlignment.center,
-              ),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 10),
-                child: Text(
-                  '=',
-                  style: TextStyle(color: CT.muted, fontSize: 18),
-                ),
-              ),
-              _EarningMetric(
-                value: '100',
-                label: 'REGISTRATIONS',
-                alignment: CrossAxisAlignment.end,
-                valueColor: CT.onSurface,
-              ),
-            ],
+          Text(
+            '${inr(collected)} collected · ${(rate * 100).toStringAsFixed(0)}% host commission',
+            style: CT.body(12.5),
           ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                flex: 1,
-                child: Container(height: 4, color: CT.successBright),
-              ),
-              Expanded(flex: 9, child: Container(height: 4, color: CT.outline)),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('HOST', style: CT.mono(9, color: CT.successBright)),
-              Text('COMMUNITY EVENT', style: CT.mono(9)),
-            ],
-          ),
+          const SizedBox(height: 14),
+          _slider('Players', '${_players.round()}', _players, 8, 128, 15, (v) => setState(() => _players = v)),
+          _slider('Entry fee', inr(_fee), _fee, 10, 500, 49, (v) => setState(() => _fee = v)),
+          if (tiers.length > 1) ...[
+            const SizedBox(height: 6),
+            TSegments(
+              options: {for (final (i, t) in tiers.indexed) '$i': t.label.replaceAll(' Host', '')},
+              value: '$_tier',
+              onChanged: (v) => setState(() => _tier = int.parse(v)),
+            ),
+          ],
+          const SizedBox(height: 10),
+          Text('Indicative only. Paid tournaments need verification.', style: CT.body(11, color: CT.muted)),
         ],
       ),
     );
   }
-}
 
-class _EarningMetric extends StatelessWidget {
-  final String value;
-  final String label;
-  final CrossAxisAlignment alignment;
-  final Color valueColor;
-
-  const _EarningMetric({
-    required this.value,
-    required this.label,
-    required this.alignment,
-    this.valueColor = CT.primaryBright,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Column(
-        crossAxisAlignment: alignment,
+  Widget _slider(String label, String value, double v, double min, double max, int divisions, ValueChanged<double> onChanged) =>
+      Column(
         children: [
-          Text(value, style: CT.headline(15, color: valueColor)),
-          const SizedBox(height: 3),
-          Text(label, style: CT.mono(8), maxLines: 1),
+          Row(children: [
+            Expanded(child: Text(label, style: CT.body(13))),
+            Text(value, style: CT.headline(13.5, w: FontWeight.w700)),
+          ]),
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              trackHeight: 4,
+              activeTrackColor: CT.primary,
+              inactiveTrackColor: Colors.white.withValues(alpha: 0.08),
+              thumbColor: Colors.white,
+              overlayColor: Colors.white12,
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+              tickMarkShape: SliderTickMarkShape.noTickMark,
+            ),
+            child: Slider(value: v, min: min, max: max, divisions: divisions, onChanged: onChanged),
+          ),
         ],
-      ),
-    );
-  }
+      );
 }
 
 class _HowItWorks extends StatefulWidget {
@@ -333,7 +324,7 @@ class _HowItWorks extends StatefulWidget {
 }
 
 class _HowItWorksState extends State<_HowItWorks> {
-  bool _isExpanded = false;
+  bool _isExpanded = true;
 
   @override
   Widget build(BuildContext context) {
@@ -373,7 +364,7 @@ class _HowItWorksState extends State<_HowItWorks> {
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Row(
               children: [
-                Expanded(child: Text('How it works', style: CT.headline(18))),
+                Expanded(child: Text('How it works', style: CT.headline(18, w: FontWeight.w800))),
                 AnimatedRotation(
                   turns: _isExpanded ? 0.5 : 0,
                   duration: const Duration(milliseconds: 220),
@@ -404,7 +395,6 @@ class _HowItWorksState extends State<_HowItWorks> {
                 )
               : const SizedBox(width: double.infinity),
         ),
-        Container(height: 1, color: CT.outline),
       ],
     );
   }
@@ -479,32 +469,36 @@ class _FeatureGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     const features = [
       (Icons.verified_rounded, 'Official Host Badge', CT.verifiedBlue),
-      (Icons.emoji_events_rounded, 'Community recognition', CT.successBright),
-      (
-        Icons.sports_esports_rounded,
-        'Create Unlimited Tournaments',
-        CT.primaryBright,
-      ),
-      (Icons.trending_up_rounded, 'Track Registrations Live', CT.successBright),
-      (Icons.groups_rounded, 'Player Management', CT.primaryBright),
-      (Icons.insights_rounded, 'Track Event Momentum', CT.successBright),
+      (Icons.emoji_events_rounded, 'Community spotlight', CT.onSurfaceVariant),
+      (Icons.sports_esports_rounded, 'Unlimited tournaments', CT.onSurfaceVariant),
+      (Icons.trending_up_rounded, 'Live registrations', CT.onSurfaceVariant),
+      (Icons.groups_rounded, 'Player management', CT.onSurfaceVariant),
+      (Icons.insights_rounded, 'Event insights', CT.onSurfaceVariant),
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Host benefits', style: CT.headline(18)),
-        const SizedBox(height: 14),
+        Text('Host benefits', style: CT.headline(18, w: FontWeight.w800)),
+        const SizedBox(height: 12),
         GridView.count(
+          padding: EdgeInsets.zero,
           crossAxisCount: 2,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          mainAxisSpacing: 18,
-          crossAxisSpacing: 20,
-          childAspectRatio: 3.1,
+          mainAxisSpacing: 10,
+          crossAxisSpacing: 10,
+          childAspectRatio: 2.5,
           children: [
             for (final f in features)
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: CT.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: CT.outline),
+                ),
+                child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   f.$2 == 'Official Host Badge'
                       ? SvgPicture.asset(
@@ -517,14 +511,17 @@ class _FeatureGrid extends StatelessWidget {
                   Expanded(
                     child: Text(
                       f.$2,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: CT.body(
                         12.5,
                         color: CT.onSurface,
-                        w: FontWeight.w500,
-                      ),
+                        w: FontWeight.w600,
+                      ).copyWith(height: 1.25),
                     ),
                   ),
                 ],
+              ),
               ),
           ],
         ),
@@ -556,13 +553,13 @@ class _VerificationCard extends StatelessWidget {
     final amount = fee.amount == fee.amount.roundToDouble()
         ? fee.amount.toStringAsFixed(0)
         : fee.amount.toStringAsFixed(2);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 18),
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.all(16),
+      decoration: CT.card(borderColor: CT.verifiedBlue.withValues(alpha: 0.35)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(height: 1, color: CT.outline),
-          const SizedBox(height: 18),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -596,12 +593,12 @@ class _VerificationCard extends StatelessWidget {
                 children: [
                   Text(
                     fee.periodLabel.toUpperCase(),
-                    style: CT.mono(10, color: CT.secondary),
+                    style: CT.mono(10, color: CT.muted),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     '$symbol$amount',
-                    style: CT.display(26, color: CT.secondary),
+                    style: CT.display(26, color: CT.onSurface),
                   ),
                 ],
               ),
@@ -615,8 +612,6 @@ class _VerificationCard extends StatelessWidget {
             _check(
               '${fee.includedTournamentsPerWeek} tournaments/week included',
             ),
-          const SizedBox(height: 8),
-          Container(height: 1, color: CT.outline),
         ],
       ),
     );
@@ -626,7 +621,7 @@ class _VerificationCard extends StatelessWidget {
     padding: const EdgeInsets.only(bottom: 8),
     child: Row(
       children: [
-        const Icon(Icons.check_rounded, color: CT.successBright, size: 18),
+        const Icon(Icons.check_circle_rounded, color: CT.verifiedBlue, size: 18),
         const SizedBox(width: 10),
         Text(label, style: CT.body(14, color: CT.onSurface)),
       ],
@@ -660,40 +655,47 @@ class _TierStrip extends StatelessWidget {
           padding: const EdgeInsets.only(top: 4, bottom: 8),
           child: Text('HOST TIERS & COMMISSION', style: CT.mono(10)),
         ),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              for (final t in tiers)
-                Padding(
-                  padding: const EdgeInsets.only(right: 20),
-                  child: Row(
-                    children: [
-                      Container(width: 3, height: 32, color: colorFor(t.key)),
-                      const SizedBox(width: 9),
-                      Column(
+        GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          padding: EdgeInsets.zero,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: 8,
+          crossAxisSpacing: 8,
+          childAspectRatio: 2.9,
+          children: [
+            for (final t in tiers)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: CT.surface,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: CT.outline),
+                ),
+                child: Row(
+                  children: [
+                    Container(width: 3, height: 28, decoration: BoxDecoration(color: colorFor(t.key), borderRadius: BorderRadius.circular(2))),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
+                          Text(t.label, maxLines: 1, overflow: TextOverflow.ellipsis,
+                              style: CT.body(13, color: CT.onSurface, w: FontWeight.w700)),
                           Text(
-                            t.label,
-                            style: CT.body(
-                              12,
-                              color: colorFor(t.key),
-                              w: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Host tier',
-                            style: CT.mono(10, color: CT.onSurfaceVariant),
+                            t.organizerCommissionRate > 0
+                                ? '${(t.organizerCommissionRate <= 1 ? t.organizerCommissionRate * 100 : t.organizerCommissionRate).toStringAsFixed(0)}% commission'
+                                : 'Host tier',
+                            style: CT.body(11, color: CT.muted),
                           ),
                         ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-            ],
-          ),
+              ),
+          ],
         ),
       ],
     );
@@ -779,48 +781,12 @@ class _BottomCta extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          DecoratedBox(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
-              boxShadow: enabled
-                  ? CT.glow(CT.primary, blur: 20, opacity: 0.4)
-                  : null,
-            ),
-            child: SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ElevatedButton(
-                onPressed: enabled ? controller.onPrimaryCta : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: CT.primary,
-                  disabledBackgroundColor: CT.surfaceHigh,
-                  foregroundColor: Colors.white,
-                  disabledForegroundColor: CT.muted,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      controller.ctaLabel,
-                      style: CT.headline(
-                        15,
-                        color: enabled ? Colors.white : CT.muted,
-                      ),
-                    ),
-                    if (enabled &&
-                        controller.status !=
-                            HostVerificationStatus.verified) ...[
-                      const SizedBox(width: 8),
-                      const Icon(Icons.rocket_launch_rounded, size: 18),
-                    ],
-                  ],
-                ),
-              ),
-            ),
+          TButton(
+            controller.ctaLabel,
+            icon: enabled && controller.status != HostVerificationStatus.verified
+                ? Icons.rocket_launch_rounded
+                : null,
+            onTap: enabled ? controller.onPrimaryCta : null,
           ),
         ],
       ),

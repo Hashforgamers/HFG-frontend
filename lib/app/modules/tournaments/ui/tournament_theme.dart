@@ -1,40 +1,44 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Design tokens for the Community Tournament module, aligned to the app's
-/// overall HASH tournament theme: black surfaces, registration orange actions,
-/// white text, and soft outlined cards.
+/// Design tokens for the tournaments module, matched to the home screen:
+/// near-black surfaces, the hashforgamers.com pink -> coral -> orange brand
+/// gradient for actions, and soft-edged 22px cards.
 class CT {
   CT._();
 
   // Surfaces
   static const bg = Color(0xFF000000);
-  static const surfaceLow = Color(0xFF090909);
-  static const surface = Color(0xFF101010);
-  static const surfaceHigh = Color(0xFF1A1A1A);
-  static const cardTop = Color(0xFF121212);
-  static const cardBottom = Color(0xFF090909);
+  static const surfaceLow = Color(0xFF0B0D12);
+  static const surface = Color(0xFF13161E);
+  static const surfaceHigh = Color(0xFF1C2130);
+  static const cardTop = Color(0xFF161A24);
+  static const cardBottom = Color(0xFF0E1118);
 
   // Text
   static const onSurface = Color(0xFFFFFFFF);
-  static const onSurfaceVariant = Color(0xFFB8B8B8);
-  static const muted = Color(0xFF777777);
+  static const onSurfaceVariant = Color(0xFFA7AEBC);
+  static const muted = Color(0xFF6E7686);
 
-  // Accents (from the app theme)
-  static const primary = Color(0xFFF8A241);
-  static const primaryBright = Color(0xFFFFB45E);
-  static const secondary = Color(0xFFC06701);
-  static const verifiedBlue = Color(0xFF0096F1);
-  static const success = Color(0xFF00C853);
-  static const successBright = Color(0xFF55E878);
-  static const error = Color(0xFFFF6B6B);
+  // Accents (brand palette from the home screen)
+  static const pink = Color(0xFFFF3E8E);
+  static const primary = Color(0xFFFF6F61);
+  static const primaryBright = Color(0xFFFF9A3D);
+  static const secondary = Color(0xFFFF3E8E);
+  static const verifiedBlue = Color(0xFF3DA9FF);
+  static const success = Color(0xFF00DC00);
+  static const successBright = Color(0xFF6BFF6B);
+  static const error = Color(0xFFFF5A6E);
+  static const gold = Color(0xFFF4C342);
+
+  static const brand = LinearGradient(colors: [pink, primary, primaryBright]);
 
   // Lines / borders
-  static const outline = Color(0xFF292929);
-  static const hairline = Color(0x1FFFFFFF);
+  static const outline = Color(0x1AFFFFFF);
+  static const hairline = Color(0x14FFFFFF);
 
-  /// Default content groups stay open and use only a quiet divider. Passing a
-  /// [borderColor] opts into a contained panel for high-priority information.
+  /// Without [borderColor]: an open row with a quiet divider. With it: a lit
+  /// card (gradient surface, tinted edge, soft drop shadow).
   static BoxDecoration card({Color? borderColor}) {
     if (borderColor == null) {
       return const BoxDecoration(
@@ -43,12 +47,15 @@ class CT {
     }
     return BoxDecoration(
       gradient: const LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
         colors: [cardTop, cardBottom],
       ),
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(22),
       border: Border.all(color: borderColor, width: 1),
+      boxShadow: const [
+        BoxShadow(color: Color(0x59000000), blurRadius: 18, offset: Offset(0, 8)),
+      ],
     );
   }
 

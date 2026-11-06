@@ -629,7 +629,10 @@ class _HomeViewState extends State<HomeView> {
       'Sessions',
       iconHeight: 17,
     ),
-    const _NavTab(4, 'assets/navbar_icons/Vector (3).png', 'Me'),
+    // With tournaments on, the bar is full; profile stays reachable from the
+    // avatar in the home header.
+    if (!FeatureFlags.tournamentsEnabled)
+      const _NavTab(4, 'assets/navbar_icons/Vector (3).png', 'Me'),
   ];
 
   // --- BottomNavigationBar Item Builder ---

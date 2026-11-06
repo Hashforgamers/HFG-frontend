@@ -140,6 +140,7 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
             slivers: [
               SliverToBoxAdapter(child: _header()),
               if (_invites > 0) SliverToBoxAdapter(child: _inviteBanner()),
+              SliverToBoxAdapter(child: _hostHero()),
               SliverToBoxAdapter(child: _filters()),
               ..._body(),
               const SliverToBoxAdapter(child: SizedBox(height: 120)),
@@ -151,52 +152,138 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
   }
 
   Widget _header() => Padding(
-    padding: const EdgeInsets.fromLTRB(16, 14, 8, 6),
+    padding: const EdgeInsets.fromLTRB(18, 14, 12, 4),
     child: Row(
       children: [
-        Expanded(child: Text('Tournaments', style: CT.display(26))),
-        IconButton(
-          tooltip: 'My tournaments',
-          onPressed: () => Get.toNamed(AppRoutes.MY_TOURNAMENTS),
-          icon: const Icon(Icons.sports_esports_rounded, color: CT.onSurface),
-        ),
-        TextButton.icon(
-          onPressed: () => Get.toNamed(AppRoutes.HOST_DASHBOARD),
-          icon: const Icon(
-            Icons.add_circle_outline_rounded,
-            color: CT.primary,
-            size: 18,
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('PLAY · COMPETE · WIN', style: CT.mono(10.5, color: CT.muted, w: FontWeight.w800)),
+              const SizedBox(height: 4),
+              Text.rich(TextSpan(children: [
+                TextSpan(text: 'Compete on ', style: CT.display(26)),
+                WidgetSpan(
+                  alignment: PlaceholderAlignment.baseline,
+                  baseline: TextBaseline.alphabetic,
+                  child: GradientText('HASH', style: CT.display(26)),
+                ),
+              ])),
+            ],
           ),
-          label: Text('Host', style: CT.headline(14, color: CT.primary)),
         ),
+        _roundAction(Icons.sports_esports_rounded, 'My tournaments',
+            () => Get.toNamed(AppRoutes.MY_TOURNAMENTS), badge: _invites),
       ],
     ),
   );
 
+  Widget _roundAction(IconData icon, String label, VoidCallback onTap, {int badge = 0}) => Tooltip(
+    message: label,
+    child: Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Material(
+          color: Colors.white.withValues(alpha: 0.06),
+          shape: const CircleBorder(side: BorderSide(color: CT.outline)),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onTap,
+            child: SizedBox(width: 46, height: 46, child: Icon(icon, color: Colors.white, size: 22)),
+          ),
+        ),
+        if (badge > 0)
+          Positioned(
+            right: -2,
+            top: -2,
+            child: Container(
+              padding: const EdgeInsets.all(5),
+              decoration: const BoxDecoration(color: CT.primary, shape: BoxShape.circle),
+              child: Text('$badge', style: CT.headline(10, color: Colors.white, w: FontWeight.w800)),
+            ),
+          ),
+      ],
+    ),
+  );
+
+  /// Host promo, styled like the home "Become a tournament host" card.
+  Widget _hostHero() => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
+    child: GestureDetector(
+      onTap: () => Get.toNamed(AppRoutes.HOST_DASHBOARD),
+      child: Container(
+        height: 132,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(22),
+          color: CT.outline,
+        ),
+        padding: const EdgeInsets.all(1.2),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(21),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.asset('assets/host_program_hero.jpg', fit: BoxFit.cover, alignment: const Alignment(1, -0.1)),
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF0B0D12), Color(0xF00B0D12), Color(0x330B0D12)],
+                    stops: [0, 0.5, 1],
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('HOST PROGRAM', style: CT.mono(10, color: CT.onSurfaceVariant, w: FontWeight.w800)),
+                    Text('Run your own\ntournament', style: CT.display(20)),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(99)),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        Text('Start hosting', style: CT.headline(12.5, color: Colors.black, w: FontWeight.w800)),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.arrow_forward_rounded, size: 15, color: Colors.black),
+                      ]),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+
   Widget _inviteBanner() => Padding(
-    padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
+    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
     child: GestureDetector(
       onTap: () async {
-        await Get.toNamed(
-          AppRoutes.MY_TOURNAMENTS,
-          arguments: {'tab': 'invites'},
-        );
+        await Get.toNamed(AppRoutes.MY_TOURNAMENTS, arguments: {'tab': 'invites'});
         _loadInvites();
       },
       child: TPanel(
-        border: CT.primary.withValues(alpha: 0.6),
+        border: CT.outline,
         padding: const EdgeInsets.all(14),
         child: Row(
           children: [
-            const Icon(Icons.mail_rounded, color: CT.primary),
+            Container(
+              width: 38,
+              height: 38,
+              decoration: const BoxDecoration(color: Color(0x1FFFFFFF), shape: BoxShape.circle),
+              child: const Icon(Icons.mail_rounded, color: Colors.white, size: 19),
+            ),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(
-                _invites == 1
-                    ? 'You have a team invite'
-                    : 'You have $_invites team invites',
-                style: CT.headline(14),
-              ),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(_invites == 1 ? 'You have a team invite' : 'You have $_invites team invites',
+                    style: CT.headline(14.5, w: FontWeight.w700)),
+                Text('Tap to accept or decline', style: CT.body(12)),
+              ]),
             ),
             const Icon(Icons.chevron_right_rounded, color: CT.onSurfaceVariant),
           ],
@@ -206,50 +293,70 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
   );
 
   Widget _filters() => Padding(
-    padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+    padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
     child: Column(
       children: [
         TextField(
           controller: _search,
           onChanged: _onSearch,
           textInputAction: TextInputAction.search,
-          style: CT.body(14, color: CT.onSurface),
+          style: CT.body(14.5, color: CT.onSurface),
           decoration: tInput('Search tournaments or games').copyWith(
             prefixIcon: const Icon(Icons.search_rounded, color: CT.muted),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(22), borderSide: const BorderSide(color: CT.outline)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(22), borderSide: const BorderSide(color: CT.outline)),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(22), borderSide: const BorderSide(color: CT.primary)),
           ),
         ),
         const SizedBox(height: 12),
-        Row(
-          children: [
-            for (final e in _views.entries) ...[
-              ChoiceChip(
-                label: Text(e.value),
-                selected: _view == e.key,
-                onSelected: (_) {
-                  if (_view == e.key) return;
-                  setState(() => _view = e.key);
-                  _load();
-                },
-                showCheckmark: false,
-                labelStyle: CT.body(
-                  13,
-                  color: _view == e.key ? Colors.black : CT.onSurface,
-                  w: FontWeight.w600,
-                ),
-                selectedColor: CT.primary,
-                backgroundColor: CT.surface,
-                side: BorderSide(
-                  color: _view == e.key ? CT.primary : CT.outline,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(99),
-                ),
-              ),
-              const SizedBox(width: 8),
-            ],
-          ],
+        TSegments(
+          options: _views,
+          value: _view,
+          onChanged: (v) {
+            if (_view == v) return;
+            setState(() => _view = v);
+            _load();
+          },
         ),
       ],
+    ),
+  );
+
+  Widget _howItWorks() => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+    child: TPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('How it works', style: CT.headline(15, w: FontWeight.w800)),
+          const SizedBox(height: 12),
+          for (final (i, step) in const [
+            ('Join or host', 'Pick a tournament, or create one for your squad in minutes.'),
+            ('Team up & check in', 'Invite friends, then check in before the first match.'),
+            ('Play & report', 'Play in-game, then submit scores with a screenshot.'),
+            ('Win prizes', 'Winnings go straight to your Hash wallet.'),
+          ].indexed)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Container(
+                  width: 26,
+                  height: 26,
+                  alignment: Alignment.center,
+                  decoration: const BoxDecoration(color: Color(0x1FFFFFFF), shape: BoxShape.circle),
+                  child: Text('${i + 1}', style: CT.headline(12, color: Colors.white, w: FontWeight.w800)),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(step.$1, style: CT.headline(14, w: FontWeight.w700)),
+                    Text(step.$2, style: CT.body(12.5)),
+                  ]),
+                ),
+              ]),
+            ),
+        ],
+      ),
     ),
   );
 
@@ -264,15 +371,18 @@ class _TournamentsHomeViewState extends State<TournamentsHomeView> {
       return [
         SliverToBoxAdapter(
           child: TMessage(
-            icon: Icons.emoji_events_outlined,
+            icon: Icons.emoji_events_rounded,
             title: _search.text.isEmpty
-                ? 'No ${_views[_view]!.toLowerCase()} tournaments'
+                ? 'No ${_views[_view]!.toLowerCase()} tournaments yet'
                 : 'Nothing matches "${_search.text.trim()}"',
-            subtitle: 'Host your own and invite your squad.',
-            actionLabel: 'Host a tournament',
+            subtitle: _view == 'upcoming'
+                ? 'Be the first. Host one and invite your squad.'
+                : 'Check the upcoming tab for what\'s next.',
+            actionLabel: _view == 'upcoming' ? 'Host a tournament' : null,
             onAction: () => Get.toNamed(AppRoutes.HOST_DASHBOARD),
           ),
         ),
+        SliverToBoxAdapter(child: _howItWorks()),
       ];
     }
     return [

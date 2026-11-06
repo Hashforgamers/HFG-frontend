@@ -46,7 +46,6 @@ import 'package:hash/utils/widgets/home_section_title.dart';
 import 'package:hash/core/utils/app_logger.dart';
 import 'package:hash/app/modules/home/widgets/home_host_card.dart';
 import 'package:hash/app/modules/home/widgets/home_mumbai_surfer_banner.dart';
-import 'package:hash/features/rewards/daily_rewards_card.dart';
 
 class HomeContentView extends StatefulWidget {
   const HomeContentView({super.key});
@@ -103,7 +102,6 @@ class _HomeContentViewState extends State<HomeContentView>
         _buildLazyLoadedSection('playerLobby', _buildPlayerLobby()),
       ],
       _buildLazyLoadedSection('cafe', _cachedCafeSection),
-      const DailyRewardsCard(),
       _buildLazyLoadedSection('miniGames', _cachedMiniGamesSection),
       _buildLazyLoadedSection('shorts', _cachedShortsSection),
       if (_showGamePassCard)

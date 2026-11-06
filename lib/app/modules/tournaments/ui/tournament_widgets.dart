@@ -127,21 +127,51 @@ class TPanel extends StatelessWidget {
 
 class TSectionTitle extends StatelessWidget {
   final String title;
+  final String? accent;
   final Widget? trailing;
-  const TSectionTitle(this.title, {super.key, this.trailing});
+  const TSectionTitle(this.title, {super.key, this.trailing, this.accent});
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(top: 22, bottom: 10),
+    padding: const EdgeInsets.only(top: 26, bottom: 12),
     child: Row(
       children: [
-        Expanded(child: Text(title, style: CT.headline(16))),
+        Expanded(
+          child: Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(text: title, style: CT.headline(18, w: FontWeight.w800)),
+                if (accent != null)
+                  WidgetSpan(
+                    alignment: PlaceholderAlignment.baseline,
+                    baseline: TextBaseline.alphabetic,
+                    child: Text(accent!, style: CT.headline(18, w: FontWeight.w800)),
+                  ),
+              ],
+            ),
+          ),
+        ),
         ?trailing,
       ],
     ),
   );
 }
 
+/// Text painted in the brand gradient.
+class GradientText extends StatelessWidget {
+  final String text;
+  final TextStyle style;
+  const GradientText(this.text, {super.key, required this.style});
+
+  @override
+  Widget build(BuildContext context) => ShaderMask(
+    blendMode: BlendMode.srcIn,
+    shaderCallback: CT.brand.createShader,
+    child: Text(text, style: style),
+  );
+}
+
+/// Primary actions use the brand gradient; secondary ones are frosted outlines.
 class TButton extends StatelessWidget {
   final String label;
   final VoidCallback? onTap;
@@ -149,6 +179,7 @@ class TButton extends StatelessWidget {
   final IconData? icon;
   final bool secondary;
   final Color? color;
+  final double height;
   const TButton(
     this.label, {
     super.key,
@@ -157,6 +188,7 @@ class TButton extends StatelessWidget {
     this.icon,
     this.secondary = false,
     this.color,
+    this.height = 52,
   });
 
   const TButton.secondary(
@@ -166,60 +198,123 @@ class TButton extends StatelessWidget {
     this.busy = false,
     this.icon,
     this.color,
+    this.height = 52,
   }) : secondary = true;
 
   @override
   Widget build(BuildContext context) {
-    final c = color ?? CT.primary;
     final enabled = onTap != null && !busy;
+    final fg = secondary ? (color ?? CT.onSurface) : Colors.white;
     final content = busy
         ? const AppLinearLoader.button()
         : Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               if (icon != null) ...[
-                Icon(icon, size: 18, color: secondary ? c : Colors.black),
+                Icon(icon, size: 19, color: fg),
                 const SizedBox(width: 8),
               ],
               Flexible(
                 child: Text(
                   label,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: CT.headline(14.5, color: secondary ? c : Colors.black),
+                  style: CT.headline(15, color: fg, w: FontWeight.w800),
                 ),
               ),
             ],
           );
-    return SizedBox(
-      height: 50,
-      width: double.infinity,
-      child: secondary
-          ? OutlinedButton(
-              onPressed: enabled ? onTap : null,
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(
-                  color: c.withValues(alpha: enabled ? 0.7 : 0.25),
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+    final radius = BorderRadius.circular(height / 2);
+    return Opacity(
+      opacity: enabled || busy ? 1 : 0.45,
+      child: SizedBox(
+        height: height,
+        width: double.infinity,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: radius,
+            gradient: secondary
+                ? null
+                : color == null
+                    ? CT.brand
+                    : LinearGradient(colors: [color!, Color.lerp(color, Colors.black, 0.25)!]),
+            color: secondary ? Colors.white.withValues(alpha: 0.05) : null,
+            border: secondary
+                ? Border.all(color: (color ?? Colors.white).withValues(alpha: color == null ? 0.16 : 0.55))
+                : null,
+            boxShadow: secondary || !enabled
+                ? null
+                : [
+                    BoxShadow(
+                      color: (color ?? CT.pink).withValues(alpha: 0.35),
+                      blurRadius: 18,
+                      spreadRadius: -4,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: radius,
+              onTap: enabled ? onTap : null,
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: content,
                 ),
               ),
-              child: content,
-            )
-          : ElevatedButton(
-              onPressed: enabled ? onTap : null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: c,
-                disabledBackgroundColor: c.withValues(alpha: busy ? 0.6 : 0.25),
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              child: content,
             ),
+          ),
+        ),
+      ),
     );
   }
+}
+
+/// Segmented filter with a gradient thumb, used for list views.
+class TSegments extends StatelessWidget {
+  final Map<String, String> options;
+  final String value;
+  final ValueChanged<String> onChanged;
+  const TSegments({super.key, required this.options, required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    height: 44,
+    padding: const EdgeInsets.all(4),
+    decoration: BoxDecoration(
+      color: CT.surface,
+      borderRadius: BorderRadius.circular(22),
+      border: Border.all(color: CT.outline),
+    ),
+    child: Row(
+      children: [
+        for (final e in options.entries)
+          Expanded(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => onChanged(e.key),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOut,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(18),
+                  color: e.key == value ? Colors.white.withValues(alpha: 0.14) : null,
+                ),
+                child: Text(
+                  e.value,
+                  style: CT.headline(13.5,
+                      color: e.key == value ? Colors.white : CT.onSurfaceVariant,
+                      w: e.key == value ? FontWeight.w800 : FontWeight.w600),
+                ),
+              ),
+            ),
+          ),
+      ],
+    ),
+  );
 }
 
 class TLoading extends StatelessWidget {
@@ -256,22 +351,32 @@ class TMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 40),
+    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
     child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 40, color: CT.muted),
+        Container(
+          width: 72,
+          height: 72,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.white.withValues(alpha: 0.06),
+          ),
+          child: Icon(icon, size: 34, color: CT.onSurfaceVariant),
+        ),
         const SizedBox(height: 12),
-        Text(title, textAlign: TextAlign.center, style: CT.headline(16)),
+        Text(title, textAlign: TextAlign.center, style: CT.headline(17, w: FontWeight.w800)),
         if (subtitle != null) ...[
           const SizedBox(height: 6),
-          Text(subtitle!, textAlign: TextAlign.center, style: CT.body(13)),
+          Text(subtitle!, textAlign: TextAlign.center, style: CT.body(13.5)),
         ],
         if (actionLabel != null) ...[
-          const SizedBox(height: 16),
-          SizedBox(
-            width: 180,
-            child: TButton.secondary(actionLabel!, onTap: onAction),
+          const SizedBox(height: 18),
+          IntrinsicWidth(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 200),
+              child: TButton(actionLabel!, onTap: onAction, height: 46),
+            ),
           ),
         ],
       ],
@@ -293,9 +398,36 @@ class TBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const fallback = Image(
-      image: AssetImage('assets/hash_store_images/tournament_banner.png'),
-      fit: BoxFit.cover,
+    // Branded placeholder: the bundled stock art did not fit every game.
+    final fallback = DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF1C2130), Color(0xFF13161E), Color(0xFF0B0D12)],
+        ),
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: -24,
+            bottom: -30,
+            child: Icon(Icons.emoji_events_rounded, size: 170, color: Colors.white.withValues(alpha: 0.06)),
+          ),
+          Positioned(
+            left: -40,
+            top: -60,
+            child: Container(
+              width: 180,
+              height: 180,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(colors: [Colors.white.withValues(alpha: 0.06), Colors.transparent]),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
     final u = url ?? '';
     return ClipRRect(
@@ -325,21 +457,30 @@ class TFact extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(
     children: [
-      Icon(icon, size: 18, color: CT.primary),
-      const SizedBox(width: 10),
-      Expanded(child: Text(label, style: CT.body(13))),
+      Container(
+        width: 32,
+        height: 32,
+        decoration: BoxDecoration(
+          color: CT.primary.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, size: 17, color: CT.primary),
+      ),
+      const SizedBox(width: 12),
+      Expanded(child: Text(label, style: CT.body(13.5))),
       Flexible(
         child: Text(
           value,
           textAlign: TextAlign.right,
-          style: CT.headline(13.5),
+          style: CT.headline(14, w: FontWeight.w700),
         ),
       ),
     ],
   );
 }
 
-/// The list card used by discovery and "my tournaments".
+/// The list card used by discovery and "my tournaments": a full-bleed banner
+/// with the title over it, a prize badge, and a slots meter.
 class TournamentCard extends StatelessWidget {
   final Tournament t;
   final VoidCallback onTap;
@@ -349,109 +490,168 @@ class TournamentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = t.status;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 14),
-        decoration: CT.card(borderColor: CT.outline),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Stack(
+    final fill = t.maxPlayers <= 0 ? 0.0 : (t.registeredCount / t.maxPlayers).clamp(0.0, 1.0);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(22),
+          child: Ink(
+            decoration: CT.card(borderColor: CT.outline),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                TBanner(t.bannerUrl, height: 132),
-                Positioned(
-                  left: 12,
-                  top: 12,
-                  child: TPill(
-                    s.label,
-                    color: statusColor(s),
-                    icon: s == TStatus.live ? Icons.circle : null,
-                  ),
-                ),
-                if (t.isPrivate)
-                  const Positioned(
-                    right: 12,
-                    top: 12,
-                    child: TPill(
-                      'Private',
-                      color: CT.verifiedBlue,
-                      icon: Icons.lock_rounded,
-                    ),
-                  ),
-              ],
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+                SizedBox(
+                  height: 168,
+                  child: Stack(
+                    fit: StackFit.expand,
                     children: [
-                      Expanded(
-                        child: Text(
-                          t.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: CT.headline(16),
+                      TBanner(
+                        t.bannerUrl,
+                        radius: const BorderRadius.vertical(top: Radius.circular(21)),
+                      ),
+                      const DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.vertical(top: Radius.circular(21)),
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [Color(0x66000000), Colors.transparent, Color(0xF00B0D12)],
+                            stops: [0, 0.35, 1],
+                          ),
                         ),
                       ),
-                      ?badge,
+                      Positioned(
+                        left: 12,
+                        top: 12,
+                        child: _glassPill(
+                          s.label.toUpperCase(),
+                          statusColor(s),
+                          dot: s == TStatus.live || s == TStatus.registrationOpen,
+                        ),
+                      ),
+                      if (t.prizePool > 0)
+                        Positioned(
+                          right: 12,
+                          top: 12,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.6),
+                              borderRadius: BorderRadius.circular(99),
+                              border: Border.all(color: CT.gold.withValues(alpha: 0.5)),
+                            ),
+                            child: Row(mainAxisSize: MainAxisSize.min, children: [
+                              const Icon(Icons.emoji_events_rounded, size: 14, color: CT.gold),
+                              const SizedBox(width: 4),
+                              Text(money(t.prizePool, t.currency),
+                                  style: CT.headline(12.5, color: Colors.white, w: FontWeight.w800)),
+                            ]),
+                          ),
+                        ),
+                      Positioned(
+                        left: 14,
+                        right: 14,
+                        bottom: 12,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              [t.game, t.modeLabel].where((e) => e.isNotEmpty).join(' · ').toUpperCase(),
+                              style: CT.mono(10.5, color: CT.primaryBright, w: FontWeight.w800),
+                            ),
+                            const SizedBox(height: 3),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    t.title,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: CT.display(19),
+                                  ),
+                                ),
+                                if (t.isPrivate) ...[
+                                  const SizedBox(width: 6),
+                                  const Icon(Icons.lock_rounded, size: 16, color: CT.verifiedBlue),
+                                ],
+                                if (badge != null) ...[const SizedBox(width: 6), badge!],
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    [
-                      t.game,
-                      t.modeLabel,
-                      t.formatLabel,
-                    ].where((e) => e.isNotEmpty).join(' · '),
-                    style: CT.body(12.5),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+                  child: Row(
                     children: [
-                      _stat(
-                        Icons.emoji_events_rounded,
-                        t.prizePool > 0
-                            ? money(t.prizePool, t.currency)
-                            : 'No prize',
+                      _stat('Entry', fee(t)),
+                      _stat('Starts', fmtDate(t.startAt)),
+                      Expanded(
+                        flex: 2,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('${t.registeredCount}/${t.maxPlayers} ${t.isSolo ? 'players' : 'teams'}',
+                                style: CT.headline(13.5, w: FontWeight.w700)),
+                            const SizedBox(height: 6),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(99),
+                              child: Stack(children: [
+                                Container(height: 5, color: Colors.white.withValues(alpha: 0.08)),
+                                FractionallySizedBox(
+                                  widthFactor: fill,
+                                  child: Container(height: 5, color: CT.primary),
+                                ),
+                              ]),
+                            ),
+                          ],
+                        ),
                       ),
-                      _stat(Icons.confirmation_number_rounded, fee(t)),
-                      _stat(
-                        Icons.groups_rounded,
-                        '${t.registeredCount}/${t.maxPlayers}',
-                      ),
-                      _stat(Icons.event_rounded, fmtDate(t.startAt)),
                     ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _stat(IconData i, String v) => Expanded(
-    child: Row(
+  Widget _stat(String label, String v) => Expanded(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(i, size: 14, color: CT.primary),
-        const SizedBox(width: 4),
-        Flexible(
-          child: Text(
-            v,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: CT.body(12, color: CT.onSurface, w: FontWeight.w600),
-          ),
-        ),
+        Text(v, maxLines: 1, overflow: TextOverflow.ellipsis, style: CT.headline(13.5, w: FontWeight.w700)),
+        const SizedBox(height: 2),
+        Text(label, style: CT.body(11.5, color: CT.muted)),
       ],
     ),
   );
 }
+
+Widget _glassPill(String label, Color color, {bool dot = false}) => Container(
+  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+  decoration: BoxDecoration(
+    color: Colors.black.withValues(alpha: 0.55),
+    borderRadius: BorderRadius.circular(99),
+    border: Border.all(color: color.withValues(alpha: 0.5)),
+  ),
+  child: Row(mainAxisSize: MainAxisSize.min, children: [
+    if (dot) ...[
+      Container(width: 6, height: 6, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+      const SizedBox(width: 5),
+    ],
+    Text(label, style: CT.mono(10, color: Colors.white, w: FontWeight.w800)),
+  ]),
+);
+
 
 Future<bool> confirmAction(
   String title,

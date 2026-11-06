@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -34,7 +35,7 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(
-      find.bySemanticsLabel('Mumbai Surfer. Play now on Google Play.'),
+      find.bySemanticsLabel('Mumbai Surfer. Play now.'),
       findsOneWidget,
     );
 
@@ -43,5 +44,28 @@ void main() {
     expect(opened, HomeMumbaiSurferBanner.playStoreUri);
     expect(opened.toString(), contains('id=com.hashforgamers.mumbaisurfer'));
     semantics.dispose();
+  });
+
+  testWidgets('opens the App Store listing on iOS', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    Uri? opened;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: HomeMumbaiSurferBanner(
+            openUrl: (uri) async {
+              opened = uri;
+              return true;
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.byType(HomeMumbaiSurferBanner));
+    await tester.pump();
+    expect(opened, HomeMumbaiSurferBanner.appStoreUri);
+    expect(opened.toString(), contains('apps.apple.com'));
+    debugDefaultTargetPlatformOverride = null;
   });
 }

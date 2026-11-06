@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:hash/app/modules/home/widgets/home_design.dart';
 import 'package:hash/core/service/analytics_service.dart';
@@ -7,7 +8,8 @@ import 'package:hash/core/service_locator.dart';
 import 'package:hash/core/utils/haptics.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-/// Slim home banner promoting Mumbai Surfer; tap opens its Play Store listing.
+/// Slim home banner promoting Mumbai Surfer; tap opens its store listing
+/// (App Store on iOS, Play Store elsewhere).
 class HomeMumbaiSurferBanner extends StatelessWidget {
   const HomeMumbaiSurferBanner({super.key, this.openUrl});
 
@@ -17,6 +19,13 @@ class HomeMumbaiSurferBanner extends StatelessWidget {
   static final playStoreUri = Uri.parse(
     'https://play.google.com/store/apps/details?id=com.hashforgamers.mumbaisurfer',
   );
+
+  static final appStoreUri = Uri.parse(
+    'https://apps.apple.com/us/app/mumbai-surfer-local-train-run/id6823804141',
+  );
+
+  static Uri get storeUri =>
+      defaultTargetPlatform == TargetPlatform.iOS ? appStoreUri : playStoreUri;
 
   /// Overridable for tests; defaults to opening the link outside the app.
   final Future<bool> Function(Uri uri)? openUrl;
@@ -29,14 +38,14 @@ class HomeMumbaiSurferBanner extends StatelessWidget {
     final open =
         openUrl ??
         (uri) => launchUrl(uri, mode: LaunchMode.externalApplication);
-    await open(playStoreUri);
+    await open(storeUri);
   }
 
   @override
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      label: 'Mumbai Surfer. Play now on Google Play.',
+      label: 'Mumbai Surfer. Play now.',
       excludeSemantics: true,
       child: HomeCard(
         padding: EdgeInsets.zero,
