@@ -659,22 +659,8 @@ class _SearchResultState extends State<SearchResult> {
     _debounce = Timer(const Duration(milliseconds: 180), () {
       if (!mounted) return;
       _currentQuery = value;
+      // search_performed is logged on submit only; typing fired it per keystroke.
       _recomputeResults();
-      final query = value.trim();
-      if (query.length >= 2) {
-        unawaited(
-          _segmentService.onCustomEvent('Search Performed', {
-            'query': query,
-            'source': 'search_result',
-          }),
-        );
-        unawaited(
-          _fbEventsService.onSearchPerformed(
-            query: query,
-            source: 'search_result',
-          ),
-        );
-      }
     });
   }
 

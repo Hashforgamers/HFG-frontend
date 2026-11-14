@@ -1,6 +1,8 @@
+import 'package:dio/dio.dart';
 import 'dart:async';
 import 'dart:io';
 
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_performance/firebase_performance.dart';
@@ -80,9 +82,19 @@ abstract final class CrashReporting {
 
     // Tag reports with the Firebase uid (never email/name) so a crash can be
     // matched to a support ticket. Cleared on sign-out.
+    // Debug proof for retention: this ID must stay the same across
+    // relaunch, logout and login.
+    if (kDebugMode) {
+      unawaited(FirebaseAnalytics.instance.appInstanceId.then(
+        (id) => debugPrint('[analytics] appInstanceId=$id'),
+      ));
+    }
     await _authSub?.cancel();
     _authSub = FirebaseAuth.instance.authStateChanges().listen((user) {
       unawaited(crashlytics.setUserIdentifier(user?.uid ?? ''));
+      // Analytics: stable uid on login, null on logout. Never resetAnalyticsData
+      // here; that rotates app_instance_id and zeroes D1 retention.
+      unawaited(FirebaseAnalytics.instance.setUserId(id: user?.uid));
       setKey(
         'auth_state',
         user == null
@@ -112,7 +124,15 @@ abstract final class CrashReporting {
         'unavailable',
         'network-request-failed',
         'deadline-exceeded',
+        // Listener outliving sign-out; recorded non-fatal so it stays visible.
+        'permission-denied',
       }.contains(error.code);
+    }
+    if (error is DioException) {
+      return error.type == DioExceptionType.connectionError ||
+          error.type == DioExceptionType.connectionTimeout ||
+          error.type == DioExceptionType.receiveTimeout ||
+          error.type == DioExceptionType.sendTimeout;
     }
     // package:http's ClientException and google_fonts' download failure,
     // matched by name so this file needs neither package.
@@ -120,7 +140,10 @@ abstract final class CrashReporting {
     if (type == 'ClientException' || type == 'NetworkImageLoadException') {
       return true;
     }
-    return error.toString().contains('Failed to load font');
+    final text = error.toString();
+    // e.g. NetworkProvider.auth wraps firebase_auth/network-request-failed.
+    return text.contains('Failed to load font') ||
+        text.contains('network-request-failed');
   }
 
   /// Sets a Crashlytics custom key. Safe to call before [init] or in tests.

@@ -74,7 +74,15 @@ bool needsLocalNotificationInBackground(RemoteMessage message) =>
     message.notification == null;
 
 @pragma('vm:entry-point')
+bool isStaleQuickMatch(RemoteMessage message, {DateTime? now}) {
+  final sent = message.sentTime;
+  return message.data['type'] == 'quick_match_waiting' &&
+      sent != null &&
+      (now ?? DateTime.now()).difference(sent) > const Duration(minutes: 2);
+}
+
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  if (isStaleQuickMatch(message)) return;
   if (!needsLocalNotificationInBackground(message)) return;
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   final fln = FlutterLocalNotificationsPlugin();
@@ -468,6 +476,8 @@ class NotificationController extends GetxController {
     // "X is waiting for Ludo" goes to everyone; never show it to X.
     final hostUid = message.data['host_uid']?.toString() ?? '';
     if (hostUid.isNotEmpty && hostUid == _auth.currentUser?.uid) return;
+    // Queued pushes flush when the app opens; an old "waiting" match is gone.
+    if (isStaleQuickMatch(message)) return;
 
     // Default values
     final notif = message.notification;

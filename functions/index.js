@@ -224,7 +224,7 @@ function latestEventAt(state, eventType) {
   return asNumber(state[field]);
 }
 
-async function sendPushToTopic(topic, {title, body, data = {}, channelId = "system_channel"}) {
+async function sendPushToTopic(topic, {title, body, data = {}, channelId = "system_channel", ttlSeconds}) {
   if (!topic || !title || !body) {
     functions.logger.warn("Skipping push because required fields are missing", {
       topic,
@@ -249,12 +249,17 @@ async function sendPushToTopic(topic, {title, body, data = {}, channelId = "syst
     data: payloadData,
     android: {
       priority: "high",
+      // FCM keeps undelivered pushes for 4 weeks by default; time-bound ones expire.
+      ...(ttlSeconds ? {ttl: ttlSeconds * 1000} : {}),
       notification: {
         channelId,
         sound: "default",
       },
     },
     apns: {
+      ...(ttlSeconds ? {headers: {
+        "apns-expiration": String(Math.floor(Date.now() / 1000) + ttlSeconds),
+      }} : {}),
       payload: {
         aps: {
           sound: "default",
@@ -1199,6 +1204,7 @@ exports.quickMatchWaitingPush = functions.firestore
           title: `${name} is waiting for Ludo 🎲`,
           body: `Join ${name}'s Quick Match now. It starts in seconds!`,
           channelId: "system_channel",
+          ttlSeconds: 120, // a waiting match is gone within minutes
           data: {
             type: "quick_match_waiting",
             match_id: matchId,

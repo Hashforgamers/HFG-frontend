@@ -634,8 +634,8 @@ class _BookingScreenState extends State<BookingScreen> {
     final slotKey = '${selectedDate}_$startTime';
     if (availablePCs > 0 &&
         availablePCs <= 2 &&
-        !_almostFullLoggedSlots.contains(slotKey)) {
-      _almostFullLoggedSlots.add(slotKey);
+        // Once per cafe-date, not per slot, so the event means "this day is filling up".
+        _almostFullLoggedSlots.add(selectedDate)) {
       _segmentService.onCustomEvent('Cafe Almost Full', {
         'cafe_id': widget.vendorId.toString(),
         'remaining_slots': availablePCs,
