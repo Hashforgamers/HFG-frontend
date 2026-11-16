@@ -235,6 +235,7 @@ class LudoProvider extends ChangeNotifier {
   LudoMatchService? _matchService;
   String? _matchId;
   LudoPlayerType? _mySeat;
+  int _myMissed = 0;
   Set<LudoPlayerType> _activeSeats;
 
   /// The game ends once every seat but one has brought all pawns home.
@@ -352,6 +353,7 @@ class LudoProvider extends ChangeNotifier {
         ?.board;
     _botSeats = m.botSeats;
     _drivesBots = _mySeat != null && m.botDriverUid == _uid;
+    _myMissed = _mySeat == null ? 0 : (m.missed[_mySeat] ?? 0);
     _version = m.version;
     _finished = m.status == LudoMatchStatus.finished;
 
@@ -600,6 +602,10 @@ class LudoProvider extends ChangeNotifier {
     final generation = _generation;
     // Only the active seat (or the bot driver, for a bot seat) may roll.
     if (_online && !isMyTurn && !isBotTurn) return;
+    if (_online && isMyTurn && _myMissed > 0) {
+      _myMissed = 0;
+      unawaited(_matchService!.clearMissedTurns(_matchId!, _mySeat!));
+    }
     _diceStarted = true;
     notifyListeners();
     if (soundEnabled) Audio.rollDice();

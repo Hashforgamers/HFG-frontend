@@ -642,6 +642,52 @@ class LudoMatchService {
     }
   }
 
+  /// Turns in a row a player may let run out before they forfeit.
+  static const int maxMissedTurns = 3;
+
+  /// Count a turn that ran out on [seat] (started at [turnStartedAtMs]). The
+  /// third miss in a row forfeits the seat via [leaveMatch], so the remaining
+  /// player wins instead of watching a dead timer.
+  Future<void> recordMissedTurn(
+    String matchId,
+    LudoPlayerType seat,
+    int turnStartedAtMs,
+  ) async {
+    final ref = _col.doc(matchId);
+    try {
+      final count = await _db.runTransaction<int>((tx) async {
+        final snap = await tx.get(ref);
+        final data = snap.data();
+        if (!snap.exists || data == null) return 0;
+        final m = LudoMatch.fromMap(snap.id, data);
+        final info = m.seats[seat];
+        if (m.status != LudoMatchStatus.active || info == null || info.bot) {
+          return 0;
+        }
+        // Several devices may time out the same turn; count it once.
+        if (m.missedTurnMs[seat] == turnStartedAtMs) return 0;
+        final n = (m.missed[seat] ?? 0) + 1;
+        tx.update(ref, {
+          'missed.${seat.name}': n,
+          'missed_turn_ms.${seat.name}': turnStartedAtMs,
+        });
+        return n;
+      });
+      if (count >= maxMissedTurns) await leaveMatch(matchId, seat);
+    } catch (e) {
+      debugPrint('[LudoMatch] record missed turn: $e');
+    }
+  }
+
+  /// The player acted on their turn: their miss streak starts over.
+  Future<void> clearMissedTurns(String matchId, LudoPlayerType seat) async {
+    try {
+      await _col.doc(matchId).update({'missed.${seat.name}': 0});
+    } catch (e) {
+      debugPrint('[LudoMatch] clear missed turns: $e');
+    }
+  }
+
   Future<void> cancelMatch(String matchId) async {
     await _col.doc(matchId).update({
       'status': statusToString(LudoMatchStatus.cancelled),

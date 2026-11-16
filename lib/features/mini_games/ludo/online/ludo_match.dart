@@ -106,6 +106,8 @@ class LudoMatch {
     this.createdAtMs = 0,
     this.rematchId = '',
     this.rematchBy = '',
+    this.missed = const {},
+    this.missedTurnMs = const {},
   });
 
   final String id;
@@ -156,6 +158,12 @@ class LudoMatch {
 
   /// Display name of whoever asked for the rematch.
   final String rematchBy;
+
+  /// Turns in a row each seat let run out; [LudoMatchService.maxMissedTurns]
+  /// forfeits the seat. [missedTurnMs] is the turn each was last counted for,
+  /// so several devices timing out the same turn count it once.
+  final Map<LudoPlayerType, int> missed;
+  final Map<LudoPlayerType, int> missedTurnMs;
 
   bool get isFull => seats.length >= 4;
   int get seatCount => seats.length;
@@ -260,6 +268,15 @@ class LudoMatch {
       createdAtMs: (m['created_at_ms'] as num?)?.toInt() ?? 0,
       rematchId: (m['rematch_id'] ?? '').toString(),
       rematchBy: (m['rematch_by'] ?? '').toString(),
+      missed: _seatInts(m['missed']),
+      missedTurnMs: _seatInts(m['missed_turn_ms']),
     );
   }
+
+  static Map<LudoPlayerType, int> _seatInts(Object? raw) => {
+    if (raw is Map)
+      for (final e in raw.entries)
+        if (e.value is num)
+          seatFromString(e.key.toString()): (e.value as num).toInt(),
+  };
 }

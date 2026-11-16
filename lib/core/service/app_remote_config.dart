@@ -21,7 +21,7 @@ abstract final class AppRemoteConfig {
 
   @visibleForTesting
   static const Map<String, Object> defaults = {
-    ludoBotFillSecondsKey: 20,
+    ludoBotFillSecondsKey: 60,
     ludoQuickModeEnabledKey: false,
     ludoQuitCooldownSecondsKey: 0,
     ludoQuitCooldownThresholdKey: 2,

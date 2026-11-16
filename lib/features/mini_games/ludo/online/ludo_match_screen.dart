@@ -213,6 +213,13 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
         // It's my turn (or a bot I play for) and the clock ran out — skip it.
         _lastSkippedTurnMs = match.turnStartedAtMs;
         _provider.skipTurn();
+        unawaited(
+          _service.recordMissedTurn(
+            widget.matchId,
+            match.turn,
+            match.turnStartedAtMs,
+          ),
+        );
       } else if (expiredMs >= _abandonGraceMs &&
           !_provider.isSpectator &&
           !_provider.isMyTurn) {
@@ -220,6 +227,13 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
         // a fellow seated player nudges the turn so the match can't freeze.
         _lastSkippedTurnMs = match.turnStartedAtMs;
         _provider.forceAdvanceExpiredTurn();
+        unawaited(
+          _service.recordMissedTurn(
+            widget.matchId,
+            match.turn,
+            match.turnStartedAtMs,
+          ),
+        );
       }
 
       // Clock-ticking sound through the final 15s of my own turn.
@@ -346,6 +360,15 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
         if (mounted) setState(() => _error = e.toString());
         return;
       }
+    }
+
+    // Not seated in a match that already started (e.g. opened from a chat
+    // invite): watch it, so the board is the read-only online mirror and never
+    // a local game anyone can roll in.
+    if (!_spectating &&
+        seat == null &&
+        match.status != LudoMatchStatus.waiting) {
+      _spectating = true;
     }
 
     // Attach the mirror once — as a player (seat) or, when spectating, seat-less.
@@ -884,9 +907,7 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
       final others = match.humanCount - 1;
       lobbyHint = others > 0
           ? '$others player${others == 1 ? '' : 's'} found! Starting…'
-          : (quickLeft > 0
-                ? 'Finding players… we’ll add a bot in ${quickLeft}s'
-                : 'Starting…');
+          : (quickLeft > 0 ? 'Finding players… ${quickLeft}s' : 'Starting…');
     } else {
       lobbyHint = isHost
           ? 'Invite up to 3 friends, then start when everyone’s in.'
@@ -1114,6 +1135,14 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
     final timed = active && match.turnStartedAtMs > 0;
     final urgent = timed && remaining <= 15;
     final ring = urgent ? const Color(0xFFFF4D4D) : color;
+    // An opponent slow to act (or who already let a turn run out) reads as a
+    // network problem rather than a silent timer.
+    final weak =
+        timed &&
+        !isMe &&
+        info != null &&
+        !info.bot &&
+        (remaining <= 18 || (match.missed[seat] ?? 0) > 0);
 
     Widget avatar = SizedBox(
       width: 58,
@@ -1160,7 +1189,14 @@ class _LudoMatchScreenState extends State<LudoMatchScreen>
             ),
             SizedBox(
               height: 18,
-              child: timed
+              child: weak
+                  ? FittedBox(
+                      child: Text(
+                        'Weak connection',
+                        style: gameFont(11, const Color(0xFFFFA726)),
+                      ),
+                    )
+                  : timed
                   ? GameText('${remaining}s', size: 13, color: ring)
                   : (active
                         ? Text('Playing', style: gameFont(12, ring))
