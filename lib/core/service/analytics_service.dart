@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -310,6 +311,31 @@ class AnalyticsService {
       }
     }
   }
+
+  /// Tags the user with their locality (e.g. "Mira Road") as FCM topic
+  /// `area_mira_road` + user property `user_area`, dropping the previous area topic.
+  Future<void> setUserArea(String area) async {
+    final slug = areaSlug(area);
+    if (slug.isEmpty) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final old = prefs.getString('user_area_slug');
+      if (old == slug) return;
+      final fm = FirebaseMessaging.instance;
+      if (old != null) await fm.unsubscribeFromTopic('area_$old');
+      await fm.subscribeToTopic('area_$slug');
+      await _analytics.setUserProperty(name: 'user_area', value: slug);
+      await prefs.setString('user_area_slug', slug);
+    } catch (e) {
+      debugPrint('[Analytics] setUserArea failed: $e');
+    }
+  }
+
+  static String areaSlug(String area) => area
+      .trim()
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
+      .replaceAll(RegExp(r'^_+|_+$'), '');
 
   static String normalizeFailureReason(Object? error) {
     final raw = error?.toString().toLowerCase() ?? '';

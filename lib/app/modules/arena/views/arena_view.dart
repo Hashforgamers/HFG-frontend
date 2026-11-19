@@ -1769,6 +1769,12 @@ class _ArenaViewState extends State<ArenaView> {
         );
 
         if (placemarks.isNotEmpty) {
+          final pm = placemarks.first;
+          // subLocality is "Mira Road"/"Andheri West" in Mumbai; locality is the fallback.
+          final area = (pm.subLocality?.trim().isNotEmpty ?? false)
+              ? pm.subLocality!
+              : (pm.locality ?? '');
+          unawaited(locator<AnalyticsService>().setUserArea(area));
           final resolvedState =
               placemarks.first.administrativeArea?.trim() ?? '';
           if (resolvedState.isNotEmpty) {
