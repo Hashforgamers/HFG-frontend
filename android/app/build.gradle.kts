@@ -34,7 +34,9 @@ android {
         applicationId = "com.hfg.hash"
         minSdk = flutter.minSdkVersion                                  // bumped for Firebase Auth
         targetSdk = 36
-        versionCode = flutter.versionCode
+        // Codemagic passes its small build counter (~355); Play is already at date-style
+        // codes (20261116+), so lift small counters into that range to keep upgrades valid.
+        versionCode = flutter.versionCode.let { if (it < 20_000_000) it + 20_261_000 else it }
         versionName = flutter.versionName
 
     }
