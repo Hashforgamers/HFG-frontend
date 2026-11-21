@@ -28,16 +28,10 @@ class Time {
   final String startTime;
   final String endTime;
 
-  Time({
-    required this.startTime,
-    required this.endTime,
-  });
+  Time({required this.startTime, required this.endTime});
 
   factory Time.fromJson(Map<String, dynamic> json) {
-    return Time(
-      startTime: json['start_time'],
-      endTime: json['end_time'],
-    );
+    return Time(startTime: json['start_time'], endTime: json['end_time']);
   }
 }
 

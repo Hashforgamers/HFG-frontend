@@ -1,0 +1,276 @@
+rules_version = '2';
+
+// Client access rules for the Hash app (project hash-ee6fc).
+// Cloud Functions and the backend use the Admin SDK, which bypasses these
+// rules, so server-only collections are simply closed to clients here.
+// Anything not matched below is denied.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function me() { return request.auth.uid; }
+    function isMe(uid) { return signedIn() && me() == uid; }
+    function newData() { return request.resource.data; }
+    function oldData() { return resource.data; }
+    function onlyChanges(fields) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
+    }
+    // Field holds a list containing the caller (missing field = false).
+    function listHasMe(data, field) {
+      return field in data && data[field] is list && me() in data[field];
+    }
+
+    // ---------- Profiles ----------
+    // Read by anyone signed in (search, friends, chat headers); written only
+    // by the owner.
+    match /chat_users/{uid} {
+      allow read: if signedIn();
+      allow create, update: if isMe(uid);
+      allow delete: if false;
+    }
+
+    match /nearby_player_locations/{uid} {
+      allow read: if signedIn();
+      allow create, update, delete: if isMe(uid);
+    }
+
+    // Owned cosmetics / skins: one doc per user.
+    match /mini_game_cosmetics/{uid} {
+      allow read: if isMe(uid);
+      allow create, update: if isMe(uid);
+    }
+    match /ludo_skins/{uid} {
+      allow read: if isMe(uid);
+      allow create, update: if isMe(uid);
+    }
+
+    // ---------- Chat ----------
+    // You can only read rooms you are in, and only write a room that has you
+    // as a member before or after the write (joining shared tournament and
+    // lounge rooms adds yourself; leaving removes yourself).
+    match /chat_rooms/{roomId} {
+      allow get: if signedIn() && (resource == null || listHasMe(oldData(), 'members'));
+      allow list: if signedIn() && me() in resource.data.members;
+      allow create: if signedIn() && listHasMe(newData(), 'members');
+      allow update: if signedIn()
+        && (listHasMe(oldData(), 'members') || listHasMe(newData(), 'members'));
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        function roomHasMe() {
+          let room = get(/databases/$(database)/documents/chat_rooms/$(roomId));
+          return room != null && listHasMe(room.data, 'members');
+        }
+        allow read: if signedIn() && roomHasMe();
+        allow create: if signedIn() && roomHasMe() && newData().sender_id == me();
+        // Members mark messages seen / react; only the sender deletes.
+        allow update: if signedIn() && roomHasMe();
+        allow delete: if signedIn() && oldData().sender_id == me();
+      }
+    }
+
+    // Tournament dispute rooms are created by the backend. Participants sign
+    // in with backend-minted custom tokens (uids like "hfg-user-123").
+    match /communityDisputeRooms/{roomId} {
+      function inDispute(data) {
+        return listHasMe(data, 'participant_firebase_uids')
+          || listHasMe(data, 'admin_user_ids')
+          || me().matches('^hfg-.*');
+      }
+      allow read: if signedIn() && (resource == null || inDispute(oldData()));
+      allow update: if signedIn() && inDispute(oldData());
+      allow create, delete: if false;
+
+      match /messages/{messageId} {
+        function disputeHasMe() {
+          let room = get(/databases/$(database)/documents/communityDisputeRooms/$(roomId));
+          return room != null && inDispute(room.data);
+        }
+        allow read: if signedIn() && disputeHasMe();
+        allow create: if signedIn() && disputeHasMe() && newData().sender_id == me();
+        allow update: if signedIn() && disputeHasMe();
+        allow delete: if false;
+      }
+    }
+
+    // ---------- Social ----------
+    match /social_friendships/{relId} {
+      allow get: if signedIn() && (resource == null || listHasMe(oldData(), 'users'));
+      allow list: if signedIn() && me() in resource.data.users;
+      allow create: if signedIn() && listHasMe(newData(), 'users')
+        && newData().requester_uid == me();
+      allow update: if signedIn() && listHasMe(oldData(), 'users')
+        && newData().users == oldData().users;
+      allow delete: if signedIn() && listHasMe(oldData(), 'users');
+    }
+
+    match /social_blocks/{blockId} {
+      allow read: if signedIn() && (resource == null || oldData().blocker_uid == me());
+      allow create, update: if signedIn() && newData().blocker_uid == me()
+        && blockId.matches('^' + me() + '_.*');
+      allow delete: if signedIn() && oldData().blocker_uid == me();
+    }
+
+    match /social_reports/{reportId} {
+      allow create: if signedIn();
+      allow read, update, delete: if false;
+    }
+
+    // Looking-for-group posts: doc id is the poster's uid; others join
+    // (member list) and chat in the lobby.
+    match /social_lfg_posts/{postId} {
+      allow read: if signedIn();
+      allow create, delete: if isMe(postId);
+      allow update: if isMe(postId) || signedIn();
+      match /messages/{messageId} {
+        allow read: if signedIn();
+        allow create: if signedIn() && newData().sender_id == me();
+        allow update, delete: if false;
+      }
+    }
+
+    // ---------- Live ----------
+    match /live_streams/{streamId} {
+      allow read: if signedIn();
+      allow create: if signedIn() && newData().host_uid == me();
+      // Host edits the stream; viewers only move the viewer count.
+      allow update: if signedIn() && (oldData().host_uid == me()
+        || onlyChanges(['viewer_count', 'updated_at']));
+      allow delete: if signedIn() && oldData().host_uid == me();
+
+      match /viewers/{uid} {
+        allow read: if signedIn();
+        allow create, update, delete: if isMe(uid);
+      }
+      match /messages/{messageId} {
+        allow read: if signedIn();
+        allow create: if signedIn();
+        allow update, delete: if false;
+      }
+    }
+
+    match /live_hosts/{hostUid} {
+      allow read: if signedIn();
+      allow create, update: if isMe(hostUid)
+        || (signedIn() && onlyChanges(['followers_count', 'updated_at']));
+      allow delete: if false;
+      match /followers/{uid} {
+        allow read: if signedIn();
+        allow create, update, delete: if isMe(uid);
+      }
+    }
+
+    match /upcoming_streams/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn() && newData().host_uid == me();
+      allow update: if signedIn();
+      allow delete: if signedIn() && oldData().host_uid == me();
+    }
+
+    // Alerts a host sends to followers who RSVP'd; each user reads their own.
+    match /live_alerts/{alertId} {
+      allow read: if signedIn() && oldData().target_uid == me();
+      allow create: if signedIn();
+      allow update: if signedIn() && oldData().target_uid == me();
+      allow delete: if signedIn() && oldData().target_uid == me();
+    }
+
+    // ---------- Mini games ----------
+    match /mini_game_leaderboard/{uid} {
+      allow read: if signedIn();
+      allow create, update: if isMe(uid);
+      allow delete: if false;
+    }
+    // Weekly docs are "<week>_<uid>".
+    match /mini_game_weekly/{docId} {
+      allow read: if signedIn();
+      allow create, update: if signedIn() && docId.matches('.*_' + me());
+      allow delete: if false;
+    }
+
+    // Online matches are multi-player documents: seated players, joiners,
+    // the bot driver and spectator reactions all write them.
+    match /ludo_matches/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn() && newData().host_uid == me();
+      allow update: if signedIn();
+      allow delete: if false;
+    }
+    match /snl_matches/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn() && newData().host_uid == me();
+      allow update: if signedIn();
+      allow delete: if false;
+    }
+    match /arrow_escape_matches/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn() && newData().host_uid == me();
+      allow update: if signedIn();
+      allow delete: if false;
+    }
+    match /wordly_matches/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn() && newData().host_uid == me();
+      allow update: if signedIn();
+      allow delete: if false;
+    }
+    match /bird_matches/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn() && newData().host_uid == me();
+      allow update: if signedIn();
+      allow delete: if false;
+      match /runs/{runId} {
+        allow read: if signedIn();
+        allow create, update: if signedIn() && newData().uid == me();
+        allow delete: if false;
+      }
+    }
+
+    // Squad missions are shared by everyone in the squad.
+    match /squad_weekly_missions_v1/{id} {
+      allow read, create, update: if signedIn();
+      allow delete: if false;
+    }
+
+    // ---------- Cafes & shop ----------
+    match /cafes_external/{cafeId} {
+      allow read: if signedIn();
+      allow create, update: if signedIn();
+      allow delete: if false;
+      match /likes/{likeId} {
+        allow read: if signedIn();
+        allow create: if signedIn() && newData().firebase_uid == me();
+        allow update, delete: if false;
+      }
+    }
+
+    match /requested_cafes/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn();
+      allow update, delete: if false;
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      // Clients only bump the pre-registration counter.
+      allow update: if signedIn() && onlyChanges(['preRegisterCount'])
+        && newData().preRegisterCount == oldData().get('preRegisterCount', 0) + 1;
+      allow create, delete: if false;
+    }
+
+    match /pre_registrations/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn();
+      allow update, delete: if false;
+    }
+
+    // ---------- Analytics written by the app ----------
+    match /notification_funnel_events/{id} {
+      allow create: if signedIn();
+      allow read, update, delete: if false;
+    }
+
+    // Everything else (rewards, push automation, templates, caps, users,
+    // cafes, leads, evidence, funnel jobs/state, ...) is server-only.
+  }
+}

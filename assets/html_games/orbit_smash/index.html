@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0"
+    />
+    <title>Orbit Smash</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: Arial, sans-serif;
+        background:
+          radial-gradient(circle at center, rgba(252, 154, 92, 0.18), transparent 24%),
+          linear-gradient(180deg, #140c1c 0%, #06070f 100%);
+        color: #f7f3ff;
+        display: grid;
+        place-items: center;
+        padding: 20px;
+      }
+
+      .panel {
+        width: min(420px, 100%);
+        background: rgba(14, 16, 28, 0.86);
+        border-radius: 28px;
+        padding: 24px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 24px 48px rgba(0, 0, 0, 0.34);
+      }
+
+      h1 {
+        margin: 0 0 10px;
+        font-size: 28px;
+      }
+
+      p {
+        margin: 0;
+        color: #b9b6c8;
+        line-height: 1.5;
+      }
+
+      .core-wrap {
+        display: grid;
+        place-items: center;
+        margin: 24px 0;
+      }
+
+      .core {
+        width: 172px;
+        height: 172px;
+        border-radius: 999px;
+        background:
+          radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.75), transparent 22%),
+          radial-gradient(circle at center, #ffdb94 0%, #ff9d4d 45%, #ff5a54 100%);
+        box-shadow: 0 0 60px rgba(255, 141, 84, 0.34);
+        display: grid;
+        place-items: center;
+        transform: scale(var(--pulse, 1));
+        transition: transform 160ms ease;
+      }
+
+      .core span {
+        font-size: 32px;
+        font-weight: 700;
+      }
+
+      .meter {
+        width: 100%;
+        height: 14px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        overflow: hidden;
+        margin-bottom: 18px;
+      }
+
+      .meter-fill {
+        height: 100%;
+        width: 0%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #ffd57a, #ff8f5e);
+      }
+
+      .stats {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 18px;
+        font-size: 14px;
+        color: #d6d0e8;
+      }
+
+      button {
+        width: 100%;
+        border: none;
+        border-radius: 16px;
+        padding: 15px 18px;
+        cursor: pointer;
+        font-size: 15px;
+        font-weight: 700;
+        color: #161616;
+        background: linear-gradient(135deg, #ffcf7c, #ff9b5e);
+      }
+
+      #status {
+        margin-top: 14px;
+        font-size: 13px;
+        color: #b9b6c8;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="panel">
+      <h1>Orbit Smash</h1>
+      <p>Charge the core to 100 and burst it. Every charge adds random power.</p>
+
+      <div class="core-wrap">
+        <div class="core" id="core"><span id="energyLabel">0%</span></div>
+      </div>
+
+      <div class="meter">
+        <div class="meter-fill" id="meterFill"></div>
+      </div>
+
+      <div class="stats">
+        <span id="scoreLabel">Score: 0</span>
+        <span id="tapLabel">Charges: 0</span>
+      </div>
+
+      <button id="chargeButton">Charge Orb</button>
+      <div id="status">Build the charge and the score will auto-submit.</div>
+    </div>
+
+    <script>
+      const core = document.getElementById("core");
+      const chargeButton = document.getElementById("chargeButton");
+      const meterFill = document.getElementById("meterFill");
+      const scoreLabel = document.getElementById("scoreLabel");
+      const tapLabel = document.getElementById("tapLabel");
+      const energyLabel = document.getElementById("energyLabel");
+      const statusLabel = document.getElementById("status");
+
+      let score = 0;
+      let taps = 0;
+      let energy = 0;
+      let finished = false;
+
+      function render() {
+        meterFill.style.width = `${energy}%`;
+        energyLabel.textContent = `${energy}%`;
+        scoreLabel.textContent = `Score: ${score}`;
+        tapLabel.textContent = `Charges: ${taps}`;
+        core.style.setProperty("--pulse", (1 + energy / 220).toFixed(3));
+      }
+
+      function submitScore() {
+        if (
+          window.flutter_inappwebview &&
+          typeof window.flutter_inappwebview.callHandler === "function"
+        ) {
+          window.flutter_inappwebview.callHandler("gameScore", { score });
+          statusLabel.textContent = `Score ${score} sent to Flutter.`;
+          return;
+        }
+
+        statusLabel.textContent = `Bridge unavailable. Final score: ${score}`;
+      }
+
+      function finishGame() {
+        finished = true;
+        chargeButton.disabled = true;
+        chargeButton.textContent = "Orb Smashed";
+        statusLabel.textContent = "Orb shattered. Sending score...";
+        submitScore();
+      }
+
+      chargeButton.addEventListener("click", () => {
+        if (finished) return;
+        const power = Math.floor(Math.random() * 18) + 8;
+        energy = Math.min(100, energy + power);
+        taps += 1;
+        score += power * 3;
+        render();
+        if (energy >= 100) {
+          finishGame();
+        }
+      });
+
+      render();
+    </script>
+  </body>
+</html>

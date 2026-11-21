@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.hfg.hash",
+      "sha256_cert_fingerprints": [
+        "REPLACE_WITH_PLAY_APP_SIGNING_SHA256",
+        "C1:C0:83:6D:FF:81:91:13:DE:B2:20:06:FA:2F:C4:EF:C9:D1:D5:88:57:07:EB:C1:95:87:54:80:59:FF:5A:00"
+      ]
+    }
+  }
+]

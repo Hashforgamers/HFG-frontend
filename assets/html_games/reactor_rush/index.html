@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0"
+    />
+    <title>Reactor Rush</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: Arial, sans-serif;
+        display: grid;
+        place-items: center;
+        background:
+          radial-gradient(circle at top left, rgba(87, 197, 255, 0.18), transparent 30%),
+          radial-gradient(circle at bottom right, rgba(255, 93, 122, 0.2), transparent 30%),
+          #070a13;
+        color: #f4f7ff;
+        padding: 20px;
+      }
+
+      .panel {
+        width: min(420px, 100%);
+        background: rgba(10, 14, 24, 0.88);
+        border-radius: 30px;
+        padding: 24px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 28px;
+      }
+
+      p,
+      #status {
+        margin: 0;
+        color: #adb7cc;
+        line-height: 1.5;
+      }
+
+      .reactor {
+        margin: 24px auto;
+        width: 220px;
+        height: 220px;
+        border-radius: 999px;
+        border: none;
+        cursor: pointer;
+        display: grid;
+        place-items: center;
+        background: linear-gradient(135deg, #2a3248, #111726);
+        box-shadow: inset 0 0 0 14px rgba(255, 255, 255, 0.03);
+        transition: transform 120ms ease, background 160ms ease;
+      }
+
+      .reactor.ready {
+        background: linear-gradient(135deg, #74ffc8, #18b86f);
+      }
+
+      .reactor.waiting {
+        cursor: default;
+      }
+
+      .reactor:active {
+        transform: scale(0.98);
+      }
+
+      .reactor span {
+        font-size: 28px;
+        font-weight: 700;
+      }
+
+      .stats {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 16px;
+        font-size: 14px;
+      }
+
+      button.secondary {
+        width: 100%;
+        border: none;
+        border-radius: 16px;
+        padding: 14px 16px;
+        cursor: pointer;
+        font-weight: 700;
+        color: #10131d;
+        background: linear-gradient(135deg, #87d5ff, #5b8dff);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="panel">
+      <h1>Reactor Rush</h1>
+      <p>Press start. Wait for green. Tap immediately for the highest score.</p>
+
+      <button class="reactor waiting" id="reactor">
+        <span id="reactorLabel">START</span>
+      </button>
+
+      <div class="stats">
+        <span id="scoreLabel">Score: 0</span>
+        <span id="reactionLabel">Reaction: -</span>
+      </div>
+
+      <button class="secondary" id="restart">Restart Round</button>
+      <p id="status">One tap ends the round and pushes the score to Flutter.</p>
+    </div>
+
+    <script>
+      const reactor = document.getElementById("reactor");
+      const reactorLabel = document.getElementById("reactorLabel");
+      const scoreLabel = document.getElementById("scoreLabel");
+      const reactionLabel = document.getElementById("reactionLabel");
+      const statusLabel = document.getElementById("status");
+      const restartButton = document.getElementById("restart");
+
+      let state = "idle";
+      let startTime = 0;
+      let timerHandle = null;
+      let score = 0;
+
+      function render() {
+        scoreLabel.textContent = `Score: ${score}`;
+      }
+
+      function submitScore() {
+        if (
+          window.flutter_inappwebview &&
+          typeof window.flutter_inappwebview.callHandler === "function"
+        ) {
+          window.flutter_inappwebview.callHandler("gameScore", { score });
+          statusLabel.textContent = `Score ${score} sent to Flutter.`;
+          return;
+        }
+
+        statusLabel.textContent = `Bridge unavailable. Final score: ${score}`;
+      }
+
+      function armRound() {
+        clearTimeout(timerHandle);
+        state = "waiting";
+        score = 0;
+        render();
+        reactionLabel.textContent = "Reaction: -";
+        reactor.className = "reactor waiting";
+        reactorLabel.textContent = "WAIT";
+        statusLabel.textContent = "Hold position. Reactor will turn green soon.";
+
+        const delay = 1500 + Math.floor(Math.random() * 2500);
+        timerHandle = setTimeout(() => {
+          state = "ready";
+          startTime = Date.now();
+          reactor.className = "reactor ready";
+          reactorLabel.textContent = "TAP";
+          statusLabel.textContent = "Tap now.";
+        }, delay);
+      }
+
+      function resetRound() {
+        clearTimeout(timerHandle);
+        state = "idle";
+        score = 0;
+        render();
+        reactionLabel.textContent = "Reaction: -";
+        reactor.className = "reactor";
+        reactorLabel.textContent = "START";
+        statusLabel.textContent = "One tap ends the round and pushes the score to Flutter.";
+      }
+
+      reactor.addEventListener("click", () => {
+        if (state === "idle") {
+          armRound();
+          return;
+        }
+
+        if (state === "waiting") {
+          clearTimeout(timerHandle);
+          score = 0;
+          render();
+          reactionLabel.textContent = "Reaction: Too early";
+          statusLabel.textContent = "Too early. Reset and try again.";
+          state = "finished";
+          reactor.className = "reactor";
+          reactorLabel.textContent = "MISS";
+          submitScore();
+          return;
+        }
+
+        if (state === "ready") {
+          const reaction = Date.now() - startTime;
+          score = Math.max(0, 500 - reaction);
+          render();
+          reactionLabel.textContent = `Reaction: ${reaction}ms`;
+          statusLabel.textContent = "Round finished. Sending score...";
+          state = "finished";
+          reactor.className = "reactor";
+          reactorLabel.textContent = "DONE";
+          submitScore();
+        }
+      });
+
+      restartButton.addEventListener("click", resetRound);
+
+      resetRound();
+    </script>
+  </body>
+</html>

@@ -1,10 +1,10 @@
 import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:hash/utils/widgets/glow_neon_loader.dart';
+import 'package:hash/core/utils/haptics.dart';
+import 'package:hash/utils/widgets/home_section_title.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -52,7 +52,7 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
     if (dragOffset.abs() > 50) {
       if (dragOffset < 0 && currentIndex < total - 1) {
         // Swipe up → next
-        HapticFeedback.mediumImpact(); // 🔥 add haptic feedback here
+        Haptics.navigation();
         setState(() => slidingOutIndex = currentIndex);
         Future.delayed(const Duration(milliseconds: 160), () {
           setState(() {
@@ -61,17 +61,18 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
           });
           _maybeLoadMore();
           _prefetchCover(currentIndex + 1);
+          _prefetchCover(currentIndex + 2);
         });
       } else if (dragOffset > 0 && currentIndex > 0) {
         // Swipe down → previous
-        HapticFeedback.lightImpact(); // optional, lighter haptic for down-swipe
+        Haptics.selection();
         _slideDownController.forward(from: 1.0);
         setState(() => currentIndex--);
+        _prefetchCover(currentIndex + 1);
       }
     }
     setState(() => dragOffset = 0.0);
   }
-
 
   void _maybeLoadMore() {
     // When we are within last 4 cards, trigger loadMore
@@ -96,8 +97,10 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
     if (dragOffset > 0 && relativeIndex >= 0) {
       dragEffect = dragOffset / 30;
     } else if (dragOffset < 0) {
-      if (relativeIndex == 0) dragEffect = dragOffset / 5;
-      else if (relativeIndex >= 1) dragEffect = dragOffset / 10;
+      if (relativeIndex == 0)
+        dragEffect = dragOffset / 5;
+      else if (relativeIndex >= 1)
+        dragEffect = dragOffset / 10;
     }
     return 20.0 * relativeIndex + dragEffect;
   }
@@ -110,14 +113,16 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
   // ──────────────── UI ────────────────
   Widget _newsShimmerCard() {
     return Shimmer.fromColors(
-      baseColor: Colors.grey.shade800,
-      highlightColor: Colors.grey.shade700,
+      baseColor: const Color(0xFF1C1C1E),
+      highlightColor: const Color(0xFF2C2C2E),
       child: Container(
         width: 320,
-        height: 190,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(18),
-          color: Colors.grey.shade900,
+        height: 150,
+        decoration: const ShapeDecoration(
+          shape: ContinuousRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(44)),
+          ),
+          color: Color(0xFF1C1C1E),
         ),
       ),
     );
@@ -140,7 +145,7 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
       }
 
       if (controller.items.isEmpty) {
-        return SizedBox();
+        return const SizedBox.shrink();
       }
 
       final list = controller.items;
@@ -152,12 +157,12 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'GAMER FIREWIRE',
-            style: GoogleFonts.inter(
-                fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+          const HomeSectionTitle(
+            title: 'Gamer ',
+            accent: 'Firewire',
+            brand: true,
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),
           Center(
             child: GestureDetector(
               onVerticalDragUpdate: _handleDragUpdate,
@@ -179,10 +184,16 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
                         }
 
                         double topOffset = _getTopOffset(relativeIndex);
-                        double horizontalOffset = _getHorizontalOffset(relativeIndex);
-                        double opacity = (1.0 - 0.25 * relativeIndex).clamp(0.0, 1.0);
+                        double horizontalOffset = _getHorizontalOffset(
+                          relativeIndex,
+                        );
+                        double opacity = (1.0 - 0.25 * relativeIndex).clamp(
+                          0.0,
+                          1.0,
+                        );
 
-                        if (_slideDownController.isAnimating && relativeIndex == 0) {
+                        if (_slideDownController.isAnimating &&
+                            relativeIndex == 0) {
                           topOffset -= 30.0 * _slideDownController.value;
                         }
 
@@ -218,8 +229,9 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
               child: Padding(
                 padding: const EdgeInsets.only(top: 6),
                 child: SizedBox(
-                  height: 16, width: 16,
-                  child: const RainbowLoadingBar(),
+                  height: 16,
+                  width: 16,
+                  child: const AppLinearLoader(),
                 ),
               ),
             ),
@@ -249,103 +261,119 @@ class _GamerNewsSectionState extends State<GamerNewsSection>
     );
   }
 
-  Widget _buildGameNewsCard({required GameNewsItem item}) {
-    final accent = const Color(0xFF6DFB60);
+  TextStyle _text(double size, Color color, {FontWeight? weight}) =>
+      GoogleFonts.inter(
+        color: color,
+        fontSize: size,
+        fontWeight: weight ?? FontWeight.w400,
+        letterSpacing: size >= 15 ? -0.3 : -0.1,
+        height: 1.25,
+      );
 
-    return InkWell(
-      borderRadius: BorderRadius.circular(20),
+  /// Apple News–style card: solid material surface with continuous corners,
+  /// a rounded thumbnail, the source in small caps and a bold headline.
+  Widget _buildGameNewsCard({required GameNewsItem item}) {
+    const red = Color(0xFFFF453A);
+    const secondary = Color(0x99EBEBF5);
+    final ago = _ago(item.publishedAt);
+
+    return GestureDetector(
       onTap: () async {
         if (item.url.isEmpty) return;
         final uri = Uri.parse(item.url);
         if (await canLaunchUrl(uri)) {
+          Haptics.selection();
           await launchUrl(uri, mode: LaunchMode.externalApplication);
         }
       },
       child: Container(
         height: 150,
         width: 400,
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topCenter, end: Alignment.bottomCenter,
-            colors: [Color(0x1AFFFFFF), Color(0x1A64BD55)],
+        padding: const EdgeInsets.all(12),
+        decoration: const ShapeDecoration(
+          shape: ContinuousRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(44)),
+            side: BorderSide(color: Color(0x5900DC00), width: 0.8),
           ),
-          border: Border.all(color: Colors.white.withOpacity(0.15)),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Stack(
-          children: [
-            // Frosted panel (smaller blur for perf)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                child: const SizedBox.expand(),
-              ),
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF26262A), Color(0xFF16201A)],
+          ),
+          shadows: [
+            BoxShadow(
+              color: Color(0x66000000),
+              blurRadius: 20,
+              offset: Offset(0, 10),
             ),
-            Positioned(
-              top: 15, bottom: 15, left: 15, right: 15,
-              child: Row(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: item.imageUrl == null
-                        ? Container(
-                      height: 120, width: 150,
-                      color: const Color(0xFF1A1A1A),
-                      child: const Icon(Icons.image, color: Colors.white24),
-                    )
-                        : CachedNetworkImage(
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 126,
+              height: double.infinity,
+              clipBehavior: Clip.antiAlias,
+              decoration: const ShapeDecoration(
+                shape: ContinuousRectangleBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(32)),
+                ),
+                color: Color(0xFF2C2C2E),
+              ),
+              child: item.imageUrl == null
+                  ? const Icon(Icons.article_rounded, color: Colors.white24)
+                  : CachedNetworkImage(
                       imageUrl: item.imageUrl!,
-                      height: 120, width: 150, fit: BoxFit.cover,
-                      memCacheWidth: 300, // lightweight caching
-                      placeholder: (_, __) =>
-                      const Center(child: RainbowGlowingLoader(size: 24)),
-                      errorWidget: (_, __, ___) => Container(
-                        color: Colors.grey,
-                        alignment: Alignment.center,
-                        child: const Icon(Icons.image_not_supported,
-                            color: Colors.white54, size: 36),
+                      fit: BoxFit.cover,
+                      memCacheWidth: 360,
+                      placeholder: (_, _) =>
+                          const ColoredBox(color: Color(0xFF2C2C2E)),
+                      errorWidget: (_, _, _) => const Icon(
+                        Icons.image_not_supported_rounded,
+                        color: Colors.white38,
+                        size: 30,
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      (item.source ?? 'Gaming').toUpperCase(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: _text(
+                        11,
+                        red,
+                        weight: FontWeight.w700,
+                      ).copyWith(letterSpacing: 0.4),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      item.title,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: _text(15, Colors.white, weight: FontWeight.w700),
+                    ),
+                    const Spacer(),
+                    Row(
                       children: [
-                        // Title
-                        Text(
-                          item.title,
-                          style: GoogleFonts.inter(
-                              fontSize: 14, color: Colors.white, fontWeight: FontWeight.w600),
-                          maxLines: 3, overflow: TextOverflow.ellipsis,
-                        ),
+                        if (ago.isNotEmpty)
+                          Text('$ago ago', style: _text(12, secondary)),
                         const Spacer(),
-                        // Source + time
-                        Row(
-                          children: [
-                            Flexible(
-                              child: Text(
-                                item.source ?? 'Gaming',
-                                style: GoogleFonts.inter(
-                                    fontSize: 11, color: Colors.white70),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              _ago(item.publishedAt),
-                              style: GoogleFonts.inter(
-                                  fontSize: 11, color: Colors.white54),
-                            ),
-                            const SizedBox(width: 6),
-                            Icon(Icons.chevron_right, size: 16, color: accent.withOpacity(0.9)),
-                          ],
+                        const Icon(
+                          Icons.chevron_right_rounded,
+                          size: 20,
+                          color: secondary,
                         ),
                       ],
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],

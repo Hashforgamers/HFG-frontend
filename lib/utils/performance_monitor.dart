@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:hash/core/utils/app_logger.dart';
 
 class PerformanceMonitor {
   static final PerformanceMonitor _instance = PerformanceMonitor._internal();
@@ -51,7 +52,7 @@ class PerformanceMonitor {
     if (duration > _frameTimeThreshold) {
       onPerformanceIssue?.call(operation, duration);
       if (kDebugMode) {
-        print('Performance issue detected: $operation took ${duration}ms');
+        AppLogger.d('Performance issue detected: $operation took ${duration}ms');
       }
     }
     
@@ -66,7 +67,7 @@ class PerformanceMonitor {
     
     if (frameTime > _frameTimeThreshold) {
       if (kDebugMode) {
-        print('Slow frame detected in $widgetName: ${frameTime}ms');
+        AppLogger.d('Slow frame detected in $widgetName: ${frameTime}ms');
       }
     }
   }
@@ -85,7 +86,7 @@ class PerformanceMonitor {
     if (currentMemory > _memoryThreshold) {
       onMemoryIssue?.call('High memory usage', currentMemory);
       if (kDebugMode) {
-        print('Memory issue detected: ${currentMemory ~/ (1024 * 1024)}MB');
+        AppLogger.d('Memory issue detected: ${currentMemory ~/ (1024 * 1024)}MB');
       }
     }
     
@@ -240,7 +241,7 @@ mixin PerformanceTrackingMixin<T extends StatefulWidget> on State<T> {
       _operationTimers.remove(operation);
       
       if (mounted && kDebugMode) {
-        print('Operation $operation completed in ${duration}ms');
+        AppLogger.d('Operation $operation completed in ${duration}ms');
       }
     }
   }

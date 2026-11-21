@@ -36,7 +36,7 @@ class Button extends StatelessWidget {
         ),
         alignment: Alignment.center,
         child: buttonType == "text"
-            ? myText("Play", Colors.green, 35)
+            ? myText("Play", const Color(0xff00DC00), 35)
             : icon,
       ),
       onTap: onTap, // <-- use callback directly

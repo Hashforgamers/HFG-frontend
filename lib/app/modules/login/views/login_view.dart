@@ -1,3 +1,4 @@
+import 'package:hash/utils/widgets/hash_splash_logo.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -5,9 +6,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service_locator.dart';
-import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
+import 'package:hash/core/utils/haptics.dart';
 import '../../../../utils/widgets/loader.dart';
 import '../../../../utils/widgets/rgb_light_frame.dart';
 import '../controllers/login_controller.dart';
@@ -25,28 +28,29 @@ class LoginView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      bottomNavigationBar: Container(
-        color: const Color(0xff191919),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Login',
-                style: GoogleFonts.orbitron(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Container(
+          color: const Color(0xff191919),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Login',
+                  style: GoogleFonts.orbitron(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-            // Google Sign-In
-            SafeArea(
-              child: Stack(
+              // Google Sign-In
+              Stack(
                 children: [
                   SizedBox(
                     width: double.infinity,
@@ -91,124 +95,129 @@ class LoginView extends StatelessWidget {
                   ),
                 ],
               ),
-            ),
 
-            // Apple Sign-In (iOS Only)
-            if (isIOS)
-              Stack(
-                children: [
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: RGBLightFrame(
-                      width: Get.width,
-                      height: Get.height,
-                      borderRadius: 12,
-                    ),
-                  ),
-                  Positioned.fill(
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        await controller.appleSignInWithRelayWarning(context);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        shadowColor: Colors.transparent,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Image.asset(
-                            'assets/apple-logo-transparent.png',
-                            height: 20,
-                            width: 20,
-                          ),
-                          const SizedBox(width: 10),
-                          Text(
-                            'Continue with Apple',
-                            style: GoogleFonts.inter(
-                              color: Colors.black,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-            // Phone Sign-In
-            // const SizedBox(height: 12),
-            // Stack(
-            //   children: [
-            //     SizedBox(
-            //       width: double.infinity,
-            //       height: 50,
-            //       child: RGBLightFrame(
-            //         width: Get.width,
-            //         height: Get.height,
-            //         borderRadius: 12,
-            //       ),
-            //     ),
-            //     Positioned.fill(
-            //       child: ElevatedButton(
-            //         onPressed: () => _showPhoneAuthSheet(context),
-            //         style: ElevatedButton.styleFrom(
-            //           backgroundColor: Colors.transparent,
-            //           shadowColor: Colors.transparent,
-            //           shape: RoundedRectangleBorder(
-            //             borderRadius: BorderRadius.circular(12),
-            //           ),
-            //         ),
-            //         child: Row(
-            //           mainAxisAlignment: MainAxisAlignment.center,
-            //           children: [
-            //             const Icon(Icons.sms, color: Colors.white, size: 20),
-            //             const SizedBox(width: 10),
-            //             Text(
-            //               'Continue with Phone',
-            //               style: GoogleFonts.inter(
-            //                 color: Colors.white,
-            //                 fontSize: 16,
-            //               ),
-            //             ),
-            //           ],
-            //         ),
-            //       ),
-            //     ),
-            //   ],
-            // ),
-          ],
-        ),
-      ),
-      body: Stack(
-        children: [
-          SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+              // Apple Sign-In (iOS Only)
+              if (isIOS) const SizedBox(height: 12),
+              if (isIOS)
+                Stack(
                   children: [
-                    // logo
-                    Image.asset('assets/logo.png', width: 160),
-                    const SizedBox(height: 25),
-
-                    // Tag-line
-                    Text(
-                      'Welcome to\nHash for Gamers',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.orbitron(
-                        color: Colors.white70,
-                        fontSize: 18,
-                        letterSpacing: 1.1,
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: RGBLightFrame(
+                        width: Get.width,
+                        height: Get.height,
+                        borderRadius: 12,
+                      ),
+                    ),
+                    Positioned.fill(
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          await controller.appleSignInWithRelayWarning(context);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          shadowColor: Colors.transparent,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Image.asset(
+                              'assets/apple-logo-transparent.png',
+                              height: 20,
+                              width: 20,
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              'Continue with Apple',
+                              style: GoogleFonts.inter(
+                                color: Colors.black,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
+                ),
+
+              // Phone Sign-In
+              // const SizedBox(height: 12),
+              // Stack(
+              //   children: [
+              //     SizedBox(
+              //       width: double.infinity,
+              //       height: 50,
+              //       child: RGBLightFrame(
+              //         width: Get.width,
+              //         height: Get.height,
+              //         borderRadius: 12,
+              //       ),
+              //     ),
+              //     Positioned.fill(
+              //       child: ElevatedButton(
+              //         onPressed: () => _showPhoneAuthSheet(context),
+              //         style: ElevatedButton.styleFrom(
+              //           backgroundColor: Colors.transparent,
+              //           shadowColor: Colors.transparent,
+              //           shape: RoundedRectangleBorder(
+              //             borderRadius: BorderRadius.circular(12),
+              //           ),
+              //         ),
+              //         child: Row(
+              //           mainAxisAlignment: MainAxisAlignment.center,
+              //           children: [
+              //             const Icon(Icons.sms, color: Colors.white, size: 20),
+              //             const SizedBox(width: 10),
+              //             Text(
+              //               'Continue with Phone',
+              //               style: GoogleFonts.inter(
+              //                 color: Colors.white,
+              //                 fontSize: 16,
+              //               ),
+              //             ),
+              //           ],
+              //         ),
+              //       ),
+              //     ),
+              //   ],
+              // ),
+            ],
+          ),
+        ),
+      ),
+      // Body spans the whole screen (behind the login panel) so the logo can
+      // sit at the exact screen centre, where the splash screens put it.
+      extendBody: true,
+      body: Stack(
+        children: [
+          HashSplashLogo.colorBadge(),
+          // Tag-line above the badge: below it the login panel would cover it
+          // on short phones.
+          Positioned.fill(
+            child: LayoutBuilder(
+              builder: (context, c) => Padding(
+                padding: EdgeInsets.fromLTRB(
+                  24,
+                  0,
+                  24,
+                  c.maxHeight / 2 + HashSplashLogo.size / 2,
+                ),
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Text(
+                    'Welcome to\nHash for Gamers',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.orbitron(
+                      color: Colors.white70,
+                      fontSize: 18,
+                      letterSpacing: 1.1,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -216,11 +225,11 @@ class LoginView extends StatelessWidget {
 
           // overlay loader
           Obx(
-                () => controller.isLoading.value
+            () => controller.isLoading.value
                 ? Container(
-              color: Colors.black.withOpacity(0.8),
-              child: const Center(child: RainbowLoadingBar()),
-            )
+                    color: Colors.black.withOpacity(0.8),
+                    child: const Center(child: AppLinearLoader()),
+                  )
                 : const SizedBox.shrink(),
           ),
         ],
@@ -239,7 +248,7 @@ class LoginView extends StatelessWidget {
       ),
       builder: (ctx) {
         return Obx(
-              () => Padding(
+          () => Padding(
             padding: EdgeInsets.only(
               left: 16,
               right: 16,
@@ -259,7 +268,9 @@ class LoginView extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  controller.otpSent.value ? 'Verify OTP' : 'Sign in with Phone',
+                  controller.otpSent.value
+                      ? 'Verify OTP'
+                      : 'Sign in with Phone',
                   style: GoogleFonts.orbitron(
                     color: Colors.white,
                     fontSize: 18,
@@ -288,13 +299,14 @@ class LoginView extends StatelessWidget {
                           items: controller.supportedDialCodes
                               .map(
                                 (c) => DropdownMenuItem<String>(
-                              value: c,
-                              child: Text(c),
-                            ),
-                          )
+                                  value: c,
+                                  child: Text(c),
+                                ),
+                              )
                               .toList(),
                           onChanged: (v) {
-                            if (v != null) controller.selectedDialCode.value = v;
+                            if (v != null)
+                              controller.selectedDialCode.value = v;
                           },
                         ),
                       ),
@@ -305,28 +317,40 @@ class LoginView extends StatelessWidget {
                           keyboardType: TextInputType.number,
                           style: GoogleFonts.inter(color: Colors.white),
                           cursorColor: Colors.white70,
-                          enableInteractiveSelection: false, // block paste/selection
+                          enableInteractiveSelection:
+                              false, // block paste/selection
                           inputFormatters: [
                             FilteringTextInputFormatter.digitsOnly,
-                            LengthLimitingTextInputFormatter(15), // multi-country
+                            LengthLimitingTextInputFormatter(
+                              15,
+                            ), // multi-country
                           ],
                           decoration: InputDecoration(
                             filled: true,
                             fillColor: const Color(0xFF1A1A1A),
                             hintText: 'Phone number',
                             hintStyle: GoogleFonts.inter(color: Colors.white54),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 14,
+                            ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
-                              borderSide: const BorderSide(color: Colors.white12),
+                              borderSide: const BorderSide(
+                                color: Colors.white12,
+                              ),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
-                              borderSide: const BorderSide(color: Colors.white12),
+                              borderSide: const BorderSide(
+                                color: Colors.white12,
+                              ),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
-                              borderSide: const BorderSide(color: Colors.white38),
+                              borderSide: const BorderSide(
+                                color: Colors.white38,
+                              ),
                             ),
                           ),
                         ),
@@ -342,18 +366,36 @@ class LoginView extends StatelessWidget {
                       onPressed: controller.isStartingPhone.value
                           ? null
                           : () async {
-                        await controller.startPhoneSignIn();
-                      },
+                              await Haptics.medium();
+                              await controller.startPhoneSignIn();
+                            },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF2E7D32),
-                        disabledBackgroundColor: const Color(0xFF2E7D32).withOpacity(0.4),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        backgroundColor: const Color(0xff00DC00),
+                        disabledBackgroundColor: const Color(
+                          0xFF2E7D32,
+                        ).withOpacity(0.4),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                       child: Obx(() {
                         return controller.isStartingPhone.value
                             ? const SizedBox(
-                            height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                            : Text('Send OTP', style: GoogleFonts.inter(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600));
+                                height: 18,
+                                width: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : Text(
+                                'Send OTP',
+                                style: GoogleFonts.inter(
+                                  color: Colors.white,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              );
                       }),
                     ),
                   ),
@@ -373,7 +415,10 @@ class LoginView extends StatelessWidget {
                       fillColor: const Color(0xFF1A1A1A),
                       hintText: 'Enter 6-digit OTP',
                       hintStyle: GoogleFonts.inter(color: Colors.white54),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 14,
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
                         borderSide: const BorderSide(color: Colors.white12),
@@ -392,24 +437,36 @@ class LoginView extends StatelessWidget {
 
                   // Countdown + Resend
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Obx(() => Text(
-                        controller.secondsLeft.value > 0
-                            ? 'Resend in ${controller.secondsLeft.value}s'
-                            : 'Didn’t get the code?',
-                        style: GoogleFonts.inter(color: Colors.white60, fontSize: 13),
-                      )),
+                      Expanded(
+                        child: Obx(
+                          () => Text(
+                            controller.secondsLeft.value > 0
+                                ? 'Resend in ${controller.secondsLeft.value}s'
+                                : 'Didn’t get the code?',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              color: Colors.white60,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       TextButton(
                         onPressed: controller.secondsLeft.value > 0
                             ? null
                             : () async {
-                          await controller.resendCode();
-                        },
+                                await Haptics.selection();
+                                await controller.resendCode();
+                              },
                         child: Text(
                           'Resend',
                           style: GoogleFonts.inter(
-                            color: controller.secondsLeft.value > 0 ? Colors.white24 : Colors.white,
+                            color: controller.secondsLeft.value > 0
+                                ? Colors.white24
+                                : Colors.white,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -426,19 +483,36 @@ class LoginView extends StatelessWidget {
                       onPressed: controller.isVerifyingOtp.value
                           ? null
                           : () async {
-                        await controller.verifyOtpAndSignIn();
-                      },
+                              await Haptics.medium();
+                              await controller.verifyOtpAndSignIn();
+                            },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF2E7D32),
-                        disabledBackgroundColor: const Color(0xFF2E7D32).withOpacity(0.4),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        backgroundColor: const Color(0xff00DC00),
+                        disabledBackgroundColor: const Color(
+                          0xFF2E7D32,
+                        ).withOpacity(0.4),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                       child: Obx(() {
                         return controller.isVerifyingOtp.value
                             ? const SizedBox(
-                            height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                            : Text('Verify & Continue',
-                            style: GoogleFonts.inter(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600));
+                                height: 18,
+                                width: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : Text(
+                                'Verify & Continue',
+                                style: GoogleFonts.inter(
+                                  color: Colors.white,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              );
                       }),
                     ),
                   ),

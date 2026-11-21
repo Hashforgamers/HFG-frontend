@@ -1,14 +1,23 @@
 import 'dart:async';
+import 'package:hash/core/utils/app_snackbar.dart';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:facebook_app_events/facebook_app_events.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
+import 'package:hash/core/service/device_identifier_service.dart';
 import 'package:hash/core/service/fb_events_service.dart';
+import 'package:hash/core/service/notification_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
+import 'package:hash/core/utils/haptics.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:hash/app/data/services/user_controller.dart';
+import 'package:hash/core/service/first_session.dart';
 
 class SignUpController extends GetxController {
   var nameController = TextEditingController();
@@ -28,14 +37,22 @@ class SignUpController extends GetxController {
   var avatarPath = ''.obs;
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final facebookAppEvents = FacebookAppEvents();
   final segmentService = locator<SegmentSdkService>();
   final fbEventsService = locator<FbEventsService>();
+  final deviceIdentifierService = locator<DeviceIdentifierService>();
   final remoteRepo = locator<RemoteRepoInterface>();
+  final userController = Get.find<UserController>();
 
-  @override
   Future<void> signUp() async {
     User? currentUser = _auth.currentUser;
+    debugPrint(
+      '[iOS Signup][Controller] signUp() start | isIOS=${!GetPlatform.isWeb && Platform.isIOS} | firebaseUid=${currentUser?.uid} | firebaseEmail=${currentUser?.email} | providers=${currentUser?.providerData.map((p) => p.providerId).join(",")}',
+    );
     if (currentUser == null) {
+      debugPrint(
+        '[iOS Signup][Controller] Aborting signup: currentUser is null',
+      );
       _showError('No Firebase user found. Please log in again.');
       return;
     }
@@ -49,6 +66,11 @@ class SignUpController extends GetxController {
 
     isLoading.value = true;
     try {
+      debugPrint(
+        '[iOS Signup][Controller] Collecting advertising id and building signup payload',
+      );
+      final advertisingId = await deviceIdentifierService
+          .getPreferredAdvertisingId();
       final userData = {
         "fid": currentUser.uid,
         "avatar_path": avatarPath.value,
@@ -74,9 +96,17 @@ class SignUpController extends GetxController {
             "emailId": emailController.text,
           },
         },
+        "advertising_id": advertisingId,
       };
 
-      final response = await remoteRepo.signUp(userData);
+      debugPrint(
+        '[iOS Signup][Controller] Payload ready | fid=${currentUser.uid} | name=${userData["name"]} | gamerTag=${userData["gameUserName"]} | mobile=${mobileNoController.text.trim()} | email=${emailController.text.trim()} | referral=${referralCodeController.text.trim()}',
+      );
+      debugPrint('[iOS Signup][Controller] Calling remoteRepo.signUp(...)');
+
+      await remoteRepo.signUp(userData);
+      debugPrint('[iOS Signup][Controller] remoteRepo.signUp success');
+      await facebookAppEvents.logEvent(name: "fb_mobile_complete_registration");
 
       // Track referral joined event if referral code was used
       if (referralCodeController.text.isNotEmpty) {
@@ -102,16 +132,25 @@ class SignUpController extends GetxController {
         userId: currentUser.uid,
       );
 
-      // Get.snackbar(
+      // AppSnackbar.show(
       //   'Success',
       //   response['message'] ?? 'Signup successful',
-      //   backgroundColor: Colors.green,
+      //   backgroundColor: const Color(0xff00DC00),
       //   colorText: Colors.white,
       // );
 
       await fetchUserData();
-      Get.offAllNamed('/home');
-    } catch (e) {
+      unawaited(_syncPushRegistration());
+      debugPrint('[iOS Signup][Controller] fetchUserData completed');
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('new_user_bonus_pending', true);
+      debugPrint(
+        '[iOS Signup][Controller] new_user_bonus_pending saved, navigating to home',
+      );
+      await FirstSession.finishSignup(via: 'signup_form');
+    } catch (e, st) {
+      debugPrint('[iOS Signup][Controller] Signup failed: $e');
+      debugPrint('[iOS Signup][Controller] Stacktrace: $st');
       _showError('Signup failed: $e');
     } finally {
       isLoading.value = false;
@@ -123,8 +162,15 @@ class SignUpController extends GetxController {
     if (currentUser == null) return;
 
     try {
+      debugPrint(
+        '[iOS Signup][Controller] fetchUserData() | firebaseUid=${currentUser.uid}',
+      );
       final userData = await remoteRepo.checkUserExistsInAPI(currentUser.uid);
       if (userData != null) {
+        debugPrint(
+          '[iOS Signup][Controller] fetchUserData success | keys=${userData.keys.toList()}',
+        );
+        userController.applyBackendUserData(userData);
         nameController.text = userData['name'] ?? '';
         gameUserNameController.text = userData['gameUserName'] ?? '';
         dobController.text = userData['dob'] ?? '';
@@ -144,9 +190,28 @@ class SignUpController extends GetxController {
           stateController.text = physicalAddress['State'] ?? '';
           countryController.text = physicalAddress['Country'] ?? '';
         }
+      } else {
+        debugPrint(
+          '[iOS Signup][Controller] fetchUserData returned null for uid=${currentUser.uid}',
+        );
       }
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('[iOS Signup][Controller] fetchUserData failed: $e');
+      debugPrint('[iOS Signup][Controller] fetchUserData stacktrace: $st');
       _showError('Failed to load user data: $e');
+    }
+  }
+
+  Future<void> _syncPushRegistration() async {
+    if (!Get.isRegistered<NotificationController>()) {
+      return;
+    }
+    try {
+      await Get.find<NotificationController>().registerCurrentTokenWithBackend(
+        forceRefresh: true,
+      );
+    } catch (e) {
+      debugPrint('[Push][Signup] Token sync skipped: $e');
     }
   }
 
@@ -185,7 +250,8 @@ class SignUpController extends GetxController {
         countryController.text = place.country ?? '';
       }
     } else if (status.isDenied || status.isPermanentlyDenied) {
-      Get.snackbar(
+      Haptics.warning();
+      AppSnackbar.show(
         'Location Permission',
         'Location access denied. Enable from settings if needed.',
         backgroundColor: Colors.orange,
@@ -195,7 +261,8 @@ class SignUpController extends GetxController {
   }
 
   void _showError(String msg) {
-    Get.snackbar(
+    Haptics.error();
+    AppSnackbar.show(
       'Error',
       msg,
       backgroundColor: Colors.red,

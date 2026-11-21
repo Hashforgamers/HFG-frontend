@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:hash/core/utils/safe_emit.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hash/core/repositories/model/get_pass_model.dart';
 import 'package:hash/core/repositories/remote/remote_repo_interface.dart';
@@ -6,7 +7,7 @@ import 'package:hash/core/service_locator.dart';
 
 part 'game_pass_state.dart';
 
-class GamePassCubit extends Cubit<GamePassState> {
+class GamePassCubit extends Cubit<GamePassState> with SafeEmit<GamePassState> {
   GamePassCubit() : super(GamePassInitial());
 
   final remoteRepo = locator<RemoteRepoInterface>();

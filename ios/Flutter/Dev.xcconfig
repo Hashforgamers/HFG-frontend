@@ -1,3 +1,3 @@
 #include "Generated.xcconfig"
-APP_NAME = HFG Dev
-PRODUCT_BUNDLE_IDENTIFIER = com.hfg.hash.dev 
+#include "Debug.xcconfig"
+APP_DISPLAY_NAME=HFG Dev

@@ -10,6 +10,7 @@ import '../controllers/cart_controller.dart';
 import '../controllers/fetch_products_by_id_controller.dart';
 import '../products_model.dart';
 import 'cart_view.dart';
+import 'package:hash/core/localization/app_region.dart';
 
 class ProductDetailView extends StatefulWidget {
   final String productId;
@@ -66,7 +67,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
           onTap: () {
             Get.back();
           },
-          child: const Icon(Icons.arrow_back, color: Color(0xff00D701)),
+          child: const Icon(Icons.arrow_back, color: Color(0xff00DC00)),
         ),
         actions: [
           GestureDetector(
@@ -91,7 +92,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
       ),
       body: Obx(() {
         if (controller.isLoading.value) {
-          return  Center(child: RainbowLoadingBar());
+          return  Center(child: AppLinearLoader());
         } else if (controller.errorMessage.isNotEmpty) {
           return Center(child: Text(controller.errorMessage.value));
         } else if (controller.product.value != null) {
@@ -136,7 +137,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                   crossAxisAlignment: CrossAxisAlignment.center,
                                   children: [
                                     Text(
-                                      '₹${(product.price + 122).toStringAsFixed(2)}',
+                                      '${Money.symbol}${(product.price + 122).toStringAsFixed(2)}',
                                       style: GoogleFonts.inter(
                                         color: Colors.grey,
                                         fontSize: 13,
@@ -146,9 +147,9 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                     ),
                                     const SizedBox(width: 10),
                                     Text(
-                                      '₹${product.price.toStringAsFixed(2)}',
+                                      '${Money.symbol}${product.price.toStringAsFixed(2)}',
                                       style: GoogleFonts.inter(
-                                        color: const Color(0xff00D701),
+                                        color: const Color(0xff00DC00),
                                         fontSize: 18,
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -179,7 +180,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                             Text(
                               'Availability: ${product.availability.inStock ? "In Stock" : "Out of Stock"}',
                               style: GoogleFonts.inter(
-                                color: const Color(0xff00D701),
+                                color: const Color(0xff00DC00),
                                 fontSize: 16,
                               ),
                             ),
@@ -239,7 +240,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                     width: double.infinity,
                     fit: BoxFit.contain,
                     placeholder: (context, url) =>
-                        const Center(child: RainbowLoadingBar()),
+                        const Center(child: AppLinearLoader()),
                     errorWidget: (context, url, error) =>
                         const Icon(Icons.error),
                   ),
@@ -263,7 +264,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                     // Handle product buy now tap
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xff00D701),
+                    backgroundColor: const Color(0xff00DC00),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),

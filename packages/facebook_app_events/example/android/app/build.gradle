@@ -1,0 +1,49 @@
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
+    id "dev.flutter.flutter-gradle-plugin"
+}
+
+android {
+    namespace = "id.oddbit.flutter.facebook_app_events_example"
+    compileSdk = flutter.compileSdkVersion
+    ndkVersion = flutter.ndkVersion
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
+    defaultConfig {
+        applicationId = "id.oddbit.flutter.facebook_app_events_example"
+        minSdk = flutter.minSdkVersion
+        targetSdk = flutter.targetSdkVersion
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
+    }
+    
+    signingConfigs {
+        debug {
+            storeFile = file("../debug.keystore")
+            keyAlias = "androiddebugkey"
+            storePassword = "android"
+            keyPassword = "android"
+        }
+    }
+
+    buildTypes {
+        release {
+            // Signing with the debug keys for sample reproducibility.
+            signingConfig = signingConfigs.debug
+        }
+    }
+}
+
+flutter {
+    source = "../.."
+}

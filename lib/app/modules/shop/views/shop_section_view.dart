@@ -10,6 +10,7 @@ import 'package:lottie/lottie.dart';
 
 import '../../../../utils/widgets/loader.dart';
 import '../products_model.dart';
+import 'package:hash/core/localization/app_region.dart';
 
 class ShopSection extends StatelessWidget {
   const ShopSection({super.key});
@@ -180,7 +181,7 @@ class ShopSection extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: Colors.transparent,
                         border: Border.all(
-                          color: const Color(0xFF75F94C),
+                          color: const Color(0xff00DC00),
                           width: 2,
                         ),
                         borderRadius: BorderRadius.circular(25),
@@ -225,11 +226,11 @@ class ShopSection extends StatelessWidget {
                       horizontal: 10,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF00DC00),
+                      color: const Color(0xff00DC00),
                       borderRadius: BorderRadius.circular(5),
                     ),
                     child: Text(
-                      '₹2499',
+                      '${Money.symbol}2499',
                       style: GoogleFonts.inter(
                         color: Colors.black,
                         fontSize: 12,
@@ -316,8 +317,8 @@ class ProductCard extends StatelessWidget {
             ),
             const SizedBox(height: 5),
             Text(
-              '₹${product.price}',
-              style: GoogleFonts.inter(color: Colors.greenAccent, fontSize: 14),
+              '${Money.symbol}${product.price}',
+              style: GoogleFonts.inter(color: const Color(0xff00DC00), fontSize: 14),
             ),
           ],
         ),
@@ -343,7 +344,7 @@ class ProductCard extends StatelessWidget {
           ElevatedButton(
             onPressed: () => _showComingSoonToast(),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xff00D701),
+              backgroundColor: const Color(0xff00DC00),
               shape: ContinuousRectangleBorder(
                 borderRadius: BorderRadius.circular(28),
               ),
@@ -388,7 +389,7 @@ class ProductCard extends StatelessWidget {
               width: Get.width * 0.45,
               height: 150,
               placeholder: (context, url) =>
-                  Center(child: RainbowLoadingBar()),
+                  Center(child: AppLinearLoader()),
               errorWidget: (context, url, error) =>
                   const Icon(Icons.error, color: Colors.red),
             ),

@@ -5,6 +5,7 @@ import 'package:simple_ripple_animation/simple_ripple_animation.dart';
 
 import '../constants.dart';
 import '../ludo_provider.dart';
+import '../skins/ludo_skin.dart';
 
 ///Widget for the pawn
 class PawnWidget extends StatelessWidget {
@@ -13,7 +14,13 @@ class PawnWidget extends StatelessWidget {
   final int step;
   final bool highlight;
 
-  const PawnWidget(this.index, this.type, {super.key, this.highlight = false, this.step = -1});
+  const PawnWidget(
+    this.index,
+    this.type, {
+    super.key,
+    this.highlight = false,
+    this.step = -1,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -48,22 +55,16 @@ class PawnWidget extends StatelessWidget {
           Consumer<LudoProvider>(
             builder: (context, provider, child) => GestureDetector(
               onTap: () {
+                if (!provider.isMyTurn) return;
                 if (step == -1) {
                   provider.move(type, index, (step + 1) + 1);
                 } else {
                   provider.move(type, index, (step + 1) + provider.diceResult);
                 }
-                context.read<LudoProvider>().move(type, index, step);
               },
-              child: Container(
-                decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: color, width: 2)),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: color,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                  ),
-                ),
+              child: LudoPawn(
+                skin: LudoSkin.byId(provider.skinFor(type)),
+                color: color,
               ),
             ),
           ),

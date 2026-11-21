@@ -20,6 +20,7 @@ import '../services/pre_registration_service.dart';
 import '../models/pre_registration_model.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/product_service.dart';
+import 'package:hash/core/localization/app_region.dart';
 
 class ShopView extends StatefulWidget {
   const ShopView({super.key});
@@ -65,7 +66,7 @@ class _ShopViewState extends State<ShopView> {
       toastLength: Toast.LENGTH_SHORT,
       gravity: ToastGravity.BOTTOM,
       timeInSecForIosWeb: 1,
-      backgroundColor: Colors.green,
+      backgroundColor: const Color(0xff00DC00),
       textColor: Colors.white,
       fontSize: 16.0,
     );
@@ -141,7 +142,7 @@ class _ShopViewState extends State<ShopView> {
         ],
       ),
       body: isLoading
-          ? Center(child: RainbowLoadingBar())
+          ? Center(child: AppLinearLoader())
           : errorMessage.isNotEmpty
           ? Center(
               child: Text(
@@ -263,9 +264,9 @@ class _ShopViewState extends State<ShopView> {
                       ),
                       const SizedBox(height: 5),
                       Text(
-                        '₹${product.price}',
+                        '${Money.symbol}${product.price}',
                         style: GoogleFonts.inter(
-                          color: Colors.greenAccent,
+                          color: const Color(0xff00DC00),
                           fontSize: 14,
                         ),
                       ),
@@ -320,7 +321,7 @@ class _ShopViewState extends State<ShopView> {
                         _handlePreRegistration(product);
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xff338125),
+                        backgroundColor: const Color(0xff00DC00),
                         shape: ContinuousRectangleBorder(
                           borderRadius: BorderRadius.circular(28),
                         ),

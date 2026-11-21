@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hash/core/utils/app_snackbar.dart';
 import 'package:get/get.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -38,8 +39,9 @@ class _AddCafeScreenState extends State<AddCafeScreen> {
 
     try {
       // First, get location from pincode
-      List<Location> locations =
-          await locationFromAddress(_pincodeController.text);
+      List<Location> locations = await locationFromAddress(
+        _pincodeController.text,
+      );
       if (locations.isNotEmpty) {
         Location location = locations.first;
 
@@ -67,7 +69,7 @@ class _AddCafeScreenState extends State<AddCafeScreen> {
         }
       }
     } catch (e) {
-      Get.snackbar(
+      AppSnackbar.show(
         'Error',
         'Could not fetch address details. Please enter manually.',
         snackPosition: SnackPosition.BOTTOM,
@@ -96,11 +98,11 @@ class _AddCafeScreenState extends State<AddCafeScreen> {
 
         if (success) {
           Get.back(); // First pop the screen
-          Get.snackbar(
+          AppSnackbar.show(
             'Success',
             'Your cafe request has been submitted successfully! We will review it shortly.',
             snackPosition: SnackPosition.BOTTOM,
-            backgroundColor: Colors.green,
+            backgroundColor: const Color(0xff00DC00),
             colorText: Colors.white,
             duration: const Duration(seconds: 3),
             margin: const EdgeInsets.all(16),
@@ -237,8 +239,9 @@ class _AddCafeScreenState extends State<AddCafeScreen> {
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide:
-                                const BorderSide(color: Color(0xffDE3A3A)),
+                            borderSide: const BorderSide(
+                              color: Color(0xffDE3A3A),
+                            ),
                           ),
                           errorBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -263,9 +266,7 @@ class _AddCafeScreenState extends State<AddCafeScreen> {
                           child: SizedBox(
                             width: 20,
                             height: 20,
-                            child: RainbowLoadingBar(
-
-                            ),
+                            child: AppLinearLoader(),
                           ),
                         ),
                     ],
@@ -286,9 +287,7 @@ class _AddCafeScreenState extends State<AddCafeScreen> {
                           ? const SizedBox(
                               width: 20,
                               height: 20,
-                              child: RainbowLoadingBar(
-
-                              ),
+                              child: AppLinearLoader(),
                             )
                           : Text(
                               'Submit',
@@ -306,10 +305,8 @@ class _AddCafeScreenState extends State<AddCafeScreen> {
           ),
           if (_isLoading)
             Container(
-              color: Colors.black.withOpacity(0.5),
-              child: const Center(
-                child: RainbowLoadingBar()
-              ),
+              color: Colors.black.withValues(alpha: 0.5),
+              child: const Center(child: AppLinearLoader()),
             ),
         ],
       ),

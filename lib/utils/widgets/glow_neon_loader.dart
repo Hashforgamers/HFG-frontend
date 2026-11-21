@@ -19,7 +19,7 @@ class _RainbowGlowingLoaderState extends State<RainbowGlowingLoader>
       Colors.red,
       Colors.orange,
       Colors.yellow,
-      Colors.green,
+      const Color(0xff00DC00),
       Colors.cyan,
       Colors.blue,
       Colors.purple,

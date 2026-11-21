@@ -25,7 +25,7 @@ class TransactionHistoryModel {
     } else {
       amount = 0;
     }
-    
+
     return TransactionHistoryModel(
       amount: amount,
       date: json['date'] ?? '',
