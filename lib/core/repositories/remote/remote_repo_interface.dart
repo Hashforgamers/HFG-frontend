@@ -63,6 +63,8 @@ abstract class RemoteRepoInterface {
     int? suggestedExtraControllerQty,
   });
 
+  Future<Map<String, dynamic>> fetchVendorPricing(int vendorId);
+
   Future<Map<String, dynamic>> fetchBookingPricingEstimate({
     required int vendorId,
     required int gameId,

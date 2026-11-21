@@ -15,6 +15,7 @@ import 'package:hash/core/service/fb_events_service.dart';
 import 'package:hash/core/service/analytics_service.dart';
 import 'booking_design.dart';
 import 'booking_summary_screen.dart';
+import 'booking_pricing_sheet.dart';
 import 'package:hash/core/localization/app_region.dart';
 
 class BookingScreen extends StatefulWidget {
@@ -27,6 +28,9 @@ class BookingScreen extends StatefulWidget {
   final bool isSquadBooking;
   final int requiredConsoleCount;
   final List<ChatUserModel> selectedSquadMembers;
+
+  /// Game-specific rate card picked before this screen (e.g. GTA 6); null = standard.
+  final Map<String, dynamic>? pricingCard;
 
   /// Offers a switch to a squad booking from the app bar; null hides it.
   final Future<void> Function()? onSquadTap;
@@ -42,6 +46,7 @@ class BookingScreen extends StatefulWidget {
     this.isSquadBooking = false,
     this.requiredConsoleCount = 1,
     this.selectedSquadMembers = const <ChatUserModel>[],
+    this.pricingCard,
     this.onSquadTap,
   });
 
@@ -49,7 +54,8 @@ class BookingScreen extends StatefulWidget {
   State<BookingScreen> createState() => _BookingScreenState();
 }
 
-class _BookingScreenState extends State<BookingScreen> {
+class _BookingScreenState extends State<BookingScreen>
+    with WidgetsBindingObserver {
   final BookingController controller = Get.put(BookingController());
   final SegmentSdkService _segmentService = locator<SegmentSdkService>();
   final FbEventsService _fbEventsService = locator<FbEventsService>();
@@ -77,9 +83,79 @@ class _BookingScreenState extends State<BookingScreen> {
       date: selectedDate,
     );
     _loadPricingEstimate();
+    WidgetsBinding.instance.addObserver(this);
 
     // Clear any previous selections when entering the screen
     controller.clearSelectedSlots();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Availability is a snapshot; refresh when the user comes back.
+    if (state == AppLifecycleState.resumed) _refreshSlotsKeepingSelection();
+  }
+
+  bool _slotBookable(Map<String, dynamic> slot, int consolesNeeded) {
+    final available = slot['is_available'] ?? slot['isAvailable'] ?? false;
+    final count =
+        slot['available_slot'] ??
+        slot['availableSlot'] ??
+        slot['available_slots'] ??
+        0;
+    return available == true && count is num && count >= consolesNeeded;
+  }
+
+  /// Re-fetches slots and keeps only selections still bookable.
+  /// Returns false if any selection was dropped (or the fetch failed).
+  Future<bool> _refreshSlotsKeepingSelection() async {
+    final previous = <int, List<Object?>>{};
+    controller.selectedSlots.forEach((pc, indices) {
+      previous[pc] = [
+        for (final i in indices)
+          if (i < controller.slots.length)
+            controller.slots[i]['slot_id'] ?? controller.slots[i]['id'],
+      ];
+    });
+    await controller.fetchSlots(
+      vendorId: widget.vendorId,
+      gameId: widget.gameId,
+      date: selectedDate,
+    );
+    if (controller.slotsError.value.isNotEmpty) {
+      controller.clearSelectedSlots();
+      return previous.isEmpty;
+    }
+    // consoles needed per slot = how many setups picked that slot
+    final need = <Object?, int>{};
+    for (final ids in previous.values) {
+      for (final id in ids) {
+        need[id] = (need[id] ?? 0) + 1;
+      }
+    }
+    var dropped = false;
+    final next = <int, List<int>>{};
+    previous.forEach((pc, ids) {
+      for (final id in ids) {
+        final i = controller.slots.indexWhere(
+          (s) => (s['slot_id'] ?? s['id']) == id,
+        );
+        if (i >= 0 && _slotBookable(controller.slots[i], need[id]!)) {
+          (next[pc] ??= []).add(i);
+        } else {
+          dropped = true;
+        }
+      }
+    });
+    controller.selectedSlots
+      ..clear()
+      ..addAll(next);
+    return !dropped;
   }
 
   /// Get the console type from the passed parameter
@@ -252,6 +328,13 @@ class _BookingScreenState extends State<BookingScreen> {
       title: widget.title,
       subtitle: widget.isSquadBooking ? 'Squad booking' : 'Select your slots',
       actions: [
+        IconButton(
+          tooltip: 'Rates',
+          icon: const Icon(Icons.sell_outlined, size: 20),
+          color: BookingColors.accentBright,
+          onPressed: () =>
+              BookingPricingSheet.show(context, widget.vendorId, widget.gameId),
+        ),
         if (widget.onSquadTap != null)
           Padding(
             padding: const EdgeInsets.only(right: 12),
@@ -346,7 +429,8 @@ class _BookingScreenState extends State<BookingScreen> {
             return _buildEmptySlotsState(
               icon: Icons.schedule_rounded,
               title: 'No slots available',
-              message: 'This cafe has no bookable sessions on this date.',
+              message:
+                  'No consoles available for this time. Please choose another time or try again later.',
             );
           }
 
@@ -359,7 +443,7 @@ class _BookingScreenState extends State<BookingScreen> {
               })
               .where((slot) {
                 final bool isApiAvailable =
-                    slot['is_available'] ?? slot['isAvailable'] ?? true;
+                    slot['is_available'] ?? slot['isAvailable'] ?? false;
                 final int availableConsoles =
                     slot['available_slot'] ??
                     slot['availableSlot'] ??
@@ -528,7 +612,7 @@ class _BookingScreenState extends State<BookingScreen> {
         .map((index) => controller.slots[index])
         .where((slot) {
           final bool isAvailable =
-              slot['is_available'] ?? slot['isAvailable'] ?? true;
+              slot['is_available'] ?? slot['isAvailable'] ?? false;
           final bool isTimeAvailable = isCurrentDate
               ? controller.isSlotAvailableNow(slot)
               : true;
@@ -624,7 +708,7 @@ class _BookingScreenState extends State<BookingScreen> {
     final bool isCurrentDate =
         selectedDate == DateFormat('yyyyMMdd').format(DateTime.now());
     final bool isApiAvailable =
-        slot['is_available'] ?? slot['isAvailable'] ?? true;
+        slot['is_available'] ?? slot['isAvailable'] ?? false;
     final bool isTimeAvailable = isCurrentDate
         ? controller.isSlotAvailableNow(slot)
         : true;
@@ -936,6 +1020,9 @@ class _BookingScreenState extends State<BookingScreen> {
           }
         });
       }
+      final card = widget.pricingCard;
+      final cardTotal = card == null ? null : _gameCardTotal(card);
+      if (cardTotal != null) totalPrice = cardTotal;
       final estimatedDiscountPerSlot = _asDouble(
         pricingEngine?['squad_discount_amount'],
       );
@@ -959,6 +1046,17 @@ class _BookingScreenState extends State<BookingScreen> {
                           letterSpacing: -0.5,
                         ),
                       ),
+                      if (card != null)
+                        Text(
+                          cardTotal == null && totalSelectedSlots > 0
+                              ? '${card['name']}: no rate for this duration, ask the café'
+                              : '${card['name']} estimate',
+                          style: GoogleFonts.inter(
+                            color: BookingColors.accentBright,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       const SizedBox(height: 2),
                       Text(
                         '$selectedConsoleCount/$_requiredSelectionCount ${_consoleCollectionLabel(_requiredSelectionCount)} • $totalSelectedSlots slot(s)',
@@ -1048,6 +1146,36 @@ class _BookingScreenState extends State<BookingScreen> {
     });
   }
 
+  int _slotMinutes(Map<String, dynamic> slot) {
+    int m(dynamic t) {
+      final p = '$t'.split(':');
+      return int.parse(p[0]) * 60 + int.parse(p[1]);
+    }
+
+    try {
+      final d = m(slot['end_time']) - m(slot['start_time']);
+      return d > 0 ? d : d + 24 * 60; // crosses midnight
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  /// Sum of per-console session estimates on the game card; null if any
+  /// console's duration matches no rule (dashboard doesn't fall back).
+  double? _gameCardTotal(Map<String, dynamic> card) {
+    double total = 0;
+    for (final indices in controller.selectedSlots.values) {
+      final minutes = indices
+          .where((i) => i < controller.slots.length)
+          .fold<int>(0, (s, i) => s + _slotMinutes(controller.slots[i]));
+      if (minutes == 0) continue;
+      final amount = estimateCardAmount(card, minutes: minutes);
+      if (amount == null) return null;
+      total += amount;
+    }
+    return total;
+  }
+
   Future<void> onProceed() async {
     if (_isOpeningSummary) return;
     final selectedConsoleCount = _getSelectedConsoleCount();
@@ -1064,6 +1192,18 @@ class _BookingScreenState extends State<BookingScreen> {
     if (incompleteSlotTimes.isNotEmpty) {
       _showSelectionCountError(
         'Complete ${incompleteSlotTimes.first} for all $_requiredSelectionCount setups, or remove that partial slot.',
+      );
+      return;
+    }
+
+    // Availability can change any second: re-check right before checkout.
+    setState(() => _isOpeningSummary = true);
+    final stillValid = await _refreshSlotsKeepingSelection();
+    if (mounted) setState(() => _isOpeningSummary = false);
+    if (!mounted) return;
+    if (!stillValid) {
+      _showSelectionCountError(
+        'Some selected slots were just taken. Please choose again.',
       );
       return;
     }
@@ -1089,6 +1229,10 @@ class _BookingScreenState extends State<BookingScreen> {
           "start_time": slot['start_time'],
           "end_time": slot['end_time'],
           "price": slot['single_slot_price'] ?? 50,
+          if (widget.pricingCard != null) ...{
+            "pricing_profile": widget.pricingCard!['profile'],
+            "pricing_revision": widget.pricingCard!['revision'],
+          },
         });
       }
     });

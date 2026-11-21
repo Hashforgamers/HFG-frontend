@@ -122,7 +122,7 @@ class BookingController extends GetxController {
       // until their start time.
       return now.isBefore(slotStartTime);
     } catch (e) {
-      return true; // Default to available if error
+      return false; // fail closed: unparseable slot is not bookable
     }
   }
 
@@ -134,7 +134,7 @@ class BookingController extends GetxController {
       return slots.where((slot) {
         // First check if slot is available from API
         final bool isAvailable =
-            slot['is_available'] ?? slot['isAvailable'] ?? true;
+            slot['is_available'] ?? slot['isAvailable'] ?? false;
 
         // Then check if slot is available based on current time (only for current date)
         final bool isTimeAvailable = isCurrentDate
@@ -152,7 +152,7 @@ class BookingController extends GetxController {
       }).toList();
     } catch (e) {
       AppLogger.d('Error getting filtered slots: $e');
-      return slots.toList();
+      return const []; // fail closed
     }
   }
 

@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hash/app/modules/arena/views/booking_design.dart';
+import 'package:hash/app/modules/arena/views/booking_summary/booking_payment_methods.dart';
 import 'package:hash/app/modules/cafe_play/data/cafe_live_session_sync.dart';
 import 'package:hash/app/modules/cafe_play/data/cafe_play_api.dart';
 import 'package:hash/app/modules/cafe_play/models/cafe_play_models.dart';
@@ -72,6 +73,10 @@ class _CafeCheckoutSheetState extends State<CafeCheckoutSheet> {
   bool _submitting = false;
   CafeDuration? _selected;
 
+  /// From the cafe's payment-methods config; null until known (or if the
+  /// lookup fails, when the server still enforces it on checkout).
+  bool? _walletEnabled;
+
   // An idempotency key is reused for retries of the same intent (e.g. after a
   // timeout) and regenerated only when the intent changes.
   String? _intent;
@@ -111,12 +116,25 @@ class _CafeCheckoutSheetState extends State<CafeCheckoutSheet> {
               );
         _loading = false;
       });
+      unawaited(_loadWalletEnabled(checkout.vendorId));
     } on CafePlayException catch (e) {
       if (!mounted) return;
       setState(() {
         _error = e.message;
         _loading = false;
       });
+    }
+  }
+
+  Future<void> _loadWalletEnabled(int vendorId) async {
+    try {
+      final methods = await CafePaymentMethods.fetch(vendorId);
+      if (!mounted) return;
+      setState(
+        () => _walletEnabled = methods.has(CafePaymentMethods.cafeWallet),
+      );
+    } catch (e) {
+      debugPrint('[CafeCheckout] payment methods lookup failed: $e');
     }
   }
 
@@ -263,16 +281,20 @@ class _CafeCheckoutSheetState extends State<CafeCheckoutSheet> {
     final canAfford =
         selectedAmount != null && checkout.availableBalance >= selectedAmount;
     final anyAvailable = policy.durations.any((d) => d.isAvailable);
+    final anyAffordable = policy.durations.any(
+      (d) => d.amount != null && d.amount! <= checkout.availableBalance,
+    );
     final unavailableReason = policy.durations
         .map((d) => d.unavailableReason)
         .firstWhere((r) => r != null, orElse: () => null);
 
     final hasActive = checkout.activeSessionId != null;
-    final showBuy = !hasActive && policy.durations.isNotEmpty;
+    final walletOff = _walletEnabled == false;
+    final showBuy = !hasActive && policy.durations.isNotEmpty && !walletOff;
     final _CheckoutStatus status;
     if (hasActive) {
       status = const _CheckoutStatus('Session running', _CheckoutTone.live);
-    } else if (!policy.selfService) {
+    } else if (!policy.selfService || walletOff) {
       status = const _CheckoutStatus('Ask at the desk', _CheckoutTone.warning);
     } else if (policy.durations.isNotEmpty && !anyAvailable) {
       status = const _CheckoutStatus('Unavailable', _CheckoutTone.warning);
@@ -282,121 +304,134 @@ class _CafeCheckoutSheetState extends State<CafeCheckoutSheet> {
       status = const _CheckoutStatus('Ready to play', _CheckoutTone.live);
     }
 
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _CheckoutGlassCard(
-            cafeName: checkout.cafeName,
-            consoleNumber: checkout.consoleNumber,
-            balance: checkout.availableBalance,
-            selected: showBuy ? selected : null,
-            status: status,
-            footer: showBuy
-                ? Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final d in policy.durations)
-                        _DurationChip(
-                          duration: d,
-                          selected: identical(d, selected),
-                          onTap: _submitting || !d.isAvailable
+    // Scrollable details on top; the pay / open action stays pinned below so
+    // it is never scrolled out of reach by a long duration list.
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Flexible(
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _CheckoutGlassCard(
+                  cafeName: checkout.cafeName,
+                  consoleNumber: checkout.consoleNumber,
+                  balance: checkout.availableBalance,
+                  selected: showBuy ? selected : null,
+                  status: status,
+                  footer: showBuy
+                      ? _DurationGrid(
+                          durations: policy.durations,
+                          selected: selected,
+                          balance: checkout.availableBalance,
+                          onSelect: _submitting
                               ? null
-                              : () => setState(() => _selected = d),
-                        ),
-                    ],
-                  )
-                : null,
-            sessionRunning: hasActive,
-            footerLabel: checkout.bookings.isEmpty
-                ? 'BUY PLAY TIME'
-                : 'OR BUY A NEW SESSION',
-          ),
-          if (_notice != null) ...[
-            const SizedBox(height: BookingSpacing.md),
-            _Notice(text: _notice!),
-          ],
-          if (hasActive) ...[
-            const SizedBox(height: BookingSpacing.xl),
-            BookingPrimaryButton(
-              label: 'View running session',
-              icon: Icons.play_circle_fill_rounded,
-              loading: _submitting,
-              onPressed: () => _openActive(checkout.activeSessionId!),
-            ),
-          ] else ...[
-            if (!policy.selfService) ...[
-              const SizedBox(height: BookingSpacing.md),
-              const _Notice(
-                text:
-                    'Self check-in is turned off at this cafe. Please ask at the desk.',
-              ),
-            ],
-            if (checkout.bookings.isNotEmpty) ...[
-              const SizedBox(height: BookingSpacing.xl),
-              Text('YOUR BOOKINGS', style: BookingText.sectionLabel(context)),
-              const SizedBox(height: BookingSpacing.sm),
-              for (final b in checkout.bookings)
-                _BookingTile(
-                  booking: b,
-                  enabled: policy.selfService && !_submitting,
-                  onStart: () => _submit(
-                    (key) => _api.startBooking(
-                      qr: widget.qr,
-                      bookingId: b.bookingId,
-                      idempotencyKey: key,
-                    ),
-                    'booking:${b.bookingId}',
+                              : (d) => setState(() => _selected = d),
+                        )
+                      : null,
+                  sessionRunning: hasActive,
+                  footerLabel: checkout.bookings.isEmpty
+                      ? 'BUY PLAY TIME'
+                      : 'OR BUY A NEW SESSION',
+                ),
+                if (!hasActive && policy.selfService && walletOff) ...[
+                  const SizedBox(height: BookingSpacing.md),
+                  const _Notice(
+                    text:
+                        'This cafe doesn\'t take cafe wallet payments for PC time. Please pay at the desk.',
                   ),
-                ),
-            ],
-            if (showBuy) ...[
-              const SizedBox(height: BookingSpacing.lg),
-              if (!anyAvailable)
-                _Notice(
-                  text:
-                      'Play time can\'t be bought on this PC right now. Please ask at the cafe desk.'
-                      '${unavailableReason == null ? '' : '\n\n$unavailableReason'}',
-                )
-              else ...[
-                if (selectedAmount != null && !canAfford)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: BookingSpacing.md),
-                    child: _Notice(
-                      text:
-                          'Not enough cafe balance. Top up ${cafeMoney(selectedAmount - checkout.availableBalance)} at the cafe desk.',
-                    ),
+                ],
+                if (!hasActive && !policy.selfService) ...[
+                  const SizedBox(height: BookingSpacing.md),
+                  const _Notice(
+                    text:
+                        'Self check-in is turned off at this cafe. Please ask at the desk.',
                   ),
-                BookingPrimaryButton(
-                  label: selectedAmount == null
-                      ? 'Select a duration'
-                      : 'Pay ${cafeMoney(selectedAmount)} from cafe wallet',
-                  icon: Icons.account_balance_wallet_rounded,
-                  loading: _submitting,
-                  enabled: policy.selfService && canAfford,
-                  onPressed: selected == null || selectedAmount == null
-                      ? null
-                      : () => _submit(
-                          (key) => _api.buyWalletTime(
-                            qr: widget.qr,
-                            duration: selected,
-                            idempotencyKey: key,
-                          ),
-                          'wallet:${selected.minutes}:$selectedAmount',
+                ],
+                if (!hasActive && checkout.bookings.isNotEmpty) ...[
+                  const SizedBox(height: BookingSpacing.xl),
+                  Text(
+                    'YOUR BOOKINGS',
+                    style: BookingText.sectionLabel(context),
+                  ),
+                  const SizedBox(height: BookingSpacing.sm),
+                  for (final b in checkout.bookings)
+                    _BookingTile(
+                      booking: b,
+                      enabled: policy.selfService && !_submitting,
+                      onStart: () => _submit(
+                        (key) => _api.startBooking(
+                          qr: widget.qr,
+                          bookingId: b.bookingId,
+                          idempotencyKey: key,
                         ),
-                ),
-                const SizedBox(height: BookingSpacing.sm),
-                Text(
-                  'Amount is held now and charged only when the PC unlocks.',
-                  textAlign: TextAlign.center,
-                  style: BookingText.muted(context),
-                ),
+                        'booking:${b.bookingId}',
+                      ),
+                    ),
+                ],
               ],
-            ],
+            ),
+          ),
+        ),
+        if (_notice != null) ...[
+          const SizedBox(height: BookingSpacing.md),
+          _Notice(text: _notice!),
+        ],
+        if (hasActive) ...[
+          const SizedBox(height: BookingSpacing.lg),
+          BookingPrimaryButton(
+            label: 'View running session',
+            icon: Icons.play_circle_fill_rounded,
+            loading: _submitting,
+            onPressed: () => _openActive(checkout.activeSessionId!),
+          ),
+        ] else if (showBuy) ...[
+          const SizedBox(height: BookingSpacing.md),
+          if (!anyAvailable)
+            _Notice(
+              text:
+                  'Play time can\'t be bought on this PC right now. Please ask at the cafe desk.'
+                  '${unavailableReason == null ? '' : '\n\n$unavailableReason'}',
+            )
+          else ...[
+            if (selectedAmount != null && !canAfford)
+              Padding(
+                padding: const EdgeInsets.only(bottom: BookingSpacing.md),
+                child: _Notice(
+                  text:
+                      'Not enough cafe balance. Top up ${cafeMoney(selectedAmount - checkout.availableBalance)} at the cafe desk'
+                      '${anyAffordable ? ', or pick a shorter time.' : '.'}',
+                ),
+              ),
+            BookingPrimaryButton(
+              label: selectedAmount == null
+                  ? 'Select a duration'
+                  : 'Pay ${cafeMoney(selectedAmount)} from cafe wallet',
+              icon: Icons.account_balance_wallet_rounded,
+              loading: _submitting,
+              enabled: policy.selfService && canAfford,
+              onPressed: selected == null || selectedAmount == null
+                  ? null
+                  : () => _submit(
+                      (key) => _api.buyWalletTime(
+                        qr: widget.qr,
+                        duration: selected,
+                        idempotencyKey: key,
+                      ),
+                      'wallet:${selected.minutes}:$selectedAmount',
+                    ),
+            ),
+            const SizedBox(height: BookingSpacing.sm),
+            Text(
+              'Amount is held now and charged only when the PC unlocks.',
+              textAlign: TextAlign.center,
+              style: BookingText.muted(context),
+            ),
           ],
         ],
-      ),
+      ],
     );
   }
 }
@@ -646,34 +681,38 @@ class _CheckoutGlassCardState extends State<_CheckoutGlassCard>
           const SizedBox(height: 8),
           widget.footer!,
           const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: Container(
-              height: 6,
-              width: double.infinity,
-              color: Colors.white.withValues(alpha: 0.10),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: AnimatedFractionallySizedBox(
-                  duration: const Duration(milliseconds: 850),
-                  curve: Curves.easeOutCubic,
-                  widthFactor: usage,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: statusColor,
-                      boxShadow: [
-                        BoxShadow(
-                          color: statusColor.withValues(alpha: 0.45),
-                          blurRadius: 10,
-                        ),
-                      ],
+          // With an empty wallet the bar is always empty and reads like a
+          // scrollbar; show it only when there is a balance to measure.
+          if (widget.balance > 0) ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: Container(
+                height: 6,
+                width: double.infinity,
+                color: Colors.white.withValues(alpha: 0.10),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: AnimatedFractionallySizedBox(
+                    duration: const Duration(milliseconds: 850),
+                    curve: Curves.easeOutCubic,
+                    widthFactor: usage,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: statusColor,
+                        boxShadow: [
+                          BoxShadow(
+                            color: statusColor.withValues(alpha: 0.45),
+                            blurRadius: 10,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(height: 7),
+            const SizedBox(height: 7),
+          ],
           Row(
             children: [
               ScaleTransition(
@@ -849,15 +888,74 @@ class _BookingTile extends StatelessWidget {
   }
 }
 
+/// Durations as an even 3-column grid, so a long price list stays compact and
+/// easy to scan instead of a ragged wrap.
+class _DurationGrid extends StatelessWidget {
+  const _DurationGrid({
+    required this.durations,
+    required this.selected,
+    required this.balance,
+    required this.onSelect,
+  });
+
+  final List<CafeDuration> durations;
+  final CafeDuration? selected;
+
+  /// Paise.
+  final int balance;
+  final ValueChanged<CafeDuration>? onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    const gap = 8.0;
+    return LayoutBuilder(
+      builder: (context, box) {
+        final width = (box.maxWidth - gap * 2) / 3;
+        return Wrap(
+          spacing: gap,
+          runSpacing: gap,
+          children: [
+            for (final d in durations)
+              SizedBox(
+                width: width,
+                child: _DurationChip(
+                  duration: d,
+                  selected: identical(d, selected),
+                  affordable: (d.amount ?? 0) <= balance,
+                  onTap: onSelect == null || !d.isAvailable
+                      ? null
+                      : () => onSelect!(d),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// "1h 30m" instead of "1 hr 30 min" so mixed durations fit a grid cell.
+String _compactLabel(CafeDuration d) {
+  final h = d.minutes ~/ 60, m = d.minutes % 60;
+  if (d.minutes <= 0) return d.label;
+  if (h == 0) return '$m min';
+  if (m == 0) return '$h hr';
+  return '${h}h ${m}m';
+}
+
 class _DurationChip extends StatelessWidget {
   const _DurationChip({
     required this.duration,
     required this.selected,
+    required this.affordable,
     required this.onTap,
   });
 
   final CafeDuration duration;
   final bool selected;
+
+  /// Whether the wallet covers it; unaffordable prices show in warning colour.
+  final bool affordable;
   final VoidCallback? onTap;
 
   @override
@@ -873,7 +971,7 @@ class _DurationChip extends StatelessWidget {
           onTap: onTap,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
             decoration: BoxDecoration(
               color: selected
                   ? const Color(0xFF132A22)
@@ -897,17 +995,23 @@ class _DurationChip extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  duration.label,
+                  _compactLabel(duration),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.spaceGrotesk(
                     color: Colors.white,
-                    fontSize: 15,
+                    fontSize: 14,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 Text(
                   available ? cafeMoney(amount) : 'Unavailable',
                   style: GoogleFonts.inter(
-                    color: selected ? _brandGreen : Colors.white60,
+                    color: selected
+                        ? _brandGreen
+                        : available && !affordable
+                        ? BookingColors.warning
+                        : Colors.white60,
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),

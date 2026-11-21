@@ -26,6 +26,7 @@ class ArenaDetailHeader extends StatefulWidget {
   final VoidCallback onShare;
   final String title;
   final String address;
+
   /// Null while the shop status is still loading; the pill is hidden then.
   final bool? isOpen;
   final double height;

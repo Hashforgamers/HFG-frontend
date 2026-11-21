@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -6,6 +5,7 @@ import 'package:hash/app/modules/arena/cubit/get_food_menu_cubit.dart';
 import 'package:hash/core/repositories/model/food_menu_model.dart';
 import 'package:hash/core/service/segment_sdk_service.dart';
 import 'package:hash/core/service_locator.dart';
+import 'package:hash/utils/widgets/food_image.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
 
 class MenuViewPage extends StatelessWidget {
@@ -379,21 +379,8 @@ class _MenuViewState extends State<MenuView> with TickerProviderStateMixin {
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: CachedNetworkImage(
-                  imageUrl: menuItem.imageUrl ?? menuItem.image_url ?? '',
-                  fit: BoxFit.cover,
-                  placeholder: (_, __) => Container(
-                    color: const Color(0xFF2A2A2A),
-                    child: const Center(child: RainbowGlowingLoader(size: 20)),
-                  ),
-                  errorWidget: (_, __, ___) => Container(
-                    color: const Color(0xFF2A2A2A),
-                    child: const Icon(
-                      Icons.fastfood,
-                      color: Colors.white54,
-                      size: 32,
-                    ),
-                  ),
+                child: FoodImage(
+                  url: menuItem.imageUrl ?? menuItem.image_url,
                 ),
               ),
             ),
@@ -714,33 +701,7 @@ class _MenuViewState extends State<MenuView> with TickerProviderStateMixin {
             decoration: BoxDecoration(borderRadius: BorderRadius.circular(8)),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: item['imageUrl'] != null
-                  ? CachedNetworkImage(
-                      imageUrl: item['imageUrl']!,
-                      fit: BoxFit.cover,
-                      placeholder: (_, __) => Container(
-                        color: const Color(0xFF3A3A3A),
-                        child: const Center(
-                          child: RainbowGlowingLoader(size: 16),
-                        ),
-                      ),
-                      errorWidget: (_, __, ___) => Container(
-                        color: const Color(0xFF3A3A3A),
-                        child: const Icon(
-                          Icons.fastfood,
-                          color: Colors.white54,
-                          size: 20,
-                        ),
-                      ),
-                    )
-                  : Container(
-                      color: const Color(0xFF3A3A3A),
-                      child: const Icon(
-                        Icons.fastfood,
-                        color: Colors.white54,
-                        size: 20,
-                      ),
-                    ),
+              child: FoodImage(url: item['imageUrl']),
             ),
           ),
           const SizedBox(width: 12),

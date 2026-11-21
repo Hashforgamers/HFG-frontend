@@ -1155,6 +1155,20 @@ class RemoteRepo implements RemoteRepoInterface {
   }
 
   @override
+  Future<Map<String, dynamic>> fetchVendorPricing(int vendorId) async {
+    // Public, no-store endpoint: always fetched fresh, never cached. Errors
+    // (incl. 503) propagate so the UI shows "pricing unavailable", never 0.
+    final response = await networkProvider.noAuth().get(
+      '${ApiEndpoints.vendorGames}/$vendorId/pricing',
+    );
+    final data = response.data;
+    if (response.statusCode == 200 && data is Map) {
+      return Map<String, dynamic>.from(data);
+    }
+    throw Exception('Pricing unavailable (${response.statusCode})');
+  }
+
+  @override
   Future<Map<String, dynamic>> fetchBookingPricingEstimate({
     required int vendorId,
     required int gameId,

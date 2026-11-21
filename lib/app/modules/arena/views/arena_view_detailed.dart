@@ -1,3 +1,4 @@
+import 'package:hash/app/modules/arena/views/booking_pricing_sheet.dart';
 import 'package:hash/core/utils/share_origin.dart';
 import 'dart:async';
 import 'package:hash/core/utils/app_snackbar.dart';
@@ -29,6 +30,7 @@ import 'package:hash/core/service/funnel_notification_service.dart';
 import 'package:hash/core/service/analytics_service.dart';
 import 'package:hash/core/service_locator.dart';
 import 'package:hash/utils/widgets/bounce_tap_widget.dart';
+import 'package:hash/utils/widgets/food_image.dart';
 import 'package:hash/utils/widgets/glow_neon_loader.dart';
 import 'package:hash/utils/widgets/loader.dart';
 import 'package:share_plus/share_plus.dart';
@@ -2195,6 +2197,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
       Future<void> launch(
         Map<String, dynamic> selectedConsole, {
         BookingPartySelection? party,
+        Map<String, dynamic>? pricingCard,
       }) async {
         final selectedType = (selectedConsole['type'] ?? '').toString();
         final selectedGameId = asInt(selectedConsole['booking_game_id']);
@@ -2205,6 +2208,13 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
           );
           return;
         }
+        // Ask which game (e.g. GTA 6) when the platform has game-specific rates.
+        pricingCard ??= await pickPricingGame(
+          this.context,
+          vendorId: widget.vendorId,
+          gameId: selectedGameId,
+        );
+        if (pricingCard == null || !mounted) return; // dismissed
         final isSquad = party?.isSquad ?? false;
         final canSquad =
             _normalizeConsoleType(selectedType) == 'pc' &&
@@ -2218,6 +2228,7 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
               gameId: selectedGameId,
               vendorId: widget.vendorId,
               cartItems: cartItems ?? [],
+              pricingCard: pricingCard!.isEmpty ? null : pricingCard,
               isSquadBooking: isSquad,
               requiredConsoleCount: party?.requiredConsoleCount ?? 1,
               selectedSquadMembers:
@@ -2233,7 +2244,11 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                         return;
                       }
                       Navigator.of(slotContext).pop();
-                      await launch(selectedConsole, party: selection);
+                      await launch(
+                        selectedConsole,
+                        party: selection,
+                        pricingCard: pricingCard,
+                      );
                     },
             ),
           ),
@@ -2979,15 +2994,11 @@ class _ArenaDetailViewState extends State<ArenaDetailView> {
                   child: Column(
                     children: [
                       Expanded(
-                        child: CachedNetworkImage(
-                          imageUrl: item['image'] ?? '',
-                          fit: BoxFit.contain,
-                          placeholder: (_, _) => const Center(
-                            child: RainbowGlowingLoader(size: 10),
-                          ),
-                          errorWidget: (_, _, _) => const Icon(
-                            Icons.fastfood_rounded,
-                            color: HomeTokens.textTertiary,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: FoodImage(
+                            url: item['image'],
+                            fit: BoxFit.contain,
                           ),
                         ),
                       ),
